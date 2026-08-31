@@ -1,0 +1,6 @@
+integrador1\utils\CargarDatos.class
+integrador1\factory\ConnectionManager.class
+integrador1\App.class
+integrador1\repositorio\MySqlConnectionManager.class
+integrador1\Main.class
+integrador1\utils\BorrarDatos.class

@@ -165,5 +165,34 @@ public class MySqlProductoDAO implements ProductoDAO {
 
         return p;
     }
+
+
+    // Desde el Main:
+    // Producto producto = productoDAO.obtenerProductoMayorRecaudacion();
+    // System.out.println(producto);
+    @Override
+    public Producto productoMayorRecaudacion(){
+       final String sql =
+        "SELECT p.idProducto, p.nombre, p.valor " +
+        "FROM Producto p " +
+        "JOIN Factura_Producto fp ON p.idProducto = fp.idProducto " +
+        "GROUP BY p.idProducto, p.nombre, p.valor " +
+        "ORDER BY SUM(fp.cantidad * p.valor) DESC " +
+        "LIMIT 1";
+    try (
+        PreparedStatement ps = cn.prepareStatement(sql);
+        ResultSet rs = ps.executeQuery()) {
+
+        if (rs.next()) {
+            return map(rs);
+        }
+
+    } catch (SQLException e) {
+        throw new RuntimeException("Error en obtener el producto de mayor recaudacion", e);
+    }
+
+    return null;
+
+    }
 }
 

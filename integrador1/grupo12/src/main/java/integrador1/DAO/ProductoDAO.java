@@ -17,5 +17,7 @@ public interface ProductoDAO {
     void delete(Integer idProducto);
 
     void deleteAll();
+
+    public Producto productoMayorRecaudacion() ;
 }
 

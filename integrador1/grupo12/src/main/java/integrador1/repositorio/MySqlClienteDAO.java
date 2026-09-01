@@ -155,15 +155,15 @@ public class MySqlClienteDAO implements ClienteDAO {
     @Override
     //se llama directamente del main y ya imprime sola
     public void imprimirListaFacturacion() {
-        final String sql = """
-            SELECT c.idCliente, c.nombre, c.email
-            FROM Cliente c
-            JOIN Factura f ON c.idCliente = f.idCliente
-            JOIN Factura_Producto fp ON f.idFactura = fp.idFactura
-            JOIN Producto p ON fp.idProducto = p.idProducto
-            GROUP BY c.idCliente, c.nombre, c.email
-            ORDER BY SUM(fp.cantidad * p.valor) DESC
-            """;
+        final String sql = 
+            "SELECT c.idCliente, c.nombre, c.email"+
+             " FROM Cliente c"+
+             " JOIN Factura f ON c.idCliente = f.idCliente"+
+             " JOIN Factura_Producto fp ON f.idFactura = fp.idFactura"+
+             " JOIN Producto p ON fp.idProducto = p.idProducto"+
+             " GROUP BY c.idCliente, c.nombre, c.email"+
+             " ORDER BY SUM(fp.cantidad * p.valor) DESC";
+
         List<Cliente> lista = new ArrayList<>();
         try (PreparedStatement ps = cn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {

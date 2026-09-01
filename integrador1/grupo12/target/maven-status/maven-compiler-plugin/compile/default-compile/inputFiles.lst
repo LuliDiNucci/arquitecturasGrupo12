@@ -1,20 +1,20 @@
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\App.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\DAO\ClienteDAO.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\DAO\FacturaDAO.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\DAO\FacturaProductoDAO.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\DAO\ProductoDAO.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\entity\AllArgsConstructor.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\entity\Cliente.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\entity\Factura.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\entity\Factura_Producto.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\entity\Producto.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\factory\ConnectionManager.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\Main.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\repositorio\MySqlClienteDAO.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\repositorio\MySqlConnectionManager.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\repositorio\MySqlFacturaDAO.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\repositorio\MySQLFacturaProductoDAO.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\repositorio\MySqlProductoDAO.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\TestConexion.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\utils\BorrarDatos.java
-C:\Users\LENOVO\OneDrive\Desktop\TUDAI\ARQUITECTURAS\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\utils\CargarDatos.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\App.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\DAO\ClienteDAO.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\DAO\FacturaDAO.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\DAO\FacturaProductoDAO.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\DAO\ProductoDAO.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\entity\AllArgsConstructor.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\entity\Cliente.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\entity\Factura.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\entity\Factura_Producto.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\entity\Producto.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\factory\ConnectionManager.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\Main.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\repositorio\MySqlClienteDAO.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\repositorio\MySqlConnectionManager.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\repositorio\MySqlFacturaDAO.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\repositorio\MySQLFacturaProductoDAO.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\repositorio\MySqlProductoDAO.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\TestConexion.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\utils\BorrarDatos.java
+C:\Me!\TUDAI\3° año\Segundo cuatrimestre\Arquitecturas\arquitecturasGrupo12\integrador1\grupo12\src\main\java\integrador1\utils\CargarDatos.java

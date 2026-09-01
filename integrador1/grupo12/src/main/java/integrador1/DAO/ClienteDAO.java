@@ -17,5 +17,7 @@ public interface ClienteDAO {
     void delete(Integer idCliente);
 
     void deleteAll();
+
+    public void imprimirListaFacturacion();
 }
 

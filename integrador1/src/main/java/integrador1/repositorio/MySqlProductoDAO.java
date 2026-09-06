@@ -1,0 +1,173 @@
+package integrador1.repositorio;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.List;
+
+import integrador1.DAO.ProductoDAO;
+import integrador1.entity.Producto;
+
+public class MySqlProductoDAO implements ProductoDAO {
+
+    private final Connection cn;
+
+    public MySqlProductoDAO(Connection cn) {
+        this.cn = cn;
+    }
+
+    @Override
+    public Producto findById(Integer idProducto) {
+        final String sql
+                = "SELECT idProducto, nombre, valor FROM producto WHERE idProducto = ?";
+
+        try (PreparedStatement ps = cn.prepareStatement(sql)) {
+
+            ps.setInt(1, idProducto);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? map(rs) : null;
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error en findById(producto)", e);
+        }
+    }
+
+    @Override
+    public List<Producto> findAll() {
+        final String sql
+                = "SELECT idProducto, nombre, valor FROM producto";
+
+        List<Producto> out = new ArrayList<>();
+
+        try (PreparedStatement ps = cn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                out.add(map(rs));
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error en findAll(producto)", e);
+        }
+
+        return out;
+    }
+
+    @Override
+    public void create(Producto p) {
+
+        final String sql
+                = "INSERT INTO producto (idProducto, nombre, valor) VALUES (?, ?, ?)";
+
+        try (PreparedStatement ps = cn.prepareStatement(sql)) {
+
+            ps.setInt(1, p.getIdProducto());
+            ps.setString(2, p.getNombre());
+
+            if (p.getValor() == null) {
+                ps.setNull(3, Types.FLOAT);
+            } else {
+                ps.setFloat(3, p.getValor());
+            }
+
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error en create(producto)", e);
+        }
+    }
+
+    @Override
+    public void update(Producto p) {
+        final String sql
+                = "UPDATE producto SET nombre = ?, valor = ? WHERE idProducto = ?";
+
+        try (PreparedStatement ps = cn.prepareStatement(sql)) {
+
+            ps.setString(1, p.getNombre());
+
+            if (p.getValor() == null) {
+                ps.setNull(2, Types.FLOAT);
+            } else {
+                ps.setFloat(2, p.getValor());
+            }
+
+            ps.setInt(3, p.getIdProducto());
+
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error en update(producto)", e);
+        }
+    }
+
+    @Override
+    public void delete(Integer idProducto) {
+        final String sql
+                = "DELETE FROM producto WHERE idProducto = ?";
+
+        try (PreparedStatement ps = cn.prepareStatement(sql)) {
+
+            ps.setInt(1, idProducto);
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error en delete(producto)", e);
+        }
+    }
+
+    @Override
+    public void deleteAll() {
+        try (Statement st = cn.createStatement()) {
+
+            st.executeUpdate("DELETE FROM producto");
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error borrando 'producto'", e);
+        }
+    }
+
+    private Producto map(ResultSet rs) throws SQLException {
+        Producto p = new Producto();
+
+        p.setIdProducto(rs.getInt("idProducto"));
+        p.setNombre(rs.getString("nombre"));
+
+        float valor = rs.getFloat("valor");
+        p.setValor(rs.wasNull() ? null : valor);
+
+        return p;
+    }
+
+    // Desde el Main:
+    // Producto producto = productoDAO.obtenerProductoMayorRecaudacion();
+    // System.out.println(producto);
+    @Override
+    public Producto productoMayorRecaudacion() {
+        final String sql
+                = "SELECT p.idProducto, p.nombre, p.valor "
+                + "FROM Producto p "
+                + "JOIN Factura_Producto fp ON p.idProducto = fp.idProducto "
+                + "GROUP BY p.idProducto, p.nombre, p.valor "
+                + "ORDER BY SUM(fp.cantidad * p.valor) DESC "
+                + "LIMIT 1";
+        try (
+                PreparedStatement ps = cn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
+            if (rs.next()) {
+                return map(rs);
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error en obtener el producto de mayor recaudacion", e);
+        }
+
+        return null;
+
+    }
+}

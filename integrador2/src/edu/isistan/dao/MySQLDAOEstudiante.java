@@ -8,12 +8,9 @@ import javax.persistence.Persistence;
 import javax.persistence.TypedQuery;
 
 /*
-a)insertar (dar de alta) un estudiante
+hay q crear el entitymanager en cada metodo o globalmente??
+*/
 
-c) recuperar todos los estudiantes, y especificar algún criterio de ordenamiento simple.
-d) recuperar un estudiante, en base a su número de libreta universitaria.
-e) recuperar todos los estudiantes, en base a su género.
-g) recuperar los estudiantes de una determinada carrera, filtrado por ciudad de residencia. (JOIN CON inscripcion y carrera) */
 public class MySQLDAOEstudiante implements DAOEstudiante {
 
     // a) insertar (dar de alta) un estudiante
@@ -91,4 +88,35 @@ public class MySQLDAOEstudiante implements DAOEstudiante {
         
         return estudiantes;
     }
+
+    //consigna d
+    @Override
+    public Estudiante recuperarLU(int l) {
+
+        EntityManagerFactory emf =
+            Persistence.createEntityManagerFactory("Example");
+
+        EntityManager em = emf.createEntityManager();
+
+        String jpql =
+            "SELECT e FROM Estudiante e WHERE e.LU = :l";
+
+        TypedQuery<Estudiante> query =
+            em.createQuery(jpql, Estudiante.class);
+
+        query.setParameter("l", l);
+
+        List<Estudiante> estudiantes = query.getResultList();
+
+        em.close();
+        emf.close();
+
+        if (estudiantes.isEmpty()) {
+            return null;
+        }
+
+        return estudiantes.get(0); //preguntar si se devuelve asi uno solo!!
+    }
+
+
 }

@@ -13,7 +13,21 @@ e) recuperar todos los estudiantes, en base a su género.
 g) recuperar los estudiantes de una determinada carrera, filtrado por ciudad de residencia. (JOIN CON inscripcion y carrera) */
 public class MySQLDAOEstudiante implements DAOEstudiante {
 
-    //consigna C
+    // a) insertar (dar de alta) un estudiante
+
+    public void insertarEstudiante(Estudiante e) {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("Example");
+        EntityManager em = emf.createEntityManager();
+
+        em.getTransaction().begin();
+        em.persist(e);
+        em.getTransaction().commit();
+
+        em.close();
+        emf.close();
+    }
+
+    // consigna C
     @Override
     public List<Estudiante> recuperarTodos() {
 
@@ -23,8 +37,7 @@ public class MySQLDAOEstudiante implements DAOEstudiante {
 
         List<Estudiante> estudiantes = em.createQuery(
                 "SELECT e FROM Estudiante e ORDER BY e.apellido ASC",
-                Estudiante.class
-        ).getResultList();
+                Estudiante.class).getResultList();
 
         em.close();
 
@@ -53,4 +66,5 @@ public class MySQLDAOEstudiante implements DAOEstudiante {
 
         return estudiantes;
     }
+
 }

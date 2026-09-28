@@ -1,5 +1,11 @@
 package edu.isistan.dao;
 
+import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
+import javax.persistence.TypedQuery;
 
 /*
 a)insertar (dar de alta) un estudiante

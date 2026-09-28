@@ -1,5 +1,11 @@
 package edu.isistan.dao;
 
+import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
+
 
 /*f) recuperar las carreras con estudiantes inscriptos, y ordenar por cantidad de inscriptos. (JOIN CON inscripcion)
 3)Generar el reporte (JOIN DE LAS TRES TABLAS)

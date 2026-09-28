@@ -1,7 +1,6 @@
 package edu.isistan.dao;
 
 import java.util.List;
-
 import javax.persistence.EntityManager;
 import javax.persistence.Persistence;
 
@@ -26,6 +25,29 @@ public class MySQLDAOEstudiante implements DAOEstudiante {
                 "SELECT e FROM Estudiante e ORDER BY e.apellido ASC",
                 Estudiante.class
         ).getResultList();
+
+        em.close();
+
+        return estudiantes;
+    }
+
+    // consigna G
+    @Override 
+    public List<Estudiante> recuperarPorCarreraYCiudad(String nombreCarrera, String ciudad) {
+        EntityManager em = Persistence
+            .createEntityManagerFactory("Example")
+            .createEntityManager();
+        
+        List<Estudiante> estudiantes = em.createQuery(
+            "SELECT i.estudiante " +
+            "FROM Inscripcion i " +
+            "WHERE i.carrera.nombre = :nombreCarrera " +
+            "AND i.estudiante.ciudad = :ciudad",
+            Estudiante.class
+        )
+        .setParameter("nombreCarrera", nombreCarrera)
+        .setParameter("ciudad", ciudad)
+        .getResultList();
 
         em.close();
 

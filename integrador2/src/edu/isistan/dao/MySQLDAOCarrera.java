@@ -1,5 +1,6 @@
 package edu.isistan.dao;
 
+
 /*f) recuperar las carreras con estudiantes inscriptos, y ordenar por cantidad de inscriptos. (JOIN CON inscripcion)
 3)Generar el reporte (JOIN DE LAS TRES TABLAS)
 */
@@ -13,7 +14,7 @@ public class MySQLDAOCarrera implements DAOCarrera {
         String jpql = """
                 SELECT c
                 FROM Carrera c
-                JOIN c.estudiantes e
+                JOIN c.estudiantes emvn dependency:tree
                 GROUP BY c
                 ORDER BY COUNT(e) DESC
                 """;

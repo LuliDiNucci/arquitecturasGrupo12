@@ -1,8 +1,5 @@
 package edu.isistan.dao;
 
-import java.util.List;
-import javax.persistence.EntityManager;
-import javax.persistence.Persistence;
 
 /*
 a)insertar (dar de alta) un estudiante
@@ -63,8 +60,29 @@ public class MySQLDAOEstudiante implements DAOEstudiante {
         .getResultList();
 
         em.close();
-
+       
         return estudiantes;
     }
 
+    //consigna E
+    @Override
+    public List<Estudiante> recuperarPorGenero(String genero){
+        EntityManagerFactory emf= Persistence
+          .createEntityManagerFactory("Example");
+        EntityManager em= emf.createEntityManager();
+
+        String jpql= "SELECT e FROM Estudiante e WHERE e.genero= :genero";
+
+        TypedQuery<Estudiante> query = em.createQuery(jpql, Estudiante.class);
+
+        query.setParameter("genero", genero);
+
+        List<Estudiante> estudiantes = query.getResultList();
+
+    
+        em.close();
+        emf.close();
+        
+        return estudiantes;
+    }
 }

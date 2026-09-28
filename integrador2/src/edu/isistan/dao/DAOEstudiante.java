@@ -7,4 +7,6 @@ public interface DAOEstudiante {
     List<Estudiante> recuperarTodos();
     
     List<Estudiante> recuperarPorCarreraYCiudad(String nombreCarrera, String ciudad);
+
+    List<Estudiante> recuperarPorGenero(String genero);
 }

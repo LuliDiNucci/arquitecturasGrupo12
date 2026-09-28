@@ -1,5 +1,4 @@
 package edu.isistan.dao;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,14 +32,8 @@ public class Estudiante {
 	@Column
 	private int LU;
 
-	@Column
-	private boolean graduado;
-
-
-
 	@OneToMany(mappedBy = "estudiante", fetch = FetchType.LAZY)
 	private List<Inscripcion> inscripciones;
-
 
 
 	public Estudiante() {
@@ -56,8 +49,7 @@ public class Estudiante {
 			int edad,
 			String genero,
 			String ciudad,
-			int LU,
-			boolean graduado) {
+			int LU) {
 
 		super();
 
@@ -68,9 +60,7 @@ public class Estudiante {
 		this.genero = genero;
 		this.ciudad = ciudad;
 		this.LU = LU;
-		this.graduado = graduado;
 
-		// Inicializamos la lista
 		this.inscripciones = new ArrayList<Inscripcion>();
 	}
 
@@ -83,6 +73,7 @@ public class Estudiante {
 		this.dni = dni;
 	}
 
+
 	public String getNombre() {
 		return nombre;
 	}
@@ -90,6 +81,7 @@ public class Estudiante {
 	public void setNombre(String nombre) {
 		this.nombre = nombre;
 	}
+
 
 	public String getApellido() {
 		return apellido;
@@ -99,6 +91,7 @@ public class Estudiante {
 		this.apellido = apellido;
 	}
 
+
 	public int getEdad() {
 		return edad;
 	}
@@ -106,6 +99,7 @@ public class Estudiante {
 	public void setEdad(int edad) {
 		this.edad = edad;
 	}
+
 
 	public String getGenero() {
 		return genero;
@@ -115,6 +109,7 @@ public class Estudiante {
 		this.genero = genero;
 	}
 
+
 	public String getCiudad() {
 		return ciudad;
 	}
@@ -122,6 +117,7 @@ public class Estudiante {
 	public void setCiudad(String ciudad) {
 		this.ciudad = ciudad;
 	}
+
 
 	public int getLU() {
 		return LU;
@@ -131,25 +127,14 @@ public class Estudiante {
 		this.LU = LU;
 	}
 
-	public boolean isGraduado() {
-		return graduado;
-	}
-
-	public void setGraduado(boolean graduado) {
-		this.graduado = graduado;
-	}
-
-
 
 	public List<Inscripcion> getInscripciones() {
 		return inscripciones;
 	}
 
-
 	public void setInscripciones(List<Inscripcion> inscripciones) {
 		this.inscripciones = inscripciones;
 	}
-
 
 
 	public void addInscripcion(Inscripcion inscripcion) {
@@ -166,7 +151,7 @@ public class Estudiante {
 				+ ", genero=" + genero
 				+ ", ciudad=" + ciudad
 				+ ", LU=" + LU
-				+ ", graduado=" + graduado
 				+ "]";
 	}
 }
+

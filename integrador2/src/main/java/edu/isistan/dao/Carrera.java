@@ -17,8 +17,10 @@ public class Carrera {
 
 	@Column(nullable = false)
 	private String nombre;
-	
 
+	@Column
+	private int duracion;
+	
 	@OneToMany(mappedBy = "carrera", fetch = FetchType.LAZY)
 	private List<Inscripcion> inscripciones;
 	
@@ -29,10 +31,11 @@ public class Carrera {
 	}
 
 	
-	public Carrera(int id, String nombre) {
+	public Carrera(int id, String nombre, int duracion) {
 		super();
 		this.id = id;
 		this.nombre = nombre;
+		this.duracion = duracion;
 		this.inscripciones = new ArrayList<Inscripcion>();
 	}
 
@@ -45,28 +48,30 @@ public class Carrera {
 		this.nombre = nombre;
 	}
 
+
 	public int getId() {
 		return id;
 	}
 
+
+	public int getDuracion() {
+		return duracion;
+	}
+
+	public void setDuracion(int duracion) {
+		this.duracion = duracion;
+	}
 	
 
 	public List<Inscripcion> getInscripciones() {
 		return new ArrayList<Inscripcion>(inscripciones);
 	}
 
-	
 
 	public void addInscripcion(Inscripcion inscripcion) {
 		this.inscripciones.add(inscripcion);
 	}
 
-	
-	/*
-	 si quiero imprimir los estudiantes de la carrera
-	 tengo q pasar por cada Inscripcion y obtener
-	 su Estudiante.
-	 */
 	public void printEstudiantes() {
 		for (Inscripcion i : inscripciones) {
 
@@ -78,9 +83,13 @@ public class Carrera {
 		}
 	}
 
-	
+
 	@Override
 	public String toString() {
-		return "Carrera [id=" + id + ", nombre=" + nombre + "]";
+		return "Carrera [id=" + id
+				+ ", nombre=" + nombre
+				+ ", duracion=" + duracion
+				+ "]";
 	}
 }
+

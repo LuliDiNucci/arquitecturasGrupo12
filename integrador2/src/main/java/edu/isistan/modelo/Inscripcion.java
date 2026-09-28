@@ -1,4 +1,4 @@
-package edu.isistan.dao;
+package edu.isistan.modelo;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;

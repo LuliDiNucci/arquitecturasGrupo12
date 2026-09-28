@@ -1,10 +1,11 @@
-package edu.isistan.dao;
+package edu.isistan.repository;
 
 import java.util.List;
 
 import edu.isistan.dto.EstudianteDTO;
+import edu.isistan.modelo.Estudiante;
 
-public interface DAOEstudiante {
+public interface EstudianteRepository {
 
     // a) Dar de alta un estudiante
     void insertarEstudiante(Estudiante estudiante);

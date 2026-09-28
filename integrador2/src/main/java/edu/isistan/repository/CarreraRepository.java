@@ -1,10 +1,10 @@
-package edu.isistan.dao;
+package edu.isistan.repository;
 
 import java.util.List;
 
 import edu.isistan.dto.CarreraInscriptosDTO;
 
-public interface DAOCarrera {
+public interface CarreraRepository {
 
     // f) Recuperar carreras con estudiantes inscriptos
     // ordenadas por cantidad de inscriptos

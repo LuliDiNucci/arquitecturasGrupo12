@@ -1,4 +1,4 @@
-package edu.isistan.dao;
+package edu.isistan.repository;
 
 import java.util.List;
 
@@ -7,12 +7,13 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 
 import edu.isistan.dto.EstudianteDTO;
+import edu.isistan.modelo.Estudiante;
 
-public class MySQLDAOEstudiante implements DAOEstudiante {
+public class MySQLEstudiante implements EstudianteRepository {
 
     private EntityManagerFactory emf;
 
-    public MySQLDAOEstudiante() {
+    public MySQLEstudiante() {
         emf = Persistence.createEntityManagerFactory("Example");
     }
 
@@ -178,4 +179,5 @@ public class MySQLDAOEstudiante implements DAOEstudiante {
             em.close();
         }
     }
+
 }

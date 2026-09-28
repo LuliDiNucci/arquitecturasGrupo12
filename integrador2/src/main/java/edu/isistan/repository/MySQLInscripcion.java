@@ -1,14 +1,20 @@
-package edu.isistan.dao;
+package edu.isistan.repository;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 
-public class MySQLDAOInscripcion implements DAOInscripcion {
+import edu.isistan.modelo.Inscripcion;
+
+import edu.isistan.modelo.Carrera;
+
+import edu.isistan.modelo.Estudiante;
+
+public class MySQLInscripcion implements InscripcionRepository {
 
     private EntityManagerFactory emf;
 
-    public MySQLDAOInscripcion() {
+    public MySQLInscripcion() {
         emf = Persistence.createEntityManagerFactory("Example");
     }
 

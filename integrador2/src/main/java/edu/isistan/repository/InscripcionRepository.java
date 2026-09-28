@@ -1,6 +1,6 @@
-package edu.isistan.dao;
+package edu.isistan.repository;
 
-public interface DAOInscripcion {
+public interface InscripcionRepository {
 
     // b) Matricular un estudiante en una carrera
     void matricular(

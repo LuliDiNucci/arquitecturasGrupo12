@@ -1,4 +1,4 @@
-package edu.isistan.dao;
+package edu.isistan.modelo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,6 +8,8 @@ import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
+
+import edu.isistan.modelo.Estudiante;
 
 @Entity
 public class Carrera {

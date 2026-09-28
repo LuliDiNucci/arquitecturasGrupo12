@@ -1,4 +1,4 @@
-package edu.isistan.dao;
+package edu.isistan.modelo;
 import java.util.ArrayList;
 import java.util.List;
 

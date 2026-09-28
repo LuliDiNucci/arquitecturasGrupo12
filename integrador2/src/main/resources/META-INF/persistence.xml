@@ -9,9 +9,9 @@
 
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
 
-        <class>edu.isistan.dao.Estudiante</class>
-        <class>edu.isistan.dao.Carrera</class>
-        <class>edu.isistan.dao.Inscripcion</class>
+        <class>edu.isistan.modelo.Estudiante</class>
+        <class>edu.isistan.modelo.Carrera</class>
+        <class>edu.isistan.modelo.Inscripcion</class>
 
         <properties>
 

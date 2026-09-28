@@ -10,157 +10,152 @@ import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 
-import edu.isistan.dao.Carrera;
-import edu.isistan.dao.Estudiante;
-import edu.isistan.dao.Inscripcion;
-import edu.isistan.dao.MySQLDAOCarrera;
-import edu.isistan.dao.MySQLDAOEstudiante;
-import edu.isistan.dao.MySQLDAOInscripcion;
 import edu.isistan.dto.CarreraInscriptosDTO;
 import edu.isistan.dto.EstudianteDTO;
+import edu.isistan.modelo.Carrera;
+import edu.isistan.modelo.Estudiante;
+import edu.isistan.modelo.Inscripcion;
+import edu.isistan.repository.MySQLCarrera;
+import edu.isistan.repository.MySQLEstudiante;
+import edu.isistan.repository.MySQLInscripcion;
 
-public class Main {
 
-    public static void main(String[] args) {
 
-        EntityManagerFactory emf
-                = Persistence.createEntityManagerFactory("Example");
+      public class Main {
 
-        EntityManager em = emf.createEntityManager();
+        public static void main(String[] args) {
 
-        try {
+            EntityManagerFactory emf
+                    = Persistence.createEntityManagerFactory("Example");
 
-            // ==========================================
-            // CARGA DE DATOS
-            // ==========================================
-            borrarDatos(em);
+            EntityManager em = emf.createEntityManager();
 
-            cargarEstudiantes(em);
-            cargarCarreras(em);
-            cargarInscripciones(em);
+            try {
 
-            // ==========================================
-            // DAOs
-            // ==========================================
-            MySQLDAOEstudiante daoEstudiante
-                    = new MySQLDAOEstudiante();
+                // ==========================================
+                // CARGA DE DATOS
+                // ==========================================
+                borrarDatos(em);
 
-            MySQLDAOInscripcion daoInscripcion
-                    = new MySQLDAOInscripcion();
+                cargarEstudiantes(em);
+                cargarCarreras(em);
+                cargarInscripciones(em);
 
-            MySQLDAOCarrera daoCarrera
-                    = new MySQLDAOCarrera();
+                MySQLEstudiante daoEstudiante
+                        = new MySQLEstudiante();
 
-            // ==========================================
-            // 2.a - DAR DE ALTA UN ESTUDIANTE
-            // ==========================================
-            System.out.println();
-            System.out.println("=================================");
-            System.out.println("2.a - ALTA DE ESTUDIANTE");
-            System.out.println("=================================");
+                MySQLInscripcion daoInscripcion
+                        = new MySQLInscripcion();
 
-            Estudiante nuevoEstudiante
-                    = new Estudiante(
-                            11111111,
-                            "Lucia",
-                            "Alcibar",
-                            22,
-                            "Female",
-                            "Tandil",
-                            99999
+                MySQLCarrera daoCarrera
+                        = new MySQLCarrera();
+
+                // ==========================================
+                // 2.a - DAR DE ALTA UN ESTUDIANTE
+                // ==========================================
+                System.out.println();
+                System.out.println("=================================");
+                System.out.println("2.a - ALTA DE ESTUDIANTE");
+                System.out.println("=================================");
+
+                Estudiante nuevoEstudiante
+                        = new Estudiante(
+                                11111111,
+                                "Lucia",
+                                "Alcibar",
+                                22,
+                                "Female",
+                                "Tandil",
+                                99999
+                        );
+
+                daoEstudiante.insertarEstudiante(nuevoEstudiante);
+
+                System.out.println(
+                        "Estudiante agregado: "
+                        + nuevoEstudiante.getNombre()
+                        + " "
+                        + nuevoEstudiante.getApellido()
+                );
+
+                // ==========================================
+                // 2.b - MATRICULAR ESTUDIANTE EN CARRERA
+                // ==========================================
+                System.out.println();
+                System.out.println("=================================");
+                System.out.println("2.b - MATRICULAR ESTUDIANTE");
+                System.out.println("=================================");
+
+                daoInscripcion.matricular(
+                        200,
+                        11111111,
+                        1,
+                        2026,
+                        0,
+                        0
+                );
+
+                System.out.println(
+                        "Estudiante matriculado en TUDAI."
+                );
+
+                // ==========================================
+                // 2.c - RECUPERAR TODOS
+                // ORDENADOS POR APELLIDO
+                // ==========================================
+                System.out.println();
+                System.out.println("=================================");
+                System.out.println("2.c - TODOS LOS ESTUDIANTES");
+                System.out.println("=================================");
+
+                List<EstudianteDTO> estudiantes
+                        = daoEstudiante.recuperarTodos();
+
+                for (EstudianteDTO estudiante : estudiantes) {
+
+                    System.out.println(
+                            estudiante.getApellido()
+                            + ", "
+                            + estudiante.getNombre()
+                            + " - LU: "
+                            + estudiante.getLU()
                     );
+                }
 
-            daoEstudiante.insertarEstudiante(nuevoEstudiante);
+                // ==========================================
+                // 2.d - RECUPERAR POR LU
+                // ==========================================
+                System.out.println();
+                System.out.println("=================================");
+                System.out.println("2.d - ESTUDIANTE POR LU");
+                System.out.println("=================================");
 
-            System.out.println(
-                    "Estudiante agregado: "
-                    + nuevoEstudiante.getNombre()
-                    + " "
-                    + nuevoEstudiante.getApellido()
-            );
-
-            // ==========================================
-            // 2.b - MATRICULAR ESTUDIANTE EN CARRERA
-            // ==========================================
-            System.out.println();
-            System.out.println("=================================");
-            System.out.println("2.b - MATRICULAR ESTUDIANTE");
-            System.out.println("=================================");
-
-            daoInscripcion.matricular(
-                    200,
-                    11111111,
-                    1,
-                    2026,
-                    0,
-                    0
-            );
-
-            System.out.println(
-                    "Estudiante matriculado en TUDAI."
-            );
-
-            // ==========================================
-            // 2.c - RECUPERAR TODOS
-            // ORDENADOS POR APELLIDO
-            // ==========================================
-            System.out.println();
-            System.out.println("=================================");
-            System.out.println("2.c - TODOS LOS ESTUDIANTES");
-            System.out.println("=================================");
-
-            List<EstudianteDTO> estudiantes
-                    = daoEstudiante.recuperarTodos();
-
-            for (EstudianteDTO estudiante : estudiantes) {
+                EstudianteDTO estudianteLU
+                        = daoEstudiante.recuperarPorLU(34978);
 
                 System.out.println(
-                        estudiante.getApellido()
-                        + ", "
-                        + estudiante.getNombre()
+                        estudianteLU.getNombre()
+                        + " "
+                        + estudianteLU.getApellido()
                         + " - LU: "
-                        + estudiante.getLU()
+                        + estudianteLU.getLU()
                 );
-            }
 
-            // ==========================================
-            // 2.d - RECUPERAR POR LU
-            // ==========================================
-            System.out.println();
-            System.out.println("=================================");
-            System.out.println("2.d - ESTUDIANTE POR LU");
-            System.out.println("=================================");
+                // ==========================================
+                // 2.e - RECUPERAR POR GENERO
+                // ==========================================
+                System.out.println();
+                System.out.println("=================================");
+                System.out.println("2.e - ESTUDIANTES POR GENERO");
+                System.out.println("=================================");
 
-            EstudianteDTO estudianteLU
-                    = daoEstudiante.recuperarPorLU(34978);
+                List<EstudianteDTO> estudiantesGenero = daoEstudiante.recuperarPorGenero("Female");
 
-            System.out.println(
-                    estudianteLU.getNombre()
-                    + " "
-                    + estudianteLU.getApellido()
-                    + " - LU: "
-                    + estudianteLU.getLU()
-            );
-
-            // ==========================================
-            // 2.e - RECUPERAR POR GENERO
-            // ==========================================
-            System.out.println();
-            System.out.println("=================================");
-            System.out.println("2.e - ESTUDIANTES POR GENERO");
-            System.out.println("=================================");
-
-            List<EstudianteDTO> estudiantesGenero
-                    = daoEstudiante.recuperarPorGenero("Female");
-
-            for (EstudianteDTO estudiante : estudiantesGenero) {
-
-                System.out.println(
-                        estudiante.getApellido()
-                        + ", "
-                        + estudiante.getNombre()
-                );
-            }
+                for (EstudianteDTO estudiante : estudiantesGenero) {
+                    System.out.println(estudiante.getApellido() + ", "
+                            + estudiante.getNombre()
+                            + " - Genero: " + estudiante.getGenero());
+                }
 
             // ==========================================
             // 2.f - CARRERAS ORDENADAS POR
@@ -216,11 +211,18 @@ public class Main {
             System.out.println("TODAS LAS CONSULTAS FINALIZADAS");
             System.out.println("=================================");
 
-        } catch (Exception e) {
+        }
+        catch (Exception e
+            
+
+        ) {
 
             e.printStackTrace();
 
-        } finally {
+        }
+
+        
+            finally {
 
             em.close();
             emf.close();

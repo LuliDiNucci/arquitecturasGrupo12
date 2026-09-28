@@ -1,4 +1,4 @@
-package edu.isistan.dao;
+package edu.isistan.repository;
 
 import java.util.List;
 
@@ -8,11 +8,11 @@ import javax.persistence.Persistence;
 
 import edu.isistan.dto.CarreraInscriptosDTO;
 
-public class MySQLDAOCarrera implements DAOCarrera {
+public class MySQLCarrera implements CarreraRepository {
 
     private EntityManagerFactory emf;
 
-    public MySQLDAOCarrera() {
+    public MySQLCarrera() {
         emf = Persistence.createEntityManagerFactory("Example");
     }
 

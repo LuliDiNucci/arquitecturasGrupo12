@@ -14,7 +14,7 @@ public class MySQLDAOCarrera implements DAOCarrera {
         String jpql = """
                 SELECT c
                 FROM Carrera c
-                JOIN c.estudiantes emvn dependency:tree
+                JOIN c.estudiantes e
                 GROUP BY c
                 ORDER BY COUNT(e) DESC
                 """;

@@ -12,6 +12,7 @@ import javax.persistence.Persistence;
 
 import edu.isistan.dto.CarreraInscriptosDTO;
 import edu.isistan.dto.EstudianteDTO;
+import edu.isistan.dto.ReporteCarreraDTO;
 import edu.isistan.modelo.Carrera;
 import edu.isistan.modelo.Estudiante;
 import edu.isistan.modelo.Inscripcion;
@@ -32,9 +33,7 @@ import edu.isistan.repository.MySQLInscripcion;
 
             try {
 
-                // ==========================================
                 // CARGA DE DATOS
-                // ==========================================
                 borrarDatos(em);
 
                 cargarEstudiantes(em);
@@ -50,9 +49,8 @@ import edu.isistan.repository.MySQLInscripcion;
                 MySQLCarrera daoCarrera
                         = new MySQLCarrera();
 
-                // ==========================================
                 // 2.a - DAR DE ALTA UN ESTUDIANTE
-                // ==========================================
+                
                 System.out.println();
                 System.out.println("=================================");
                 System.out.println("2.a - ALTA DE ESTUDIANTE");
@@ -78,9 +76,7 @@ import edu.isistan.repository.MySQLInscripcion;
                         + nuevoEstudiante.getApellido()
                 );
 
-                // ==========================================
                 // 2.b - MATRICULAR ESTUDIANTE EN CARRERA
-                // ==========================================
                 System.out.println();
                 System.out.println("=================================");
                 System.out.println("2.b - MATRICULAR ESTUDIANTE");
@@ -99,10 +95,8 @@ import edu.isistan.repository.MySQLInscripcion;
                         "Estudiante matriculado en TUDAI."
                 );
 
-                // ==========================================
                 // 2.c - RECUPERAR TODOS
                 // ORDENADOS POR APELLIDO
-                // ==========================================
                 System.out.println();
                 System.out.println("=================================");
                 System.out.println("2.c - TODOS LOS ESTUDIANTES");
@@ -122,9 +116,8 @@ import edu.isistan.repository.MySQLInscripcion;
                     );
                 }
 
-                // ==========================================
+                
                 // 2.d - RECUPERAR POR LU
-                // ==========================================
                 System.out.println();
                 System.out.println("=================================");
                 System.out.println("2.d - ESTUDIANTE POR LU");
@@ -141,9 +134,7 @@ import edu.isistan.repository.MySQLInscripcion;
                         + estudianteLU.getLU()
                 );
 
-                // ==========================================
                 // 2.e - RECUPERAR POR GENERO
-                // ==========================================
                 System.out.println();
                 System.out.println("=================================");
                 System.out.println("2.e - ESTUDIANTES POR GENERO");
@@ -157,10 +148,8 @@ import edu.isistan.repository.MySQLInscripcion;
                             + " - Genero: " + estudiante.getGenero());
                 }
 
-            // ==========================================
             // 2.f - CARRERAS ORDENADAS POR
             // CANTIDAD DE INSCRIPTOS
-            // ==========================================
             System.out.println();
             System.out.println("=================================");
             System.out.println("2.f - CARRERAS POR INSCRIPTOS");
@@ -178,10 +167,8 @@ import edu.isistan.repository.MySQLInscripcion;
                 );
             }
 
-            // ==========================================
             // 2.g - ESTUDIANTES DE UNA CARRERA
             // FILTRADOS POR CIUDAD
-            // ==========================================
             System.out.println();
             System.out.println("=================================");
             System.out.println("2.g - ESTUDIANTES POR CARRERA Y CIUDAD");
@@ -203,9 +190,9 @@ import edu.isistan.repository.MySQLInscripcion;
                 );
             }
 
-            // ==========================================
+            imprimirReporte(daoCarrera); //imprimo el reporte(el metodo q llama al dto esta aca mas abajo)
+
             // FIN
-            // ==========================================
             System.out.println();
             System.out.println("=================================");
             System.out.println("TODAS LAS CONSULTAS FINALIZADAS");
@@ -229,9 +216,7 @@ import edu.isistan.repository.MySQLInscripcion;
         }
     }
 
-    // ==========================================
     // CARGAR ESTUDIANTES
-    // ==========================================
     private static void cargarEstudiantes(EntityManager em) {
 
         System.out.println("Cargando estudiantes...");
@@ -309,9 +294,7 @@ import edu.isistan.repository.MySQLInscripcion;
         }
     }
 
-    // ==========================================
     // CARGAR CARRERAS
-    // ==========================================
     private static void cargarCarreras(EntityManager em) {
 
         System.out.println("Cargando carreras...");
@@ -381,9 +364,7 @@ import edu.isistan.repository.MySQLInscripcion;
         }
     }
 
-    // ==========================================
     // CARGAR INSCRIPCIONES
-    // ==========================================
     private static void cargarInscripciones(EntityManager em) {
 
         System.out.println("Cargando inscripciones...");
@@ -490,9 +471,26 @@ import edu.isistan.repository.MySQLInscripcion;
         }
     }
 
-    // ==========================================
+    private static void imprimirReporte(MySQLCarrera daoCarrera) {
+
+        List<ReporteCarreraDTO> reporte =
+                daoCarrera.generarReporte();
+
+        System.out.println("REPORTE DE CARRERAS");
+
+        for (ReporteCarreraDTO r : reporte) {
+
+                System.out.println(
+                        r.getCarrera()
+                        + " | Año: " + r.getAnio()
+                        + " | Inscriptos: " + r.getInscriptos()
+                        + " | Egresados: " + r.getEgresados()
+                );
+        }
+}
+
+
     // BORRAR DATOS
-    // ==========================================
     private static void borrarDatos(EntityManager em) {
 
         System.out.println("Borrando datos anteriores...");

@@ -3,25 +3,18 @@ package edu.isistan.repository;
 import java.util.List;
 
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.Persistence;
 
 import edu.isistan.dto.EstudianteDTO;
 import edu.isistan.modelo.Estudiante;
+import edu.isistan.util.JPAUtil;
 
 public class MySQLEstudiante implements EstudianteRepository {
-
-    private EntityManagerFactory emf;
-
-    public MySQLEstudiante() {
-        emf = Persistence.createEntityManagerFactory("Example");
-    }
 
     // a) Dar de alta un estudiante
     @Override
     public void insertarEstudiante(Estudiante estudiante) {
 
-        EntityManager em = emf.createEntityManager();
+        EntityManager em = JPAUtil.getEntityManager();
 
         try {
 
@@ -43,12 +36,12 @@ public class MySQLEstudiante implements EstudianteRepository {
         }
     }
 
-// c) Recuperar todos los estudiantes
-// ordenados por apellido
+    // c) Recuperar todos los estudiantes
+    // ordenados por apellido
     @Override
     public List<EstudianteDTO> recuperarTodos() {
 
-        EntityManager em = emf.createEntityManager();
+        EntityManager em = JPAUtil.getEntityManager();
 
         try {
 
@@ -74,11 +67,11 @@ public class MySQLEstudiante implements EstudianteRepository {
         }
     }
 
-// d) Recuperar estudiante por LU
+    // d) Recuperar estudiante por LU
     @Override
     public EstudianteDTO recuperarPorLU(int LU) {
 
-        EntityManager em = emf.createEntityManager();
+        EntityManager em = JPAUtil.getEntityManager();
 
         try {
 
@@ -106,11 +99,11 @@ public class MySQLEstudiante implements EstudianteRepository {
         }
     }
 
-// e) Recuperar estudiantes por género
+    // e) Recuperar estudiantes por género
     @Override
     public List<EstudianteDTO> recuperarPorGenero(String genero) {
 
-        EntityManager em = emf.createEntityManager();
+        EntityManager em = JPAUtil.getEntityManager();
 
         try {
 
@@ -138,14 +131,14 @@ public class MySQLEstudiante implements EstudianteRepository {
         }
     }
 
-// g) Recuperar estudiantes de una carrera
-// filtrados por ciudad
+    // g) Recuperar estudiantes de una carrera
+    // filtrados por ciudad
     @Override
     public List<EstudianteDTO> recuperarPorCarreraYCiudad(
             String nombreCarrera,
             String ciudad) {
 
-        EntityManager em = emf.createEntityManager();
+        EntityManager em = JPAUtil.getEntityManager();
 
         try {
 
@@ -179,5 +172,4 @@ public class MySQLEstudiante implements EstudianteRepository {
             em.close();
         }
     }
-
 }

@@ -7,8 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.Persistence;
 
 import edu.isistan.dto.CarreraInscriptosDTO;
 import edu.isistan.dto.EstudianteDTO;
@@ -16,115 +14,129 @@ import edu.isistan.dto.ReporteCarreraDTO;
 import edu.isistan.modelo.Carrera;
 import edu.isistan.modelo.Estudiante;
 import edu.isistan.modelo.Inscripcion;
+import edu.isistan.repository.CarreraRepository;
+import edu.isistan.repository.EstudianteRepository;
+import edu.isistan.repository.InscripcionRepository;
 import edu.isistan.repository.MySQLCarrera;
 import edu.isistan.repository.MySQLEstudiante;
 import edu.isistan.repository.MySQLInscripcion;
+import edu.isistan.util.JPAUtil;
 
+public class Main {
 
+    public static void main(String[] args) {
 
-      public class Main {
+        EntityManager em = JPAUtil.getEntityManager();
 
-        public static void main(String[] args) {
+        try {
 
-            EntityManagerFactory emf
-                    = Persistence.createEntityManagerFactory("Example");
+            // =================================
+            // CARGA INICIAL DE DATOS
+            // =================================
+            borrarDatos(em);
 
-            EntityManager em = emf.createEntityManager();
+            cargarEstudiantes(em);
+            cargarCarreras(em);
+            cargarInscripciones(em);
 
-            try {
+            // =================================
+            // REPOSITORIES
+            // =================================
+            EstudianteRepository estudianteRepository
+                    = new MySQLEstudiante();
 
-                // CARGA DE DATOS
-                borrarDatos(em);
+            InscripcionRepository inscripcionRepository
+                    = new MySQLInscripcion();
 
-                cargarEstudiantes(em);
-                cargarCarreras(em);
-                cargarInscripciones(em);
+            CarreraRepository carreraRepository
+                    = new MySQLCarrera();
 
-                MySQLEstudiante daoEstudiante
-                        = new MySQLEstudiante();
+            // =================================
+            // 2.a - DAR DE ALTA UN ESTUDIANTE
+            // =================================
+            System.out.println();
+            System.out.println("=================================");
+            System.out.println("2.a - ALTA DE ESTUDIANTE");
+            System.out.println("=================================");
 
-                MySQLInscripcion daoInscripcion
-                        = new MySQLInscripcion();
-
-                MySQLCarrera daoCarrera
-                        = new MySQLCarrera();
-
-                // 2.a - DAR DE ALTA UN ESTUDIANTE
-                
-                System.out.println();
-                System.out.println("=================================");
-                System.out.println("2.a - ALTA DE ESTUDIANTE");
-                System.out.println("=================================");
-
-                Estudiante nuevoEstudiante
-                        = new Estudiante(
-                                11111111,
-                                "Lucia",
-                                "Alcibar",
-                                22,
-                                "Female",
-                                "Tandil",
-                                99999
-                        );
-
-                daoEstudiante.insertarEstudiante(nuevoEstudiante);
-
-                System.out.println(
-                        "Estudiante agregado: "
-                        + nuevoEstudiante.getNombre()
-                        + " "
-                        + nuevoEstudiante.getApellido()
-                );
-
-                // 2.b - MATRICULAR ESTUDIANTE EN CARRERA
-                System.out.println();
-                System.out.println("=================================");
-                System.out.println("2.b - MATRICULAR ESTUDIANTE");
-                System.out.println("=================================");
-
-                daoInscripcion.matricular(
-                        200,
-                        11111111,
-                        1,
-                        2026,
-                        0,
-                        0
-                );
-
-                System.out.println(
-                        "Estudiante matriculado en TUDAI."
-                );
-
-                // 2.c - RECUPERAR TODOS
-                // ORDENADOS POR APELLIDO
-                System.out.println();
-                System.out.println("=================================");
-                System.out.println("2.c - TODOS LOS ESTUDIANTES");
-                System.out.println("=================================");
-
-                List<EstudianteDTO> estudiantes
-                        = daoEstudiante.recuperarTodos();
-
-                for (EstudianteDTO estudiante : estudiantes) {
-
-                    System.out.println(
-                            estudiante.getApellido()
-                            + ", "
-                            + estudiante.getNombre()
-                            + " - LU: "
-                            + estudiante.getLU()
+            Estudiante nuevoEstudiante
+                    = new Estudiante(
+                            11111111,
+                            "Lucia",
+                            "Alcibar",
+                            22,
+                            "Female",
+                            "Tandil",
+                            99999
                     );
-                }
 
-                
-                // 2.d - RECUPERAR POR LU
-                System.out.println();
-                System.out.println("=================================");
-                System.out.println("2.d - ESTUDIANTE POR LU");
-                System.out.println("=================================");
+            estudianteRepository.insertarEstudiante(
+                    nuevoEstudiante
+            );
 
-                EstudianteDTO estudianteLU
-                        = daoEstudiante.recuperarPorLU(34978);
+            System.out.println(
+                    "Estudiante agregado: "
+                    + nuevoEstudiante.getNombre()
+                    + " "
+                    + nuevoEstudiante.getApellido()
+            );
+
+            // =================================
+            // 2.b - MATRICULAR ESTUDIANTE
+            // =================================
+            System.out.println();
+            System.out.println("=================================");
+            System.out.println("2.b - MATRICULAR ESTUDIANTE");
+            System.out.println("=================================");
+
+            inscripcionRepository.matricular(
+                    200,
+                    11111111,
+                    1,
+                    2026,
+                    0,
+                    0
+            );
+
+            System.out.println(
+                    "Estudiante matriculado en TUDAI."
+            );
+
+            // =================================
+            // 2.c - RECUPERAR TODOS
+            // ORDENADOS POR APELLIDO
+            // =================================
+            System.out.println();
+            System.out.println("=================================");
+            System.out.println("2.c - TODOS LOS ESTUDIANTES");
+            System.out.println("=================================");
+
+            List<EstudianteDTO> estudiantes
+                    = estudianteRepository.recuperarTodos();
+
+            for (EstudianteDTO estudiante : estudiantes) {
+
+                System.out.println(
+                        estudiante.getApellido()
+                        + ", "
+                        + estudiante.getNombre()
+                        + " - LU: "
+                        + estudiante.getLU()
+                );
+            }
+
+            // =================================
+            // 2.d - RECUPERAR POR LU
+            // =================================
+            System.out.println();
+            System.out.println("=================================");
+            System.out.println("2.d - ESTUDIANTE POR LU");
+            System.out.println("=================================");
+
+            EstudianteDTO estudianteLU
+                    = estudianteRepository.recuperarPorLU(34978);
+
+            if (estudianteLU != null) {
 
                 System.out.println(
                         estudianteLU.getNombre()
@@ -133,30 +145,45 @@ import edu.isistan.repository.MySQLInscripcion;
                         + " - LU: "
                         + estudianteLU.getLU()
                 );
+            }
 
-                // 2.e - RECUPERAR POR GENERO
-                System.out.println();
-                System.out.println("=================================");
-                System.out.println("2.e - ESTUDIANTES POR GENERO");
-                System.out.println("=================================");
+            // =================================
+            // 2.e - RECUPERAR POR GENERO
+            // =================================
+            System.out.println();
+            System.out.println("=================================");
+            System.out.println("2.e - ESTUDIANTES POR GENERO");
+            System.out.println("=================================");
 
-                List<EstudianteDTO> estudiantesGenero = daoEstudiante.recuperarPorGenero("Female");
+            List<EstudianteDTO> estudiantesGenero
+                    = estudianteRepository.recuperarPorGenero(
+                            "Female"
+                    );
 
-                for (EstudianteDTO estudiante : estudiantesGenero) {
-                    System.out.println(estudiante.getApellido() + ", "
-                            + estudiante.getNombre()
-                            + " - Genero: " + estudiante.getGenero());
-                }
+            for (EstudianteDTO estudiante
+                    : estudiantesGenero) {
 
+                System.out.println(
+                        estudiante.getApellido()
+                        + ", "
+                        + estudiante.getNombre()
+                        + " - Genero: "
+                        + estudiante.getGenero()
+                );
+            }
+
+            // =================================
             // 2.f - CARRERAS ORDENADAS POR
             // CANTIDAD DE INSCRIPTOS
+            // =================================
             System.out.println();
             System.out.println("=================================");
             System.out.println("2.f - CARRERAS POR INSCRIPTOS");
             System.out.println("=================================");
 
             List<CarreraInscriptosDTO> carreras
-                    = daoCarrera.carrerasOrdenadasPorInscriptos();
+                    = carreraRepository
+                            .carrerasOrdenadasPorInscriptos();
 
             for (CarreraInscriptosDTO carrera : carreras) {
 
@@ -167,18 +194,23 @@ import edu.isistan.repository.MySQLInscripcion;
                 );
             }
 
+            // =================================
             // 2.g - ESTUDIANTES DE UNA CARRERA
             // FILTRADOS POR CIUDAD
+            // =================================
             System.out.println();
             System.out.println("=================================");
-            System.out.println("2.g - ESTUDIANTES POR CARRERA Y CIUDAD");
+            System.out.println(
+                    "2.g - ESTUDIANTES POR CARRERA Y CIUDAD"
+            );
             System.out.println("=================================");
 
             List<EstudianteDTO> estudiantesCarreraCiudad
-                    = daoEstudiante.recuperarPorCarreraYCiudad(
-                            "TUDAI",
-                            "Tandil"
-                    );
+                    = estudianteRepository
+                            .recuperarPorCarreraYCiudad(
+                                    "TUDAI",
+                                    "Tandil"
+                            );
 
             for (EstudianteDTO estudiante
                     : estudiantesCarreraCiudad) {
@@ -190,76 +222,90 @@ import edu.isistan.repository.MySQLInscripcion;
                 );
             }
 
-            imprimirReporte(daoCarrera); //imprimo el reporte(el metodo q llama al dto esta aca mas abajo)
+            // =================================
+            // 3 - REPORTE DE CARRERAS
+            // =================================
+            imprimirReporte(carreraRepository);
 
+            // =================================
             // FIN
+            // =================================
             System.out.println();
             System.out.println("=================================");
             System.out.println("TODAS LAS CONSULTAS FINALIZADAS");
             System.out.println("=================================");
 
-        }
-        catch (Exception e
-            
-
-        ) {
+        } catch (Exception e) {
 
             e.printStackTrace();
 
-        }
-
-        
-            finally {
+        } finally {
 
             em.close();
-            emf.close();
+            JPAUtil.cerrar();
         }
     }
 
+    // =================================
     // CARGAR ESTUDIANTES
-    private static void cargarEstudiantes(EntityManager em) {
+    // =================================
+    private static void cargarEstudiantes(
+            EntityManager em) {
 
         System.out.println("Cargando estudiantes...");
 
-        try {
+        InputStream archivo
+                = Main.class.getClassLoader()
+                        .getResourceAsStream(
+                                "estudiantes.csv"
+                        );
 
-            InputStream archivo
-                    = Main.class.getClassLoader()
-                            .getResourceAsStream(
-                                    "estudiantes.csv"
-                            );
+        if (archivo == null) {
 
-            if (archivo == null) {
-                throw new RuntimeException(
-                        "No se encontró estudiantes.csv"
-                );
-            }
+            throw new RuntimeException(
+                    "No se encontró estudiantes.csv"
+            );
+        }
 
-            BufferedReader br
-                    = new BufferedReader(
-                            new InputStreamReader(
-                                    archivo,
-                                    StandardCharsets.UTF_8
-                            )
-                    );
-
-            String linea;
+        try (
+                BufferedReader br
+                = new BufferedReader(
+                        new InputStreamReader(
+                                archivo,
+                                StandardCharsets.UTF_8
+                        )
+                )) {
 
             br.readLine();
 
             em.getTransaction().begin();
 
-            while ((linea = br.readLine()) != null) {
+            while (br.ready()) {
+
+                String linea = br.readLine();
+
+                if (linea == null) {
+                    break;
+                }
 
                 String[] datos = linea.split(",");
 
-                int dni = Integer.parseInt(datos[0]);
+                int dni
+                        = Integer.parseInt(datos[0]);
+
                 String nombre = datos[1];
+
                 String apellido = datos[2];
-                int edad = Integer.parseInt(datos[3]);
+
+                int edad
+                        = Integer.parseInt(datos[3]);
+
                 String genero = datos[4];
+
                 String ciudad = datos[5];
-                int LU = Integer.parseInt(datos[6]);
+
+                int LU
+                        = Integer.parseInt(datos[6]);
 
                 Estudiante estudiante
                         = new Estudiante(
@@ -277,9 +323,9 @@ import edu.isistan.repository.MySQLInscripcion;
 
             em.getTransaction().commit();
 
-            br.close();
-
-            System.out.println("Estudiantes cargados.");
+            System.out.println(
+                    "Estudiantes cargados."
+            );
 
         } catch (Exception e) {
 
@@ -294,46 +340,57 @@ import edu.isistan.repository.MySQLInscripcion;
         }
     }
 
+    // =================================
     // CARGAR CARRERAS
-    private static void cargarCarreras(EntityManager em) {
+    // =================================
+    private static void cargarCarreras(
+            EntityManager em) {
 
         System.out.println("Cargando carreras...");
 
-        try {
+        InputStream archivo
+                = Main.class.getClassLoader()
+                        .getResourceAsStream(
+                                "carreras.csv"
+                        );
 
-            InputStream archivo
-                    = Main.class.getClassLoader()
-                            .getResourceAsStream(
-                                    "carreras.csv"
-                            );
+        if (archivo == null) {
 
-            if (archivo == null) {
-                throw new RuntimeException(
-                        "No se encontró carreras.csv"
-                );
-            }
+            throw new RuntimeException(
+                    "No se encontró carreras.csv"
+            );
+        }
 
-            BufferedReader br
-                    = new BufferedReader(
-                            new InputStreamReader(
-                                    archivo,
-                                    StandardCharsets.UTF_8
-                            )
-                    );
-
-            String linea;
+        try (
+                BufferedReader br
+                = new BufferedReader(
+                        new InputStreamReader(
+                                archivo,
+                                StandardCharsets.UTF_8
+                        )
+                )) {
 
             br.readLine();
 
             em.getTransaction().begin();
 
-            while ((linea = br.readLine()) != null) {
+            while (br.ready()) {
+
+                String linea = br.readLine();
+
+                if (linea == null) {
+                    break;
+                }
 
                 String[] datos = linea.split(",");
 
-                int id = Integer.parseInt(datos[0]);
+                int id
+                        = Integer.parseInt(datos[0]);
+
                 String nombre = datos[1];
-                int duracion = Integer.parseInt(datos[2]);
+
+                int duracion
+                        = Integer.parseInt(datos[2]);
 
                 Carrera carrera
                         = new Carrera(
@@ -347,9 +404,9 @@ import edu.isistan.repository.MySQLInscripcion;
 
             em.getTransaction().commit();
 
-            br.close();
-
-            System.out.println("Carreras cargadas.");
+            System.out.println(
+                    "Carreras cargadas."
+            );
 
         } catch (Exception e) {
 
@@ -364,52 +421,67 @@ import edu.isistan.repository.MySQLInscripcion;
         }
     }
 
+    // =================================
     // CARGAR INSCRIPCIONES
-    private static void cargarInscripciones(EntityManager em) {
+    // =================================
+    private static void cargarInscripciones(
+            EntityManager em) {
 
-        System.out.println("Cargando inscripciones...");
+        System.out.println(
+                "Cargando inscripciones..."
+        );
 
-        try {
+        InputStream archivo
+                = Main.class.getClassLoader()
+                        .getResourceAsStream(
+                                "estudianteCarrera.csv"
+                        );
 
-            InputStream archivo
-                    = Main.class.getClassLoader()
-                            .getResourceAsStream(
-                                    "estudianteCarrera.csv"
-                            );
+        if (archivo == null) {
 
-            if (archivo == null) {
-                throw new RuntimeException(
-                        "No se encontró estudianteCarrera.csv"
-                );
-            }
+            throw new RuntimeException(
+                    "No se encontró estudianteCarrera.csv"
+            );
+        }
 
-            BufferedReader br
-                    = new BufferedReader(
-                            new InputStreamReader(
-                                    archivo,
-                                    StandardCharsets.UTF_8
-                            )
-                    );
-
-            String linea;
+        try (
+                BufferedReader br
+                = new BufferedReader(
+                        new InputStreamReader(
+                                archivo,
+                                StandardCharsets.UTF_8
+                        )
+                )) {
 
             br.readLine();
 
             em.getTransaction().begin();
 
-            while ((linea = br.readLine()) != null) {
+            while (br.ready()) {
+
+                String linea = br.readLine();
+
+                if (linea == null) {
+                    break;
+                }
 
                 String[] datos = linea.split(",");
 
-                int id = Integer.parseInt(datos[0]);
+                int id
+                        = Integer.parseInt(datos[0]);
+
                 int dniEstudiante
                         = Integer.parseInt(datos[1]);
+
                 int idCarrera
                         = Integer.parseInt(datos[2]);
+
                 int anioInscripcion
                         = Integer.parseInt(datos[3]);
+
                 int anioGraduacion
                         = Integer.parseInt(datos[4]);
+
                 int antiguedad
                         = Integer.parseInt(datos[5]);
 
@@ -426,6 +498,7 @@ import edu.isistan.repository.MySQLInscripcion;
                         );
 
                 if (estudiante == null) {
+
                     throw new RuntimeException(
                             "No existe el estudiante con DNI: "
                             + dniEstudiante
@@ -433,6 +506,7 @@ import edu.isistan.repository.MySQLInscripcion;
                 }
 
                 if (carrera == null) {
+
                     throw new RuntimeException(
                             "No existe la carrera con ID: "
                             + idCarrera
@@ -454,9 +528,9 @@ import edu.isistan.repository.MySQLInscripcion;
 
             em.getTransaction().commit();
 
-            br.close();
-
-            System.out.println("Inscripciones cargadas.");
+            System.out.println(
+                    "Inscripciones cargadas."
+            );
 
         } catch (Exception e) {
 
@@ -471,46 +545,76 @@ import edu.isistan.repository.MySQLInscripcion;
         }
     }
 
-    private static void imprimirReporte(MySQLCarrera daoCarrera) {
+    // =================================
+    // IMPRIMIR REPORTE
+    // =================================
+    private static void imprimirReporte(
+            CarreraRepository carreraRepository) {
 
-        List<ReporteCarreraDTO> reporte =
-                daoCarrera.generarReporte();
+        List<ReporteCarreraDTO> reporte
+                = carreraRepository.generarReporte();
 
-        System.out.println("REPORTE DE CARRERAS");
+        System.out.println();
+        System.out.println("=================================");
+        System.out.println("3 - REPORTE DE CARRERAS");
+        System.out.println("=================================");
 
         for (ReporteCarreraDTO r : reporte) {
 
-                System.out.println(
-                        r.getCarrera()
-                        + " | Año: " + r.getAnio()
-                        + " | Inscriptos: " + r.getInscriptos()
-                        + " | Egresados: " + r.getEgresados()
-                );
+            System.out.println(
+                    r.getCarrera()
+                    + " | Año: "
+                    + r.getAnio()
+                    + " | Inscriptos: "
+                    + r.getInscriptos()
+                    + " | Egresados: "
+                    + r.getEgresados()
+            );
         }
-}
+    }
 
-
+    // =================================
     // BORRAR DATOS
-    private static void borrarDatos(EntityManager em) {
+    // =================================
+    private static void borrarDatos(
+            EntityManager em) {
 
-        System.out.println("Borrando datos anteriores...");
+        System.out.println(
+                "Borrando datos anteriores..."
+        );
 
-        em.getTransaction().begin();
+        try {
 
-        em.createQuery(
-                "DELETE FROM Inscripcion"
-        ).executeUpdate();
+            em.getTransaction().begin();
 
-        em.createQuery(
-                "DELETE FROM Estudiante"
-        ).executeUpdate();
+            em.createQuery(
+                    "DELETE FROM Inscripcion"
+            ).executeUpdate();
 
-        em.createQuery(
-                "DELETE FROM Carrera"
-        ).executeUpdate();
+            em.createQuery(
+                    "DELETE FROM Estudiante"
+            ).executeUpdate();
 
-        em.getTransaction().commit();
+            em.createQuery(
+                    "DELETE FROM Carrera"
+            ).executeUpdate();
 
-        System.out.println("Datos anteriores borrados.");
+            em.getTransaction().commit();
+
+            System.out.println(
+                    "Datos anteriores borrados."
+            );
+
+        } catch (Exception e) {
+
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+
+            throw new RuntimeException(
+                    "Error borrando datos",
+                    e
+            );
+        }
     }
 }

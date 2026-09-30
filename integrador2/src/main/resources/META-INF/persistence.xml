@@ -19,7 +19,7 @@
                       value="com.mysql.cj.jdbc.Driver"/>
 
             <property name="javax.persistence.jdbc.url"
-                      value="jdbc:mysql://localhost:3306/integrador2bd?useSSL=false&amp;serverTimezone=UTC"/>
+                      value="jdbc:mysql://localhost:3306/integrador2?useSSL=false&amp;serverTimezone=UTC"/>
 
             <property name="javax.persistence.jdbc.user"
                       value="root"/>

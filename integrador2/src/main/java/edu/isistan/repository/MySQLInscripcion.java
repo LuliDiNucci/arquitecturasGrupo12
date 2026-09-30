@@ -1,22 +1,13 @@
 package edu.isistan.repository;
 
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.Persistence;
-
-import edu.isistan.modelo.Inscripcion;
 
 import edu.isistan.modelo.Carrera;
-
 import edu.isistan.modelo.Estudiante;
+import edu.isistan.modelo.Inscripcion;
+import edu.isistan.util.JPAUtil;
 
 public class MySQLInscripcion implements InscripcionRepository {
-
-    private EntityManagerFactory emf;
-
-    public MySQLInscripcion() {
-        emf = Persistence.createEntityManagerFactory("Example");
-    }
 
     // b) Matricular un estudiante en una carrera
     @Override
@@ -28,15 +19,31 @@ public class MySQLInscripcion implements InscripcionRepository {
             int anioGraduacion,
             int antiguedad) {
 
-        EntityManager em = emf.createEntityManager();
+        EntityManager em = JPAUtil.getEntityManager();
 
         try {
+
+            em.getTransaction().begin();
 
             Estudiante estudiante
                     = em.find(Estudiante.class, dniEstudiante);
 
             Carrera carrera
                     = em.find(Carrera.class, idCarrera);
+
+            if (estudiante == null) {
+                throw new RuntimeException(
+                        "No existe el estudiante con DNI: "
+                        + dniEstudiante
+                );
+            }
+
+            if (carrera == null) {
+                throw new RuntimeException(
+                        "No existe la carrera con ID: "
+                        + idCarrera
+                );
+            }
 
             Inscripcion inscripcion = new Inscripcion(
                     id,
@@ -46,8 +53,6 @@ public class MySQLInscripcion implements InscripcionRepository {
                     anioGraduacion,
                     antiguedad
             );
-
-            em.getTransaction().begin();
 
             em.persist(inscripcion);
 

@@ -6,26 +6,19 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.Persistence;
 
 import edu.isistan.dto.CarreraInscriptosDTO;
 import edu.isistan.dto.ReporteCarreraDTO;
+import edu.isistan.util.JPAUtil;
 
 public class MySQLCarrera implements CarreraRepository {
-
-    private EntityManagerFactory emf;
-
-    public MySQLCarrera() {
-        emf = Persistence.createEntityManagerFactory("Example");
-    }
 
     // f) Recuperar carreras con estudiantes inscriptos
     // y ordenar por cantidad de inscriptos
     @Override
     public List<CarreraInscriptosDTO> carrerasOrdenadasPorInscriptos() {
 
-        EntityManager em = emf.createEntityManager();
+        EntityManager em = JPAUtil.getEntityManager();
 
         try {
 
@@ -52,103 +45,91 @@ public class MySQLCarrera implements CarreraRepository {
         }
     }
 
-
-    
-
     // 3 - REPORTE DE CARRERAS
-
     @Override
     public List<ReporteCarreraDTO> generarReporte() {
 
-        EntityManager em = emf.createEntityManager();
+        EntityManager em = JPAUtil.getEntityManager();
 
         try {
 
             // CONSULTA DE INSCRIPTOS
-
-            String jpqlI =
-                    "SELECT c.nombre, i.inscripcion, COUNT(i) "
+            String jpqlI
+                    = "SELECT new edu.isistan.dto.ReporteCarreraDTO("
+                    + "c.nombre, i.inscripcion, COUNT(i), true) "
                     + "FROM Inscripcion i "
                     + "JOIN i.carrera c "
                     + "GROUP BY c.nombre, i.inscripcion "
                     + "ORDER BY c.nombre, i.inscripcion";
 
-            List<Object[]> inscriptos = em.createQuery(
-                    jpqlI, Object[].class
-            ).getResultList();
-            // CONSULTA DE EGRESADOS
+            List<ReporteCarreraDTO> inscriptos
+                    = em.createQuery(
+                            jpqlI,
+                            ReporteCarreraDTO.class
+                    ).getResultList();
 
-            String jpqlE =
-                    "SELECT c.nombre, i.graduacion, COUNT(i) "
+            // CONSULTA DE EGRESADOS
+            String jpqlE
+                    = "SELECT new edu.isistan.dto.ReporteCarreraDTO("
+                    + "c.nombre, i.graduacion, COUNT(i), false) "
                     + "FROM Inscripcion i "
                     + "JOIN i.carrera c "
                     + "WHERE i.graduacion > 0 "
                     + "GROUP BY c.nombre, i.graduacion "
                     + "ORDER BY c.nombre, i.graduacion";
 
-            List<Object[]> egresados = em.createQuery(
-                    jpqlE, Object[].class
-            ).getResultList();
-
+            List<ReporteCarreraDTO> egresados
+                    = em.createQuery(
+                            jpqlE,
+                            ReporteCarreraDTO.class
+                    ).getResultList();
 
             // COMBINAR LOS RESULTADOS
+            Map<String, Map<Integer, ReporteCarreraDTO>> reporte
+                    = new TreeMap<>();
 
-            Map<String, Map<Integer, ReporteCarreraDTO>> reporte =
-                    new TreeMap<>();
-
-
-            // Incorporar inscriptos
-
-            for (Object[] fila : inscriptos) {
-
-                String carrera = (String) fila[0];
-                int anio = (Integer) fila[1];
-                Long cantidad = (Long) fila[2];
+            // INCORPORAR INSCRIPTOS
+            for (ReporteCarreraDTO dto : inscriptos) {
 
                 reporte.putIfAbsent(
-                        carrera,
+                        dto.getCarrera(),
                         new TreeMap<>()
                 );
 
-                reporte.get(carrera).putIfAbsent(
-                        anio,
-                        new ReporteCarreraDTO(carrera, anio)
+                reporte.get(dto.getCarrera()).put(
+                        dto.getAnio(),
+                        dto
                 );
-
-                reporte.get(carrera)
-                        .get(anio)
-                        .setInscriptos(cantidad);
             }
 
-
-            // Incorporar egresados
-
-            for (Object[] fila : egresados) {
-
-                String carrera = (String) fila[0];
-                int anio = (Integer) fila[1];
-                Long cantidad = (Long) fila[2];
+            // INCORPORAR EGRESADOS
+            for (ReporteCarreraDTO dto : egresados) {
 
                 reporte.putIfAbsent(
-                        carrera,
+                        dto.getCarrera(),
                         new TreeMap<>()
                 );
 
-                reporte.get(carrera).putIfAbsent(
-                        anio,
-                        new ReporteCarreraDTO(carrera, anio)
-                );
+                Map<Integer, ReporteCarreraDTO> anios
+                        = reporte.get(dto.getCarrera());
 
-                reporte.get(carrera)
-                        .get(anio)
-                        .setEgresados(cantidad);
+                if (anios.containsKey(dto.getAnio())) {
+
+                    anios.get(dto.getAnio())
+                            .setEgresados(dto.getEgresados());
+
+                } else {
+
+                    anios.put(
+                            dto.getAnio(),
+                            dto
+                    );
+                }
             }
 
-
-            // CONVERTIR A LISTA DE DTO
-
-            List<ReporteCarreraDTO> resultado =
-                    new ArrayList<>();
+            // CONVERTIR A LISTA
+            List<ReporteCarreraDTO> resultado
+                    = new ArrayList<>();
 
             for (Map<Integer, ReporteCarreraDTO> anios
                     : reporte.values()) {
@@ -158,9 +139,9 @@ public class MySQLCarrera implements CarreraRepository {
 
             return resultado;
 
-        } finally { //es para q pase lp q pase se ejecute esto (osea q cierre el entitymanager)
+        } finally {
+
             em.close();
         }
     }
-
 }

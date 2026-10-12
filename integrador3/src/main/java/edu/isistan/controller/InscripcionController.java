@@ -1,3 +1,4 @@
+
 package edu.isistan.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import edu.isistan.dto.InscripcionDTO;
 import edu.isistan.modelo.Inscripcion;
 import edu.isistan.service.InscripcionService;
 
@@ -29,6 +31,7 @@ public class InscripcionController {
 
         try {
 
+            // Guardar la inscripción
             Inscripcion inscripcion =
                     inscripcionService.matricular(
                             id,
@@ -39,7 +42,12 @@ public class InscripcionController {
                             antiguedad
                     );
 
-            return ResponseEntity.ok(inscripcion);
+            // Convertir la entidad a DTO
+            InscripcionDTO dto =
+                    new InscripcionDTO(inscripcion);
+
+            // Devolver el DTO como JSON
+            return ResponseEntity.ok(dto);
 
         } catch (Exception e) {
 
@@ -49,3 +57,4 @@ public class InscripcionController {
         }
     }
 }
+

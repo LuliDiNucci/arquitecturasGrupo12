@@ -2,174 +2,54 @@ package edu.isistan.repository;
 
 import java.util.List;
 
-import javax.persistence.EntityManager;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import edu.isistan.dto.EstudianteDTO;
 import edu.isistan.modelo.Estudiante;
-import edu.isistan.util.JPAUtil;
 
-public class MySQLEstudiante implements EstudianteRepository {
-
-    // a) Dar de alta un estudiante
-    @Override
-    public void insertarEstudiante(Estudiante estudiante) {
-
-        EntityManager em = JPAUtil.getEntityManager();
-
-        try {
-
-            em.getTransaction().begin();
-            em.persist(estudiante);
-            em.getTransaction().commit();
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-
-        } finally {
-
-            em.close();
-        }
-    }
+public interface EstudianteRepository extends JpaRepository<Estudiante, Integer> {
 
     // c) Recuperar todos los estudiantes
     // ordenados por apellido
-    @Override
-    public List<EstudianteDTO> recuperarTodos() {
-
-        EntityManager em = JPAUtil.getEntityManager();
-
-        try {
-
-            List<EstudianteDTO> estudiantes = em.createQuery(
-                    "SELECT new edu.isistan.dto.EstudianteDTO("
-                    + "e.dni, e.nombre, e.apellido, e.edad, "
-                    + "e.genero, e.ciudad, e.LU) "
-                    + "FROM Estudiante e "
-                    + "ORDER BY e.apellido ASC",
-                    EstudianteDTO.class
-            ).getResultList();
-
-            return estudiantes;
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-            return null;
-
-        } finally {
-
-            em.close();
-        }
-    }
+    @Query("SELECT new edu.isistan.dto.EstudianteDTO("
+         + "e.dni, e.nombre, e.apellido, e.edad, "
+         + "e.genero, e.ciudad, e.LU) "
+         + "FROM Estudiante e "
+         + "ORDER BY e.apellido ASC")
+    List<EstudianteDTO> recuperarTodos();
 
     // d) Recuperar estudiante por LU
-    @Override
-    public EstudianteDTO recuperarPorLU(int LU) {
-
-        EntityManager em = JPAUtil.getEntityManager();
-
-        try {
-
-            EstudianteDTO estudiante = em.createQuery(
-                    "SELECT new edu.isistan.dto.EstudianteDTO("
-                    + "e.dni, e.nombre, e.apellido, e.edad, "
-                    + "e.genero, e.ciudad, e.LU) "
-                    + "FROM Estudiante e "
-                    + "WHERE e.LU = :LU",
-                    EstudianteDTO.class
-            )
-                    .setParameter("LU", LU)
-                    .getSingleResult();
-
-            return estudiante;
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-            return null;
-
-        } finally {
-
-            em.close();
-        }
-    }
+    @Query("SELECT new edu.isistan.dto.EstudianteDTO("
+         + "e.dni, e.nombre, e.apellido, e.edad, "
+         + "e.genero, e.ciudad, e.LU) "
+         + "FROM Estudiante e "
+         + "WHERE e.LU = :LU")
+    EstudianteDTO recuperarPorLU(@Param("LU") int LU);
 
     // e) Recuperar estudiantes por género
-    @Override
-    public List<EstudianteDTO> recuperarPorGenero(String genero) {
-
-        EntityManager em = JPAUtil.getEntityManager();
-
-        try {
-
-            List<EstudianteDTO> estudiantes = em.createQuery(
-                    "SELECT new edu.isistan.dto.EstudianteDTO("
-                    + "e.dni, e.nombre, e.apellido, e.edad, "
-                    + "e.genero, e.ciudad, e.LU) "
-                    + "FROM Estudiante e "
-                    + "WHERE e.genero = :genero",
-                    EstudianteDTO.class
-            )
-                    .setParameter("genero", genero)
-                    .getResultList();
-
-            return estudiantes;
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-            return null;
-
-        } finally {
-
-            em.close();
-        }
-    }
+    @Query("SELECT new edu.isistan.dto.EstudianteDTO("
+         + "e.dni, e.nombre, e.apellido, e.edad, "
+         + "e.genero, e.ciudad, e.LU) "
+         + "FROM Estudiante e "
+         + "WHERE e.genero = :genero")
+    List<EstudianteDTO> recuperarPorGenero(@Param("genero") String genero);
 
     // g) Recuperar estudiantes de una carrera
     // filtrados por ciudad
-    @Override
-    public List<EstudianteDTO> recuperarPorCarreraYCiudad(
-            String nombreCarrera,
-            String ciudad) {
-
-        EntityManager em = JPAUtil.getEntityManager();
-
-        try {
-
-            List<EstudianteDTO> estudiantes = em.createQuery(
-                    "SELECT new edu.isistan.dto.EstudianteDTO("
-                    + "i.estudiante.dni, "
-                    + "i.estudiante.nombre, "
-                    + "i.estudiante.apellido, "
-                    + "i.estudiante.edad, "
-                    + "i.estudiante.genero, "
-                    + "i.estudiante.ciudad, "
-                    + "i.estudiante.LU) "
-                    + "FROM Inscripcion i "
-                    + "WHERE i.carrera.nombre = :nombreCarrera "
-                    + "AND i.estudiante.ciudad = :ciudad",
-                    EstudianteDTO.class
-            )
-                    .setParameter("nombreCarrera", nombreCarrera)
-                    .setParameter("ciudad", ciudad)
-                    .getResultList();
-
-            return estudiantes;
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-            return null;
-
-        } finally {
-
-            em.close();
-        }
-    }
+    @Query("SELECT new edu.isistan.dto.EstudianteDTO("
+         + "i.estudiante.dni, "
+         + "i.estudiante.nombre, "
+         + "i.estudiante.apellido, "
+         + "i.estudiante.edad, "
+         + "i.estudiante.genero, "
+         + "i.estudiante.ciudad, "
+         + "i.estudiante.LU) "
+         + "FROM Inscripcion i "
+         + "WHERE i.carrera.nombre = :nombreCarrera "
+         + "AND i.estudiante.ciudad = :ciudad")
+    List<EstudianteDTO> recuperarPorCarreraYCiudad(
+            @Param("nombreCarrera") String nombreCarrera,
+            @Param("ciudad") String ciudad);
 }

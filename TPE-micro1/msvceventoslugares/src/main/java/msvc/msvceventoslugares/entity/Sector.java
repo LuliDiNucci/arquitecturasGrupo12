@@ -4,6 +4,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 @Entity
 public class Sector {
@@ -16,7 +18,9 @@ public class Sector {
 
     private boolean numerado;
 
-    private Long idLugar;
+    @ManyToOne 
+    @JoinColumn(name = "lugar_id")
+    private Lugar idLugar;
 
     private int capacidad;
 
@@ -39,11 +43,11 @@ public class Sector {
         this.numerado = numerado;
     }
 
-    public Long getIdLugar() {
+    public Lugar getIdLugar() {
         return idLugar;
     }
 
-    public void setIdLugar(Long idLugar) {
+    public void setIdLugar(Lugar idLugar) {
         this.idLugar = idLugar;
     }
 

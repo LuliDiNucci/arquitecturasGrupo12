@@ -6,6 +6,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import java.util.List;
+
 import jakarta.persistence.OneToMany;
 
 @Entity
@@ -21,12 +23,17 @@ public class Lugar {
 
     private String ciudad;
 
+<<<<<<< HEAD
     private double latitud;
 
     private double longitud;
 
     @OneToMany(mappedBy = "idLugar")
     private List<Sector> sector;
+=======
+    @OneToMany(mappedBy = "idLugar")
+    private List<Sector> sectores;
+>>>>>>> ec5c1a8504968268c23a252810d19f3f960710a8
 
     public Lugar() {
     }
@@ -63,6 +70,7 @@ public class Lugar {
         this.ciudad = ciudad;
     }
 
+<<<<<<< HEAD
     public double getLatitud() {
         return latitud;
     }
@@ -87,4 +95,13 @@ public class Lugar {
         this.sector = sector;
     }
 
+=======
+    public List<Sector> getSectores() {
+        return sectores;
+    }
+
+    public void setSectores(List<Sector> sectores) {
+        this.sectores = sectores;
+    }
+>>>>>>> ec5c1a8504968268c23a252810d19f3f960710a8
 }

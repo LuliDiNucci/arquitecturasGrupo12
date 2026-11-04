@@ -29,7 +29,11 @@ public class Sector {
 
     public Long getId() {
         return id;
+<<<<<<< HEAD
     }  
+=======
+    }
+>>>>>>> ec5c1a8504968268c23a252810d19f3f960710a8
 
     public String getNombre() {
         return nombre;

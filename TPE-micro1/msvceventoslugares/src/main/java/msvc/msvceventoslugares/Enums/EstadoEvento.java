@@ -5,5 +5,6 @@ public enum EstadoEvento {
     PUBLICADO,
     AGOTADO,
     CANCELADO,
+    SUSPENDIDO,
     FINALIZADO
 }

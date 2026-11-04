@@ -1,5 +1,11 @@
 package msvc.msvceventoslugares.repository;
 
-public class OrganizadorRepository {
-    
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import msvc.msvceventoslugares.entity.Organizador;
+
+@Repository
+public interface OrganizadorRepository extends JpaRepository<Organizador, Long> {
+
 }

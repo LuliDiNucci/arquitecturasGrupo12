@@ -6,6 +6,6 @@ import org.springframework.stereotype.Repository;
 import msvc.msvceventoslugares.entity.Lugar;
 
 @Repository
-public interface LugarRepository extends JpaRepository<Lugar,Long> {
-    
+public interface LugarRepository extends JpaRepository<Lugar, Long> {
+
 }

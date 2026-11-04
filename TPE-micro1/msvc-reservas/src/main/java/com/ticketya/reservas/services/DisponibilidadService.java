@@ -1,6 +1,11 @@
 package com.ticketya.reservas.services;
-import org.springframework.stereotype.Service;
 
-@Service
-public class DisponibilidadService {
+import com.ticketya.reservas.dtos.DisponibilidadDTO;
+
+public interface DisponibilidadService {
+
+    DisponibilidadDTO consultarDisponibilidad(
+            Long eventoId,
+            Long sectorId
+    );
 }

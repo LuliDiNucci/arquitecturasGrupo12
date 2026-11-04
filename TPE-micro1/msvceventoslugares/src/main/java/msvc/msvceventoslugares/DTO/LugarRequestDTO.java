@@ -1,16 +1,41 @@
 package msvc.msvceventoslugares.DTO;
 
-public class LugarRequestDTO {
-    private String nombre;
-    private Integer capacidad;
-    private String direccion;
+import java.util.ArrayList;
+import java.util.List;
 
-    public LugarRequestDTO(String nombre, String direccion) {
+import msvc.msvceventoslugares.entity.Sector;
+
+public class LugarRequestDTO {
+    private Long id;
+    private String nombre;
+    private String direccion;
+    private String ciudad;
+    private double latitud;
+    private double longitud;
+    private List<Sector> sectores;
+
+
+    public LugarRequestDTO(String nombre, String direccion, String ciudad, double latitud, double longitud, List<Sector> sectores) {
+        this.id = id;
         this.nombre = nombre;
         this.direccion = direccion;
+        this.ciudad = ciudad;
+        this.latitud = latitud;
+        this.longitud = longitud;
+        this.sectores = sectores;
     }
 
-    //TO DO sector_id
+    public Long getId() {
+        return id;
+    }
+
+    public List<Sector> getSectores() {
+        return new ArrayList<>(this.sectores);
+    }
+
+    public void setSectores(List<Sector> sectores) {
+        this.sectores = sectores;
+    }
 
     public LugarRequestDTO() {
     }
@@ -29,5 +54,29 @@ public class LugarRequestDTO {
 
     public void setDireccion(String direccion) {
         this.direccion = direccion;
+    }
+
+    public String getCiudad() {
+        return ciudad;
+    }
+
+    public void setCiudad(String ciudad) {
+        this.ciudad = ciudad;
+    }
+
+    public double getLatitud() {
+        return latitud;
+    }
+
+    public void setLatitud(double latitud) {
+        this.latitud = latitud;
+    }
+
+    public double getLongitud() {
+        return longitud;
+    }
+
+    public void setLongitud(double longitud) {
+        this.longitud = longitud;
     }
 }

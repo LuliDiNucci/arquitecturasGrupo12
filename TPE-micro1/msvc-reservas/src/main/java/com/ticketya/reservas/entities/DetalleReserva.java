@@ -1,6 +1,20 @@
+
 package com.ticketya.reservas.entities;
 
-import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "detalle_reserva")
@@ -14,15 +28,17 @@ public class DetalleReserva {
     @JoinColumn(name = "reserva_id", nullable = false)
     private Reserva reserva;
 
-    @Column(name = "sector_id")
+    @Column(name = "sector_id", nullable = false)
     private Long sectorId;
 
+    @Column(nullable = false)
     private Integer cantidad;
 
-    private String estado;
+    @Column(name = "cantidad_liberada", nullable = false)
+    private Integer cantidadLiberada = 0;
 
-    @OneToOne(mappedBy = "detalleReserva", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private AsignacionAsiento asignacionAsiento;
+    @OneToMany(mappedBy = "detalleReserva", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AsignacionAsiento> asignaciones = new ArrayList<>();
 
     public DetalleReserva() {
     }
@@ -59,25 +75,26 @@ public class DetalleReserva {
         this.cantidad = cantidad;
     }
 
-    public String getEstado() {
-        return estado;
+    public Integer getCantidadLiberada() {
+        return cantidadLiberada;
     }
 
-    public void setEstado(String estado) {
-        this.estado = estado;
+    public void setCantidadLiberada(Integer cantidadLiberada) {
+        this.cantidadLiberada = cantidadLiberada;
     }
 
-    public AsignacionAsiento getAsignacionAsiento() {
-        return asignacionAsiento;
+    public List<AsignacionAsiento> getAsignaciones() {
+        return asignaciones;
     }
 
-    public void setAsignacionAsiento(AsignacionAsiento asignacionAsiento) {
-        if (this.asignacionAsiento != null) {
-            this.asignacionAsiento.setDetalleReserva(null);
-        }
-        this.asignacionAsiento = asignacionAsiento;
-        if (asignacionAsiento != null) {
-            asignacionAsiento.setDetalleReserva(this);
+    public void agregarAsignacion(AsignacionAsiento asignacion) {
+        asignaciones.add(asignacion);
+        asignacion.setDetalleReserva(this);
+    }
+
+    public void quitarAsignacion(AsignacionAsiento asignacion) {
+        if (asignaciones.remove(asignacion)) {
+            asignacion.setDetalleReserva(null);
         }
     }
 

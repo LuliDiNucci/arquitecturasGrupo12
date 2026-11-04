@@ -1,9 +1,22 @@
+
 package com.ticketya.reservas.entities;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.ticketya.reservas.enums.EstadoReserva;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "reserva")
@@ -13,24 +26,34 @@ public class Reserva {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "cliente_id")
+    @Column(name = "cliente_id", nullable = false)
     private Long clienteId;
 
-    @Column(name = "evento_id")
+    @Column(name = "evento_id", nullable = false)
     private Long eventoId;
 
-    @Column(name = "fecha_creacion")
+    @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion;
 
-    @Column(name = "fecha_vencimiento")
+    @Column(name = "fecha_vencimiento", nullable = false)
     private LocalDateTime fechaVencimiento;
 
-    private String estado;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private EstadoReserva estado;
 
-    @Column(name = "clave_idempotencia", unique = true)
+    @Column(
+        name = "clave_idempotencia",
+        unique = true,
+        nullable = false
+    )
     private String claveIdempotencia;
 
-    @OneToMany(mappedBy = "reserva", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(
+        mappedBy = "reserva",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true
+    )
     private List<DetalleReserva> detalles = new ArrayList<>();
 
     public Reserva() {
@@ -64,7 +87,8 @@ public class Reserva {
         return fechaCreacion;
     }
 
-    public void setFechaCreacion(LocalDateTime fechaCreacion) {
+    public void setFechaCreacion(
+            LocalDateTime fechaCreacion) {
         this.fechaCreacion = fechaCreacion;
     }
 
@@ -72,15 +96,16 @@ public class Reserva {
         return fechaVencimiento;
     }
 
-    public void setFechaVencimiento(LocalDateTime fechaVencimiento) {
+    public void setFechaVencimiento(
+            LocalDateTime fechaVencimiento) {
         this.fechaVencimiento = fechaVencimiento;
     }
 
-    public String getEstado() {
+    public EstadoReserva getEstado() {
         return estado;
     }
 
-    public void setEstado(String estado) {
+    public void setEstado(EstadoReserva estado) {
         this.estado = estado;
     }
 
@@ -88,7 +113,8 @@ public class Reserva {
         return claveIdempotencia;
     }
 
-    public void setClaveIdempotencia(String claveIdempotencia) {
+    public void setClaveIdempotencia(
+            String claveIdempotencia) {
         this.claveIdempotencia = claveIdempotencia;
     }
 

@@ -23,6 +23,10 @@ public class Participante {
     public Participante() {
     }
 
+    public Long getId() {
+        return id;
+    }
+
     public String getNombre() {
         return nombre;
     }

@@ -45,7 +45,7 @@ public class DevolucionServiceImpl implements DevolucionService {
     public DevolucionResponseDTO solicitar(DevolucionRequestDTO dto) {
 
         // Buscar la entrada.
-        Entrada entrada = entradaRepository.findById(dto.entradaId())
+        Entrada entrada = entradaRepository.findById(dto.getEntradaId())
                 .orElseThrow(() ->
                     new RuntimeException("Entrada no encontrada"));
 
@@ -81,7 +81,7 @@ public class DevolucionServiceImpl implements DevolucionService {
 
         solicitud.setEntrada(entrada);
         solicitud.setFechaSolicitud(LocalDateTime.now());
-        solicitud.setMotivo(dto.motivo());
+        solicitud.setMotivo(dto.getMotivo());
         solicitud.setEstado("PENDIENTE");
 
         SolicitudDevolucion guardada =

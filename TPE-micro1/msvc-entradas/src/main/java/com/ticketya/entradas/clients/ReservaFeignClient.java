@@ -4,7 +4,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 
-@FeignClient(name = "msvc-reservas")
+@FeignClient(name = "msvc-reservas", url = "${msvc.reservas.url}")
 public interface ReservaFeignClient {
 
     @PostMapping("/reservas/{id}/liberar")

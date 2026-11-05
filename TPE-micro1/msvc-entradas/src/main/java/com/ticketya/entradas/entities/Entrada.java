@@ -173,11 +173,4 @@ public class Entrada {
         this.fechaUso = fechaUso;
     }
 
-    public Long getEventoId() {
-        return eventoId;
-    }
-
-    public void setEventoId(Long eventoId) {
-        this.eventoId = eventoId;
-    }
 }

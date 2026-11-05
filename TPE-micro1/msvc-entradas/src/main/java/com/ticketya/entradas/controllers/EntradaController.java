@@ -3,38 +3,25 @@ package com.ticketya.entradas.controllers;
 
 import java.util.List;
 
-<<<<<<< HEAD
-=======
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
->>>>>>> d3b986a48b26fce11bfe7325ed2a8e4e1b3645dd
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-<<<<<<< HEAD
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.ticketya.entradas.dtos.EntradaRequestDTO;
-import com.ticketya.entradas.dtos.EntradaResponseDTO;
-import com.ticketya.entradas.services.EntradaService;
-
-=======
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ticketya.entradas.dtos.EmitirEntradasRequestDTO;
 import com.ticketya.entradas.dtos.EntradaDTO;
-import com.ticketya.entradas.services.EntradaService;
 import com.ticketya.entradas.dtos.ResultadoEmisionDTO;
+import com.ticketya.entradas.services.EntradaService;
 
 import jakarta.validation.Valid;
 
 @Validated
->>>>>>> d3b986a48b26fce11bfe7325ed2a8e4e1b3645dd
 @RestController
 @RequestMapping("/entradas")
 public class EntradaController {
@@ -45,40 +32,6 @@ public class EntradaController {
         this.entradaService = entradaService;
     }
 
-<<<<<<< HEAD
-    // POST /entradas/emitir
-    @PostMapping("/emitir")
-    public EntradaResponseDTO emitir(
-            @RequestBody EntradaRequestDTO dto) {
-
-        return entradaService.emitir(dto);
-    }
-
-    // GET /entradas/{id}
-    @GetMapping("/{id}")
-    public EntradaResponseDTO obtenerPorId(
-            @PathVariable Long id) {
-
-        return entradaService.obtenerPorId(id);
-    }
-
-    // GET /entradas/cliente/{clienteId}
-    @GetMapping("/cliente/{clienteId}")
-    public List<EntradaResponseDTO> obtenerPorCliente(
-            @PathVariable Long clienteId) {
-
-        return entradaService.obtenerPorCliente(clienteId);
-    }
-
-    // POST /entradas/evento/{id}/invalidar
-    @PostMapping("/evento/{id}/invalidar")
-    public void invalidarPorEvento(
-            @PathVariable Long id) {
-
-        entradaService.invalidarPorEvento(id);
-    }
-}
-=======
     /*
      * Emite las entradas correspondientes a una compra.
      * El service verifica que la compra este aprobada
@@ -133,5 +86,8 @@ public class EntradaController {
 
         return ResponseEntity.ok(entradas);
     }
+    @PostMapping("/evento/{id}/invalidar")
+    public void invalidarPorEvento(@PathVariable Long id) {
+        entradaService.invalidarPorEvento(id);
+    }
 }
->>>>>>> d3b986a48b26fce11bfe7325ed2a8e4e1b3645dd

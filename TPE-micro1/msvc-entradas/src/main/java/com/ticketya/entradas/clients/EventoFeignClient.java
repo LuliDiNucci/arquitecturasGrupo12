@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import com.ticketya.entradas.dtos.EventoDTO;
 
-@FeignClient(name = "msvc-eventos")
+@FeignClient(name = "msvc-eventos-lugares", url = "${msvc.eventos.url}")
 public interface EventoFeignClient {
 
     @GetMapping("/eventos/{id}")

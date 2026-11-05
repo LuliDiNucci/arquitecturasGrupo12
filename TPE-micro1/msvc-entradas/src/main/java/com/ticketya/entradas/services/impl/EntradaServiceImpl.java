@@ -2,6 +2,10 @@
 package com.ticketya.entradas.services.impl;
 
 import com.ticketya.entradas.services.EntradaService;
+import com.ticketya.entradas.clients.EventoFeignClient;
+import com.ticketya.entradas.clients.ReservaFeignClient;
+import com.ticketya.entradas.clients.CompraFeignClient;
+import com.ticketya.entradas.dtos.EventoDTO;
 import com.ticketya.entradas.services.QrCodeService;
 import com.ticketya.entradas.dtos.ResultadoEmisionDTO;
 
@@ -29,6 +33,9 @@ import java.util.UUID;
 @Service
 public class EntradaServiceImpl implements EntradaService {
 
+    private final EventoFeignClient eventoFeignClient;
+    private final ReservaFeignClient reservaFeignClient;
+    private final CompraFeignClient compraFeignClient;
     private final EntradaRepository entradaRepository;
     private final CompraClient compraClient;
     private final ReservaClient reservaClient;
@@ -38,8 +45,14 @@ public class EntradaServiceImpl implements EntradaService {
             EntradaRepository entradaRepository,
             CompraClient compraClient,
             ReservaClient reservaClient,
-            QrCodeService qrCodeService) {
+            QrCodeService qrCodeService,
+            EventoFeignClient eventoFeignClient,
+            ReservaFeignClient reservaFeignClient,
+            CompraFeignClient compraFeignClient) {
 
+        this.eventoFeignClient = eventoFeignClient;
+        this.reservaFeignClient = reservaFeignClient;
+        this.compraFeignClient = compraFeignClient;
         this.entradaRepository = entradaRepository;
         this.compraClient = compraClient;
         this.reservaClient = reservaClient;
@@ -307,4 +320,31 @@ public class EntradaServiceImpl implements EntradaService {
             qrCodeService.generarImagenBase64(e.getCodigoQr())
         );
     }
+    @Override
+    @Transactional
+    public void invalidarPorEvento(Long eventoId) {
+
+        EventoDTO evento = eventoFeignClient.obtenerEvento(eventoId);
+
+        if (!"CANCELADO".equals(evento.estado())) {
+            throw new RuntimeException("El evento no está cancelado");
+        }
+
+        List<Entrada> entradas =
+                entradaRepository.findByEventoIdAndEstado(eventoId, "EMITIDA");
+
+        for (Entrada entrada : entradas) {
+
+            entrada.setEstado("INVALIDADA");
+
+            // Liberar el lugar asociado a la reserva.
+            reservaFeignClient.liberarReserva(entrada.getReservaId());
+
+            // Coordinar el reintegro.
+            compraFeignClient.reintegrarCompra(entrada.getCompraId());
+        }
+
+        entradaRepository.saveAll(entradas);
+    }
+
 }

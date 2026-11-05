@@ -4,7 +4,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 
-@FeignClient(name = "msvc-compras")
+@FeignClient(name = "msvc-compras", url = "${msvc.compras.url}")
 public interface CompraFeignClient {
 
     @PostMapping("/compras/{id}/reintegrar")

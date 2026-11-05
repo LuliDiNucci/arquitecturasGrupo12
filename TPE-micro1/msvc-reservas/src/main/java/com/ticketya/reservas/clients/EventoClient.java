@@ -1,14 +1,15 @@
 package com.ticketya.reservas.clients;
 
-import com.ticketya.reservas.dtos.EventoDTO;
-import com.ticketya.reservas.dtos.PrecioSectorDTO;
-import com.ticketya.reservas.dtos.SectorDTO;
-import com.ticketya.reservas.dtos.AsientoDTO;
-
 import java.util.List;
 
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+import com.ticketya.reservas.dtos.AsientoDTO;
+import com.ticketya.reservas.dtos.EventoDTO;
+import com.ticketya.reservas.dtos.PrecioSectorDTO;
+import com.ticketya.reservas.dtos.SectorDTO;
 
 @FeignClient(name = "msvc-eventos-lugares", url = "${msvc.eventos.url}")
 public interface EventoClient {

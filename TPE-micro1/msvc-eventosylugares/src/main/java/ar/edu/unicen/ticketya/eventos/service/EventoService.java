@@ -1,0 +1,51 @@
+package ar.edu.unicen.ticketya.eventos.service;
+
+import ar.edu.unicen.ticketya.eventos.dto.*;
+import ar.edu.unicen.ticketya.eventos.model.*;
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * Define las operaciones de evento.
+ * La logica se encuentra en la clase de implementacion.
+ */
+public interface EventoService {
+
+    EventoResponseDTO crear(EventoRequestDTO request);
+
+    EventoResponseDTO actualizar(Long id, EventoRequestDTO request);
+
+    EventoResponseDTO configurarPrecios(Long id, PreciosEventoRequestDTO request);
+
+    EventoResponseDTO publicar(Long id);
+
+    EventoResponseDTO suspender(Long id);
+
+    EventoResponseDTO cancelar(Long id);
+
+    EventoResponseDTO marcarAgotado(Long id);
+
+    EventoResponseDTO reabrirVentas(Long id);
+
+    EventoResponseDTO finalizar(Long id);
+
+    EventoResponseDTO obtener(Long id);
+
+    List<EventoResumenResponseDTO> listar();
+
+    List<PrecioSectorResponseDTO> ofertas(Long id);
+
+    HabilitacionEventoResponseDTO habilitacion(Long id);
+
+    EstadoNotificacionesResponseDTO estadoAvisos(Long id);
+
+    List<EventoResumenResponseDTO> buscar(TipoEvento tipo,
+            Long organizadorId,
+            Long participanteId,
+            String ciudad,
+            LocalDateTime desde,
+            LocalDateTime hasta,
+            String texto,
+            OrdenEvento ordenar,
+            boolean incluirNoPublicados);
+}

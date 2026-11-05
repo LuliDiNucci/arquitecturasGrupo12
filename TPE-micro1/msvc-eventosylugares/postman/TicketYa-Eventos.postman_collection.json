@@ -1,0 +1,1005 @@
+{
+  "info": {
+    "_postman_id": "2b9f80ca-f7e2-472a-a1a7-e0fe5712c29a",
+    "name": "TicketYa - msvc-eventos Entrega 1",
+    "description": "Coleccion para verificar eventos y lugares. Ejecutar carpetas en orden, preferiblemente sobre una base vacia. Solo verifica el microservicio Eventos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generamos una fecha futura al ejecutar la coleccion.",
+          "if (!pm.collectionVariables.get(\"fechaEvento\")) {",
+          "  let fecha = new Date();",
+          "  fecha.setDate(fecha.getDate() + 60);",
+          "  pm.collectionVariables.set(\"fechaEvento\", fecha.toISOString().slice(0, 19));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "fechaEvento",
+      "value": ""
+    },
+    {
+      "key": "organizadorId",
+      "value": ""
+    },
+    {
+      "key": "participanteId",
+      "value": ""
+    },
+    {
+      "key": "lugarId",
+      "value": ""
+    },
+    {
+      "key": "sectorNumeradoId",
+      "value": ""
+    },
+    {
+      "key": "sectorCampoId",
+      "value": ""
+    },
+    {
+      "key": "eventoId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Carga y publicacion (ejecutar en orden)",
+      "item": [
+        {
+          "name": "01 - Crear organizador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/organizadores",
+            "description": "POST /organizadores",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Producciones Sierra\",\n  \"email\": \"contacto@ejemplo.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP organizadorId\", function () { pm.response.to.have.status(organizadorId); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Listar organizadores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/organizadores",
+            "description": "GET /organizadores"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Crear participante",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/participantes",
+            "description": "POST /participantes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Banda Ejemplo\",\n  \"tipo\": \"ARTISTA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP participanteId\", function () { pm.response.to.have.status(participanteId); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Listar participantes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/participantes",
+            "description": "GET /participantes"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Crear lugar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lugares",
+            "description": "POST /lugares",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Estadio Municipal\",\n  \"direccion\": \"Av. Central 150\",\n  \"ciudad\": \"Tandil\",\n  \"latitud\": -37.321,\n  \"longitud\": -59.137\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP lugarId\", function () { pm.response.to.have.status(lugarId); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Listar lugares",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/lugares",
+            "description": "GET /lugares"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 - Obtener lugar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/lugares/{{lugarId}}",
+            "description": "GET /lugares/{{lugarId}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 - Crear Platea numerada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lugares/{{lugarId}}/sectores",
+            "description": "POST /lugares/{{lugarId}}/sectores",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Platea\",\n  \"numerado\": true,\n  \"capacidad\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP sectorNumeradoId\", function () { pm.response.to.have.status(sectorNumeradoId); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 - Crear Campo no numerado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lugares/{{lugarId}}/sectores",
+            "description": "POST /lugares/{{lugarId}}/sectores",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Campo\",\n  \"numerado\": false,\n  \"capacidad\": 500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP sectorCampoId\", function () { pm.response.to.have.status(sectorCampoId); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 - Ver sectores del lugar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/lugares/{{lugarId}}/sectores",
+            "description": "GET /lugares/{{lugarId}}/sectores"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 - Cargar 2 asientos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/sectores/{{sectorNumeradoId}}/asientos",
+            "description": "POST /sectores/{{sectorNumeradoId}}/asientos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asientos\": [\n    {\n      \"fila\": \"A\",\n      \"numero\": 1\n    },\n    {\n      \"fila\": \"A\",\n      \"numero\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 - Ver asientos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/sectores/{{sectorNumeradoId}}/asientos",
+            "description": "GET /sectores/{{sectorNumeradoId}}/asientos"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 - Crear evento en borrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/eventos",
+            "description": "POST /eventos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Recital de prueba\",\n  \"descripcion\": \"Evento para probar la entrega 1\",\n  \"tipo\": \"RECITAL\",\n  \"organizadorId\": {{organizadorId}},\n  \"lugarId\": {{lugarId}},\n  \"fechaHora\": \"{{fechaEvento}}\",\n  \"participantesIds\": [\n    {{participanteId}}\n  ],\n  \"altaDemanda\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP eventoId\", function () { pm.response.to.have.status(eventoId); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 - Configurar precio por sector",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/precios",
+            "description": "PUT /eventos/{{eventoId}}/precios",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"precios\": [\n    {\n      \"sectorId\": {{sectorNumeradoId}},\n      \"precio\": 35000.0\n    },\n    {\n      \"sectorId\": {{sectorCampoId}},\n      \"precio\": 20000.0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 - Publicar evento",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/publicar",
+            "description": "PATCH /eventos/{{eventoId}}/publicar"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Estado PUBLICADO\", () => pm.expect(pm.response.json().estado).to.eql(\"PUBLICADO\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Consultas y actualizaciones",
+      "item": [
+        {
+          "name": "16 - Listar eventos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos",
+            "description": "GET /eventos"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 - Obtener evento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}",
+            "description": "GET /eventos/{{eventoId}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 - Buscar por tipo, ciudad y precio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/buscar?tipo=RECITAL&ciudad=Tandil&ordenar=PRECIO_ASC",
+            "description": "GET /eventos/buscar?tipo=RECITAL&ciudad=Tandil&ordenar=PRECIO_ASC"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 - Buscar por organizador y participante",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/buscar?organizadorId={{organizadorId}}&participanteId={{participanteId}}",
+            "description": "GET /eventos/buscar?organizadorId={{organizadorId}}&participanteId={{participanteId}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 - Buscar por rango de fechas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/buscar?desde=2026-01-01T00:00:00&hasta=2035-01-01T00:00:00",
+            "description": "GET /eventos/buscar?desde=2026-01-01T00:00:00&hasta=2035-01-01T00:00:00"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 - Buscar texto y relevancia",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/buscar?q=Recital&ordenar=RELEVANCIA",
+            "description": "GET /eventos/buscar?q=Recital&ordenar=RELEVANCIA"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 - Consultar ofertas para Reservas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/sectores",
+            "description": "GET /eventos/{{eventoId}}/sectores"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 - Consultar habilitacion",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/habilitado",
+            "description": "GET /eventos/{{eventoId}}/habilitado"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 - Cambiar descripcion de evento publicado",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}",
+            "description": "PUT /eventos/{{eventoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Recital de prueba\",\n  \"descripcion\": \"Modificado sin cambiar fecha ni lugar\",\n  \"tipo\": \"RECITAL\",\n  \"organizadorId\": {{organizadorId}},\n  \"lugarId\": {{lugarId}},\n  \"fechaHora\": \"{{fechaEvento}}\",\n  \"participantesIds\": [\n    {{participanteId}}\n  ],\n  \"altaDemanda\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Ciclo de estados sin cancelar",
+      "item": [
+        {
+          "name": "25 - Suspender",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/suspender",
+            "description": "PATCH /eventos/{{eventoId}}/suspender"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "26 - Ver que no esta habilitado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/habilitado",
+            "description": "GET /eventos/{{eventoId}}/habilitado"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"No habilitado\", () => pm.expect(pm.response.json().habilitadoParaReservar).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27 - Republicar",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/publicar",
+            "description": "PATCH /eventos/{{eventoId}}/publicar"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "28 - Marcar agotado",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/agotar",
+            "description": "PATCH /eventos/{{eventoId}}/agotar"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "29 - Reabrir",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/reabrir",
+            "description": "PATCH /eventos/{{eventoId}}/reabrir"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Cancelacion (ejecutar al final)",
+      "item": [
+        {
+          "name": "30 - Cancelar evento",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/cancelar",
+            "description": "PATCH /eventos/{{eventoId}}/cancelar"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "31 - Ver avisos pendientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/notificaciones-cancelacion",
+            "description": "GET /eventos/{{eventoId}}/notificaciones-cancelacion"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "32 - Cancelar nuevamente (idempotente)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/cancelar",
+            "description": "PATCH /eventos/{{eventoId}}/cancelar"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "33 - Buscar evento cancelado no aparece",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/buscar?ciudad=Tandil",
+            "description": "GET /eventos/buscar?ciudad=Tandil"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Evento cancelado no aparece\", () => pm.expect(pm.response.json().find(e => e.id == pm.collectionVariables.get(\"eventoId\"))).to.equal(undefined));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Errores (ejecutar despues de cancelar)",
+      "item": [
+        {
+          "name": "34 - ID inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/lugares/99999999",
+            "description": "GET /lugares/99999999"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "35 - Coordenadas invalidas -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lugares",
+            "description": "POST /lugares",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lugar malo\",\n  \"direccion\": \"A\",\n  \"ciudad\": \"Tandil\",\n  \"latitud\": 100,\n  \"longitud\": -59\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "36 - Fechas invertidas -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/buscar?desde=2027-12-20T22:00:00&hasta=2027-01-01T12:00:00",
+            "description": "GET /eventos/buscar?desde=2027-12-20T22:00:00&hasta=2027-01-01T12:00:00"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "37 - Publicar cancelado -> 409",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/publicar",
+            "description": "PATCH /eventos/{{eventoId}}/publicar"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

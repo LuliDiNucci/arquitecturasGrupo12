@@ -1,0 +1,8 @@
+target/
+data/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+ticketya-eventos.mv.db
+ticketya-eventos.trace.db

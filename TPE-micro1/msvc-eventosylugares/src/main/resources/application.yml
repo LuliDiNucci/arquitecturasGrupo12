@@ -1,0 +1,40 @@
+server:
+  port: ${PORT:8081}
+spring:
+  application:
+    name: msvc-eventos-lugares
+  datasource:
+    url: ${DB_URL:jdbc:mariadb://localhost:3306/ticketya_eventos}
+    driver-class-name: org.mariadb.jdbc.Driver
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 3000
+            readTimeout: 5000
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+# Feign prepara los clientes, pero no envia solicitudes hasta habilitar la integracion.
+app:
+  integraciones:
+    habilitadas: ${INTEGRACIONES_HABILITADAS:false}
+    reservas-base-url: ${RESERVAS_URL:http://localhost:8080}
+    entradas-base-url: ${ENTRADAS_URL:http://localhost:8083}
+    compras-base-url: ${COMPRAS_URL:http://localhost:8081}
+    reintento-ms: 30000

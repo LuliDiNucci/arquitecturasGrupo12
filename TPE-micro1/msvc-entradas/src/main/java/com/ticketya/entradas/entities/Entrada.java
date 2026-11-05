@@ -1,13 +1,19 @@
 package com.ticketya.entradas.entities;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-@Entity 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
 @Table(name = "entrada")
 public class Entrada {
 
-    @Id 
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -119,5 +125,13 @@ public class Entrada {
 
     public void setFechaUso(LocalDateTime fechaUso) {
         this.fechaUso = fechaUso;
+    }
+
+    public Long getEventoId() {
+        return eventoId;
+    }
+
+    public void setEventoId(Long eventoId) {
+        this.eventoId = eventoId;
     }
 }

@@ -12,5 +12,9 @@ public interface ReservasFeignClient {
 
     @PostMapping("/reservas/evento/{id}/cancelar")
     void cancelarEvento(@PathVariable("id") Long eventoId,
-                        @RequestHeader("X-Operacion-Id") String operacionId);
+            @RequestHeader("X-Operacion-Id") String operacionId);
+
+    @PostMapping("/reservas/evento/{id}/habilitar")
+    void habilitarEvento(@PathVariable("id") Long eventoId);
+
 }

@@ -55,7 +55,7 @@ public class DisponibilidadServiceImpl
 
             throw new IllegalStateException("El evento ya fue cancelado");
         }
-        
+
         EventoDTO evento = eventoClient.obtenerEvento(eventoId);
         SectorDTO sector = eventoClient.obtenerSector(sectorId);
 
@@ -105,17 +105,26 @@ public class DisponibilidadServiceImpl
                     ahora);
 
             Set<Long> idsOcupados = new HashSet<>(ocupados);
+
             List<Long> disponibles = new ArrayList<>();
+            List<Long> ocupadosEnSector = new ArrayList<>();
 
             for (AsientoDTO asiento : asientos) {
-                if (asiento != null && asiento.getId() != null
-                        && sectorId.equals(asiento.getSectorId())
-                        && !idsOcupados.contains(asiento.getId())) {
+
+                if (asiento == null || asiento.getId() == null
+                        || !sectorId.equals(asiento.getSectorId())) {
+                    continue;
+                }
+
+                if (idsOcupados.contains(asiento.getId())) {
+                    ocupadosEnSector.add(asiento.getId());
+                } else {
                     disponibles.add(asiento.getId());
                 }
             }
 
             dto.setAsientosDisponibles(disponibles);
+            dto.setAsientosOcupados(ocupadosEnSector);
             dto.setLugaresDisponibles(disponibles.size());
 
         } else {
@@ -137,6 +146,7 @@ public class DisponibilidadServiceImpl
             dto.setLugaresDisponibles(
                     Math.max(0, disponibles));
             dto.setAsientosDisponibles(new ArrayList<>());
+            dto.setAsientosOcupados(new ArrayList<>());
         }
 
         return dto;

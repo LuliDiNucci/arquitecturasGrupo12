@@ -9,14 +9,22 @@ public class AsientoResponseDTO {
     private String fila;
     @Schema(example = "1")
     private int numero;
+    @Schema(example = "1")
+    private Long sectorId;
 
     public AsientoResponseDTO() {
     }
 
-    public AsientoResponseDTO(Long id, String fila, int numero) {
+    public AsientoResponseDTO(
+            Long id,
+            String fila,
+            int numero,
+            Long sectorId) {
+
         this.id = id;
         this.fila = fila;
         this.numero = numero;
+        this.sectorId = sectorId;
     }
 
     public Long getId() {
@@ -42,4 +50,13 @@ public class AsientoResponseDTO {
     public void setNumero(int numero) {
         this.numero = numero;
     }
+
+    public Long getSectorId() {
+        return sectorId;
+    }
+
+    public void setSectorId(Long sectorId) {
+        this.sectorId = sectorId;
+    }
+
 }

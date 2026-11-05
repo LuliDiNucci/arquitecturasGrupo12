@@ -3,12 +3,24 @@ package com.ticketya.reservas.dtos;
 
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "Detalle de un sector incluido en una reserva")
 public class DetalleReservaRespuestaDTO {
 
+    @Schema(description = "Identificador del detalle de reserva", example = "1")
     private Long id;
+
+    @Schema(description = "ID del sector reservado", example = "5")
     private Long sectorId;
+
+    @Schema(description = "Cantidad original de entradas reservadas", example = "2")
     private Integer cantidad;
+
+    @Schema(description = "Asientos que continúan ocupados por la reserva", example = "[25, 26]")
     private List<Long> asientoIds;
+
+    @Schema(description = "Cantidad de entradas individuales ya liberadas", example = "0")
     private Integer cantidadLiberada;
 
     public DetalleReservaRespuestaDTO() {

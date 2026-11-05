@@ -201,6 +201,18 @@ components:
         asientosDisponibles:
           type: array
           items: { type: integer, format: int64 }
+
+      asientosOcupados:
+        type: array
+        description: >-
+          IDs de los asientos ocupados por reservas activas
+          no vencidas o confirmadas. En sectores no numerados
+          se devuelve una lista vacía.
+        items:
+          type: integer
+          format: int64
+        example: [25]
+
     Error:
       type: object
       properties:

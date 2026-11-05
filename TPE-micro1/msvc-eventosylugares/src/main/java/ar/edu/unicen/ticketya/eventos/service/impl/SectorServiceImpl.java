@@ -1,6 +1,9 @@
 package ar.edu.unicen.ticketya.eventos.service.impl;
 
-import ar.edu.unicen.ticketya.eventos.service.*;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import ar.edu.unicen.ticketya.eventos.dto.SectorRequestDTO;
 import ar.edu.unicen.ticketya.eventos.dto.SectorResponseDTO;
@@ -9,10 +12,8 @@ import ar.edu.unicen.ticketya.eventos.model.Lugar;
 import ar.edu.unicen.ticketya.eventos.model.Sector;
 import ar.edu.unicen.ticketya.eventos.repository.AsientoRepository;
 import ar.edu.unicen.ticketya.eventos.repository.SectorRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
+import ar.edu.unicen.ticketya.eventos.service.LugarService;
+import ar.edu.unicen.ticketya.eventos.service.SectorService;
 
 @Service
 public class SectorServiceImpl implements SectorService {
@@ -22,8 +23,8 @@ public class SectorServiceImpl implements SectorService {
     private final LugarService lugarService;
 
     public SectorServiceImpl(SectorRepository sectorRepository,
-           AsientoRepository asientoRepository,
-           LugarService lugarService) {
+            AsientoRepository asientoRepository,
+            LugarService lugarService) {
         this.sectorRepository = sectorRepository;
         this.asientoRepository = asientoRepository;
         this.lugarService = lugarService;
@@ -54,8 +55,7 @@ public class SectorServiceImpl implements SectorService {
         return sectorRepository.findByLugarIdOrderById(lugarId).stream()
                 .map(sector -> aSectorResponseDTO(
                         sector,
-                        asientoRepository.countBySectorId(sector.getId())
-                ))
+                        asientoRepository.countBySectorId(sector.getId())))
                 .toList();
     }
 
@@ -65,7 +65,8 @@ public class SectorServiceImpl implements SectorService {
                 .orElseThrow(() -> ReglaNegocioException.noEncontrado("Sector inexistente: " + id));
     }
 
-    // Este bloqueo se usa cuando agregamos asientos, para evitar cambios al mismo tiempo.
+    // Este bloqueo se usa cuando agregamos asientos, para evitar cambios al mismo
+    // tiempo.
     @Override
     public Sector bloquearSector(Long id) {
         return sectorRepository.bloquear(id)
@@ -80,7 +81,18 @@ public class SectorServiceImpl implements SectorService {
                 sector.getNombre(),
                 sector.isNumerado(),
                 sector.getCapacidad(),
-                cantidadAsientos
-        );
+                cantidadAsientos);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SectorResponseDTO obtenerSector(Long id) {
+
+        Sector sector = buscarSector(id);
+
+        long cantidadAsientos = asientoRepository.countBySectorId(id);
+
+        return aSectorResponseDTO(sector, cantidadAsientos);
+    }
+
 }

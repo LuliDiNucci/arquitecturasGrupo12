@@ -1,18 +1,35 @@
 
 package com.ticketya.reservas.dtos;
 
-import com.ticketya.reservas.enums.EstadoReserva;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.ticketya.reservas.enums.EstadoReserva;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "Información de una reserva y su estado actual")
 public class ReservaDTO {
 
+    @Schema(description = "Identificador de la reserva", example = "1")
     private Long id;
+
+    @Schema(description = "ID del cliente que realizó la reserva", example = "10")
     private Long clienteId;
+
+    @Schema(description = "ID del evento reservado", example = "21")
     private Long eventoId;
+
+    @Schema(description = "Fecha y hora de creación de la reserva", example = "2026-11-05T15:30:00")
     private LocalDateTime fechaCreacion;
+
+    @Schema(description = "Fecha y hora de vencimiento de la reserva temporal", example = "2026-11-05T15:40:00")
     private LocalDateTime fechaVencimiento;
+
+    @Schema(description = "Estado actual de la reserva", example = "ACTIVA")
     private EstadoReserva estado;
+
+    @Schema(description = "Sectores, cantidades y asientos asociados a la reserva")
     private List<DetalleReservaRespuestaDTO> detalles;
 
     public ReservaDTO() {

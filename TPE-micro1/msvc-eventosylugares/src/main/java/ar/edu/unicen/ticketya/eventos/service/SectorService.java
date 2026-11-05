@@ -1,9 +1,10 @@
 package ar.edu.unicen.ticketya.eventos.service;
 
-import ar.edu.unicen.ticketya.eventos.dto.*;
-import ar.edu.unicen.ticketya.eventos.model.*;
-import java.time.LocalDateTime;
 import java.util.List;
+
+import ar.edu.unicen.ticketya.eventos.dto.SectorRequestDTO;
+import ar.edu.unicen.ticketya.eventos.dto.SectorResponseDTO;
+import ar.edu.unicen.ticketya.eventos.model.Sector;
 
 /**
  * Define las operaciones de sector.
@@ -20,4 +21,6 @@ public interface SectorService {
     Sector bloquearSector(Long id);
 
     SectorResponseDTO aSectorResponseDTO(Sector sector, long cantidadAsientos);
+
+    SectorResponseDTO obtenerSector(Long id);
 }

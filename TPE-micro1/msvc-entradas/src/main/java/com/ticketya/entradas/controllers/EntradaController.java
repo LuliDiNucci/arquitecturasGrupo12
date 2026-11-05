@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ticketya.entradas.dtos.EmitirEntradasRequestDTO;
 import com.ticketya.entradas.dtos.EntradaDTO;
 import com.ticketya.entradas.services.EntradaService;
+import com.ticketya.entradas.dtos.ResultadoEmisionDTO;
 
 import jakarta.validation.Valid;
 
@@ -43,7 +44,7 @@ public class EntradaController {
     public ResponseEntity<List<EntradaDTO>> emitir(
          @Valid @RequestBody EmitirEntradasRequestDTO request) {
 
-        EntradaService.ResultadoEmision resultado =
+        ResultadoEmisionDTO resultado =
                 entradaService.emitir(request.getCompraId());
 
         return ResponseEntity

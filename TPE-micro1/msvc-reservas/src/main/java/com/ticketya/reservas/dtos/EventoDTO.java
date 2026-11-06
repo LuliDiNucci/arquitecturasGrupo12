@@ -2,6 +2,9 @@ package com.ticketya.reservas.dtos;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class EventoDTO {
 
     private Long id;
@@ -9,6 +12,7 @@ public class EventoDTO {
     private LocalDateTime fechaHora;
     private String estado;
     private Long lugarId;
+    private LugarDTO lugar;
 
     public EventoDTO() {
     }
@@ -46,10 +50,43 @@ public class EventoDTO {
     }
 
     public Long getLugarId() {
-        return lugarId;
+        if (lugarId != null) {
+            return lugarId;
+        }
+
+        if (lugar != null) {
+            return lugar.getId();
+        }
+
+        return null;
     }
 
     public void setLugarId(Long lugarId) {
         this.lugarId = lugarId;
+    }
+
+    public LugarDTO getLugar() {
+        return lugar;
+    }
+
+    public void setLugar(LugarDTO lugar) {
+        this.lugar = lugar;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class LugarDTO {
+
+        private Long id;
+
+        public LugarDTO() {
+        }
+
+        public Long getId() {
+            return id;
+        }
+
+        public void setId(Long id) {
+            this.id = id;
+        }
     }
 }

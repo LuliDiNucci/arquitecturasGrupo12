@@ -1,6 +1,13 @@
 package ar.edu.unicen.ticketya.eventos.service.impl;
 
-import ar.edu.unicen.ticketya.eventos.service.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import ar.edu.unicen.ticketya.eventos.dto.AsientoRequestDTO;
 import ar.edu.unicen.ticketya.eventos.dto.AsientoResponseDTO;
@@ -9,14 +16,9 @@ import ar.edu.unicen.ticketya.eventos.exception.ReglaNegocioException;
 import ar.edu.unicen.ticketya.eventos.model.Asiento;
 import ar.edu.unicen.ticketya.eventos.model.Sector;
 import ar.edu.unicen.ticketya.eventos.repository.AsientoRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import ar.edu.unicen.ticketya.eventos.service.AsientoService;
+import ar.edu.unicen.ticketya.eventos.service.LugarService;
+import ar.edu.unicen.ticketya.eventos.service.SectorService;
 
 @Service
 public class AsientoServiceImpl implements AsientoService {
@@ -26,8 +28,8 @@ public class AsientoServiceImpl implements AsientoService {
     private final LugarService lugarService;
 
     public AsientoServiceImpl(AsientoRepository asientoRepository,
-           SectorService sectorService,
-           LugarService lugarService) {
+            SectorService sectorService,
+            LugarService lugarService) {
         this.asientoRepository = asientoRepository;
         this.sectorService = sectorService;
         this.lugarService = lugarService;
@@ -64,8 +66,7 @@ public class AsientoServiceImpl implements AsientoService {
             boolean yaExiste = asientoRepository.existsBySectorIdAndFilaIgnoreCaseAndNumero(
                     sectorId,
                     fila,
-                    dato.getNumero()
-            );
+                    dato.getNumero());
 
             if (repetidoEnRequest || yaExiste) {
                 throw ReglaNegocioException.conflicto("Asiento duplicado: " + clave);
@@ -91,6 +92,23 @@ public class AsientoServiceImpl implements AsientoService {
 
     @Override
     public AsientoResponseDTO aAsientoResponseDTO(Asiento asiento) {
-        return new AsientoResponseDTO(asiento.getId(), asiento.getFila(), asiento.getNumero());
+
+        return new AsientoResponseDTO(
+                asiento.getId(),
+                asiento.getFila(),
+                asiento.getNumero(),
+                asiento.getSector().getId());
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AsientoResponseDTO obtenerAsiento(Long id) {
+
+        Asiento asiento = asientoRepository.findById(id)
+                .orElseThrow(() -> ReglaNegocioException.noEncontrado(
+                        "Asiento inexistente: " + id));
+
+        return aAsientoResponseDTO(asiento);
+    }
+
 }

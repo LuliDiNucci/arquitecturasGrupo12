@@ -1,9 +1,10 @@
 package ar.edu.unicen.ticketya.eventos.service;
 
-import ar.edu.unicen.ticketya.eventos.dto.*;
-import ar.edu.unicen.ticketya.eventos.model.*;
-import java.time.LocalDateTime;
 import java.util.List;
+
+import ar.edu.unicen.ticketya.eventos.dto.AsientoResponseDTO;
+import ar.edu.unicen.ticketya.eventos.dto.AsientosRequestDTO;
+import ar.edu.unicen.ticketya.eventos.model.Asiento;
 
 /**
  * Define las operaciones de asiento.
@@ -16,4 +17,6 @@ public interface AsientoService {
     List<AsientoResponseDTO> listarAsientos(Long sectorId);
 
     AsientoResponseDTO aAsientoResponseDTO(Asiento asiento);
+
+    AsientoResponseDTO obtenerAsiento(Long id);
 }

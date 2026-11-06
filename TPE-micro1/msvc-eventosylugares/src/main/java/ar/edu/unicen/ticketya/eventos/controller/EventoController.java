@@ -1,25 +1,44 @@
 package ar.edu.unicen.ticketya.eventos.controller;
 
-import ar.edu.unicen.ticketya.eventos.dto.*;
+import java.net.URI;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import ar.edu.unicen.ticketya.eventos.dto.ApiErrorResponseDTO;
+import ar.edu.unicen.ticketya.eventos.dto.EstadoNotificacionesResponseDTO;
+import ar.edu.unicen.ticketya.eventos.dto.EventoRequestDTO;
+import ar.edu.unicen.ticketya.eventos.dto.EventoResponseDTO;
+import ar.edu.unicen.ticketya.eventos.dto.EventoResumenResponseDTO;
+import ar.edu.unicen.ticketya.eventos.dto.HabilitacionEventoResponseDTO;
+import ar.edu.unicen.ticketya.eventos.dto.PrecioSectorIndividualDTO;
+import ar.edu.unicen.ticketya.eventos.dto.PrecioSectorResponseDTO;
+import ar.edu.unicen.ticketya.eventos.dto.PreciosEventoRequestDTO;
+import ar.edu.unicen.ticketya.eventos.feign.ReservasFeignClient;
+import ar.edu.unicen.ticketya.eventos.model.EstadoEvento;
 import ar.edu.unicen.ticketya.eventos.model.OrdenEvento;
 import ar.edu.unicen.ticketya.eventos.model.TipoEvento;
 import ar.edu.unicen.ticketya.eventos.service.EventoService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import ar.edu.unicen.ticketya.eventos.dto.ApiErrorResponseDTO;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.net.URI;
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Tag(name = "Eventos")
 @ApiResponses({
@@ -33,8 +52,17 @@ public class EventoController {
 
     private final EventoService eventoService;
 
-    public EventoController(EventoService eventoService) {
+    private final ReservasFeignClient reservasFeignClient;
+
+    @Value("${app.integraciones.habilitadas:false}")
+    private boolean integracionesHabilitadas;
+
+    public EventoController(
+            EventoService eventoService,
+            ReservasFeignClient reservasFeignClient) {
+
         this.eventoService = eventoService;
+        this.reservasFeignClient = reservasFeignClient;
     }
 
     @Operation(summary = "Crear un evento en estado BORRADOR")
@@ -76,9 +104,9 @@ public class EventoController {
 
         return eventoService.buscar(
                 tipo, organizadorId, participanteId, ciudad,
-                desde, hasta, texto, ordenar, incluirNoPublicados
-        );
+                desde, hasta, texto, ordenar, incluirNoPublicados);
     }
+
     @Operation(summary = "Obtener detalle de evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @GetMapping("/{id}")
@@ -105,12 +133,22 @@ public class EventoController {
 
         return eventoService.configurarPrecios(id, request);
     }
+
     @Operation(summary = "Publicar un evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @PatchMapping("/{id}/publicar")
     public EventoResponseDTO publicar(@PathVariable Long id) {
-        return eventoService.publicar(id);
+        EventoResponseDTO publicado = eventoService.publicar(id);
+
+        if (integracionesHabilitadas
+                && publicado.getEstado() == EstadoEvento.PUBLICADO) {
+
+            reservasFeignClient.habilitarEvento(id);
+        }
+
+        return publicado;
     }
+
     @Operation(summary = "Suspender un evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @PatchMapping("/{id}/suspender")
@@ -139,6 +177,7 @@ public class EventoController {
     public EventoResponseDTO reabrir(@PathVariable Long id) {
         return eventoService.reabrirVentas(id);
     }
+
     @Operation(summary = "Finalizar evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @PatchMapping("/{id}/finalizar")
@@ -159,10 +198,22 @@ public class EventoController {
     public HabilitacionEventoResponseDTO habilitado(@PathVariable Long id) {
         return eventoService.habilitacion(id);
     }
+
     @Operation(summary = "Consultar entrega de avisos de cancelacion")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @GetMapping("/{id}/notificaciones-cancelacion")
     public EstadoNotificacionesResponseDTO notificaciones(@PathVariable Long id) {
         return eventoService.estadoAvisos(id);
     }
+
+    @Operation(summary = "Consultar precio de un sector para un evento")
+    @ApiResponse(responseCode = "200", description = "Operacion exitosa")
+    @GetMapping("/{eventoId}/sectores/{sectorId}/precio")
+    public PrecioSectorIndividualDTO obtenerPrecioSector(
+            @PathVariable Long eventoId,
+            @PathVariable Long sectorId) {
+
+        return eventoService.obtenerPrecioSector(eventoId, sectorId);
+    }
+
 }

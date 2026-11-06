@@ -1,7 +1,5 @@
 package ar.edu.unicen.ticketya.eventos.service.impl;
 
-import ar.edu.unicen.ticketya.eventos.service.*;
-
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -27,6 +25,7 @@ import ar.edu.unicen.ticketya.eventos.dto.EventoResponseDTO;
 import ar.edu.unicen.ticketya.eventos.dto.EventoResumenResponseDTO;
 import ar.edu.unicen.ticketya.eventos.dto.HabilitacionEventoResponseDTO;
 import ar.edu.unicen.ticketya.eventos.dto.ParticipanteResponseDTO;
+import ar.edu.unicen.ticketya.eventos.dto.PrecioSectorIndividualDTO;
 import ar.edu.unicen.ticketya.eventos.dto.PrecioSectorRequestDTO;
 import ar.edu.unicen.ticketya.eventos.dto.PrecioSectorResponseDTO;
 import ar.edu.unicen.ticketya.eventos.dto.PreciosEventoRequestDTO;
@@ -47,6 +46,11 @@ import ar.edu.unicen.ticketya.eventos.repository.EventoRepository;
 import ar.edu.unicen.ticketya.eventos.repository.NotificacionCancelacionRepository;
 import ar.edu.unicen.ticketya.eventos.repository.PrecioSectorRepository;
 import ar.edu.unicen.ticketya.eventos.repository.SectorRepository;
+import ar.edu.unicen.ticketya.eventos.service.AsientoService;
+import ar.edu.unicen.ticketya.eventos.service.EventoService;
+import ar.edu.unicen.ticketya.eventos.service.LugarService;
+import ar.edu.unicen.ticketya.eventos.service.OrganizadorService;
+import ar.edu.unicen.ticketya.eventos.service.ParticipanteService;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -68,16 +72,16 @@ public class EventoServiceImpl implements EventoService {
     private final Clock clock;
 
     public EventoServiceImpl(EventoRepository eventoRepository,
-           SectorRepository sectorRepository,
-           AsientoRepository asientoRepository,
-           PrecioSectorRepository precioSectorRepository,
-           EventoParticipanteRepository eventoParticipanteRepository,
-           NotificacionCancelacionRepository notificacionCancelacionRepository,
-           LugarService lugarService,
-           OrganizadorService organizadorService,
-           ParticipanteService participanteService,
-           AsientoService asientoService,
-                         Clock clock) {
+            SectorRepository sectorRepository,
+            AsientoRepository asientoRepository,
+            PrecioSectorRepository precioSectorRepository,
+            EventoParticipanteRepository eventoParticipanteRepository,
+            NotificacionCancelacionRepository notificacionCancelacionRepository,
+            LugarService lugarService,
+            OrganizadorService organizadorService,
+            ParticipanteService participanteService,
+            AsientoService asientoService,
+            Clock clock) {
 
         this.eventoRepository = eventoRepository;
         this.sectorRepository = sectorRepository;
@@ -104,8 +108,7 @@ public class EventoServiceImpl implements EventoService {
                 lugarService.buscarLugar(request.getLugarId()),
                 request.getFechaHora(),
                 EstadoEvento.BORRADOR,
-                request.isAltaDemanda()
-        );
+                request.isAltaDemanda());
 
         eventoRepository.save(evento);
 
@@ -140,8 +143,7 @@ public class EventoServiceImpl implements EventoService {
 
         if (estaPublicado && cambiaDatosDeReserva) {
             throw ReglaNegocioException.conflicto(
-                    "En eventos publicados solo pueden cambiar nombre, descripcion, tipo y participantes"
-            );
+                    "En eventos publicados solo pueden cambiar nombre, descripcion, tipo y participantes");
         }
 
         evento.setNombre(request.getNombre().trim());
@@ -152,10 +154,10 @@ public class EventoServiceImpl implements EventoService {
         evento.setLugar(lugarService.buscarLugar(request.getLugarId()));
         evento.setAltaDemanda(request.isAltaDemanda());
 
-        // Actualizamos las relaciones con participantes, agregando y quitando los necesarios.
+        // Actualizamos las relaciones con participantes, agregando y quitando los
+        // necesarios.
         List<Participante> nuevosParticipantes = participanteService.buscarParticipantes(
-                request.getParticipantesIds()
-        );
+                request.getParticipantesIds());
         List<EventoParticipante> actuales = eventoParticipanteRepository.findByEventoId(id);
 
         Set<Long> nuevosIds = nuevosParticipantes.stream()
@@ -202,15 +204,13 @@ public class EventoServiceImpl implements EventoService {
         for (PrecioSectorRequestDTO precioRequest : request.getPrecios()) {
             if (!idsRecibidos.add(precioRequest.getSectorId())) {
                 throw ReglaNegocioException.invalido(
-                        "Sector duplicado en la lista de precios: " + precioRequest.getSectorId()
-                );
+                        "Sector duplicado en la lista de precios: " + precioRequest.getSectorId());
             }
         }
 
         if (!idsNecesarios.equals(idsRecibidos)) {
             throw ReglaNegocioException.invalido(
-                    "Debe enviarse exactamente un precio por cada sector del lugar"
-            );
+                    "Debe enviarse exactamente un precio por cada sector del lugar");
         }
 
         Map<Long, Sector> sectoresPorId = sectoresDelLugar.stream()
@@ -226,8 +226,7 @@ public class EventoServiceImpl implements EventoService {
                 precioSector = new PrecioSector(
                         evento,
                         sectoresPorId.get(precioRequest.getSectorId()),
-                        precioRequest.getPrecio()
-                );
+                        precioRequest.getPrecio());
             } else {
                 precioSector.setPrecio(precioRequest.getPrecio());
             }
@@ -247,8 +246,7 @@ public class EventoServiceImpl implements EventoService {
         if (evento.getEstado() != EstadoEvento.BORRADOR
                 && evento.getEstado() != EstadoEvento.SUSPENDIDO) {
             throw ReglaNegocioException.conflicto(
-                    "Solo un evento BORRADOR o SUSPENDIDO puede publicarse"
-            );
+                    "Solo un evento BORRADOR o SUSPENDIDO puede publicarse");
         }
 
         // Bloqueamos el lugar para que no agreguen sectores mientras validamos.
@@ -279,7 +277,8 @@ public class EventoServiceImpl implements EventoService {
             throw ReglaNegocioException.conflicto("Faltan precios de uno o mas sectores del evento");
         }
 
-        // En un sector numerado cargamos exactamente tantos asientos como capacidad tiene.
+        // En un sector numerado cargamos exactamente tantos asientos como capacidad
+        // tiene.
         for (Sector sector : sectoresDelLugar) {
             long cantidadAsientos = asientoRepository.countBySectorId(sector.getId());
 
@@ -287,8 +286,7 @@ public class EventoServiceImpl implements EventoService {
                 throw ReglaNegocioException.conflicto(
                         "El sector numerado " + sector.getNombre()
                                 + " requiere " + sector.getCapacidad()
-                                + " asientos y tiene " + cantidadAsientos
-                );
+                                + " asientos y tiene " + cantidadAsientos);
             }
 
             if (!sector.isNumerado() && cantidadAsientos != 0) {
@@ -299,7 +297,8 @@ public class EventoServiceImpl implements EventoService {
         // Si estaba suspendido y antes estaba agotado, conservamos el estado AGOTADO.
         EstadoEvento nuevoEstado = evento.getEstado() == EstadoEvento.SUSPENDIDO
                 && evento.getEstadoPrevioSuspension() == EstadoEvento.AGOTADO
-                ? EstadoEvento.AGOTADO : EstadoEvento.PUBLICADO;
+                        ? EstadoEvento.AGOTADO
+                        : EstadoEvento.PUBLICADO;
 
         evento.setEstado(nuevoEstado);
         evento.setEstadoPrevioSuspension(null);
@@ -315,8 +314,7 @@ public class EventoServiceImpl implements EventoService {
         if (evento.getEstado() != EstadoEvento.PUBLICADO
                 && evento.getEstado() != EstadoEvento.AGOTADO) {
             throw ReglaNegocioException.conflicto(
-                    "Solo se pueden suspender eventos PUBLICADOS o AGOTADOS"
-            );
+                    "Solo se pueden suspender eventos PUBLICADOS o AGOTADOS");
         }
 
         evento.setEstadoPrevioSuspension(evento.getEstado());
@@ -325,7 +323,8 @@ public class EventoServiceImpl implements EventoService {
         return detalle(evento);
     }
 
-    // La cancelacion genera un aviso que despues pueden recibir Reservas, Entradas y Compras.
+    // La cancelacion genera un aviso que despues pueden recibir Reservas, Entradas
+    // y Compras.
     @Transactional
     @Override
     public EventoResponseDTO cancelar(Long id) {
@@ -341,8 +340,7 @@ public class EventoServiceImpl implements EventoService {
 
             // Se guarda en la misma transaccion para no perder la cancelacion.
             NotificacionCancelacion aviso = new NotificacionCancelacion(
-                    id, false, false, 0, LocalDateTime.now(clock), null, null
-            );
+                    id, false, false, 0, LocalDateTime.now(clock), null, null);
             notificacionCancelacionRepository.save(aviso);
         }
 
@@ -384,8 +382,7 @@ public class EventoServiceImpl implements EventoService {
                 && evento.getEstado() != EstadoEvento.AGOTADO
                 && evento.getEstado() != EstadoEvento.SUSPENDIDO) {
             throw ReglaNegocioException.conflicto(
-                    "El evento no se puede finalizar desde su estado actual"
-            );
+                    "El evento no se puede finalizar desde su estado actual");
         }
 
         if (evento.getFechaHora().isAfter(LocalDateTime.now(clock))) {
@@ -409,7 +406,8 @@ public class EventoServiceImpl implements EventoService {
         return resumir(eventoRepository.findAllByOrderByFechaHoraAsc(), OrdenEvento.FECHA_ASC, null);
     }
 
-    // Reservas usa esta consulta para conocer la distribucion de sectores y precios.
+    // Reservas usa esta consulta para conocer la distribucion de sectores y
+    // precios.
     @Transactional(readOnly = true)
     @Override
     public List<PrecioSectorResponseDTO> ofertas(Long id) {
@@ -424,8 +422,7 @@ public class EventoServiceImpl implements EventoService {
                 && evento.getFechaHora().isAfter(LocalDateTime.now(clock));
 
         return new HabilitacionEventoResponseDTO(
-                id, evento.getEstado(), habilitado, evento.getFechaHora()
-        );
+                id, evento.getEstado(), habilitado, evento.getFechaHora());
     }
 
     @Transactional(readOnly = true)
@@ -435,8 +432,7 @@ public class EventoServiceImpl implements EventoService {
 
         NotificacionCancelacion aviso = notificacionCancelacionRepository.findByEventoId(id)
                 .orElseThrow(() -> ReglaNegocioException.noEncontrado(
-                        "El evento no tiene notificaciones de cancelacion"
-                ));
+                        "El evento no tiene notificaciones de cancelacion"));
 
         return new EstadoNotificacionesResponseDTO(
                 id,
@@ -444,22 +440,21 @@ public class EventoServiceImpl implements EventoService {
                 aviso.isEntradasNotificadas(),
                 aviso.isComprasNotificadas(),
                 aviso.getIntentos(),
-                aviso.getUltimoError()
-        );
+                aviso.getUltimoError());
     }
 
     // Cada parametro se aplica solamente si el usuario lo mando.
     @Transactional(readOnly = true)
     @Override
     public List<EventoResumenResponseDTO> buscar(TipoEvento tipo,
-                                                   Long organizadorId,
-                                                   Long participanteId,
-                                                   String ciudad,
-                                                   LocalDateTime desde,
-                                                   LocalDateTime hasta,
-                                                   String texto,
-                                                   OrdenEvento ordenar,
-                                                   boolean incluirNoPublicados) {
+            Long organizadorId,
+            Long participanteId,
+            String ciudad,
+            LocalDateTime desde,
+            LocalDateTime hasta,
+            String texto,
+            OrdenEvento ordenar,
+            boolean incluirNoPublicados) {
 
         if (desde != null && hasta != null && desde.isAfter(hasta)) {
             throw ReglaNegocioException.invalido("El parametro desde no puede ser posterior a hasta");
@@ -494,8 +489,7 @@ public class EventoServiceImpl implements EventoService {
             if (ciudadNormalizada != null) {
                 condiciones.add(cb.like(
                         cb.lower(root.get("lugar").get("ciudad")),
-                        "%" + ciudadNormalizada + "%"
-                ));
+                        "%" + ciudadNormalizada + "%"));
             }
 
             // Para filtrar por participante buscamos sus relaciones con eventos.
@@ -505,12 +499,12 @@ public class EventoServiceImpl implements EventoService {
 
                 subconsulta.select(vinculo.get("id")).where(
                         cb.equal(vinculo.get("evento").get("id"), root.get("id")),
-                        cb.equal(vinculo.get("participante").get("id"), participanteId)
-                );
+                        cb.equal(vinculo.get("participante").get("id"), participanteId));
                 condiciones.add(cb.exists(subconsulta));
             }
 
-            // El texto puede coincidir con el nombre, descripcion, organizador o participante.
+            // El texto puede coincidir con el nombre, descripcion, organizador o
+            // participante.
             if (textoNormalizado != null) {
                 Subquery<Long> subconsultaTexto = query.subquery(Long.class);
                 Root<EventoParticipante> vinculo = subconsultaTexto.from(EventoParticipante.class);
@@ -519,16 +513,13 @@ public class EventoServiceImpl implements EventoService {
                         cb.equal(vinculo.get("evento").get("id"), root.get("id")),
                         cb.like(
                                 cb.lower(vinculo.get("participante").get("nombre")),
-                                "%" + textoNormalizado + "%"
-                        )
-                );
+                                "%" + textoNormalizado + "%"));
 
                 condiciones.add(cb.or(
                         cb.like(cb.lower(root.get("nombre")), "%" + textoNormalizado + "%"),
                         cb.like(cb.lower(root.get("descripcion")), "%" + textoNormalizado + "%"),
                         cb.like(cb.lower(root.get("organizador").get("nombre")), "%" + textoNormalizado + "%"),
-                        cb.exists(subconsultaTexto)
-                ));
+                        cb.exists(subconsultaTexto)));
             }
 
             return cb.and(condiciones.toArray(new Predicate[0]));
@@ -547,8 +538,8 @@ public class EventoServiceImpl implements EventoService {
 
     // Buscamos el precio mas bajo de cada evento para mostrarlo en el listado.
     private List<EventoResumenResponseDTO> resumir(List<Evento> lista,
-                                                    OrdenEvento orden,
-                                                    String texto) {
+            OrdenEvento orden,
+            String texto) {
         if (lista.isEmpty()) {
             return List.of();
         }
@@ -560,16 +551,14 @@ public class EventoServiceImpl implements EventoService {
             preciosMinimos.merge(
                     precio.getEvento().getId(),
                     precio.getPrecio(),
-                    BigDecimal::min
-            );
+                    BigDecimal::min);
         }
 
         Map<Long, List<String>> nombresParticipantes = new HashMap<>();
         for (EventoParticipante vinculo : eventoParticipanteRepository.findByEventoIdIn(ids)) {
             nombresParticipantes.computeIfAbsent(
                     vinculo.getEvento().getId(),
-                    clave -> new ArrayList<>()
-            ).add(vinculo.getParticipante().getNombre());
+                    clave -> new ArrayList<>()).add(vinculo.getParticipante().getNombre());
         }
 
         OrdenEvento ordenElegido = orden == null ? OrdenEvento.FECHA_ASC : orden;
@@ -578,25 +567,21 @@ public class EventoServiceImpl implements EventoService {
             case FECHA_DESC -> Comparator.comparing(Evento::getFechaHora).reversed();
             case PRECIO_ASC -> Comparator.comparing(
                     (Evento evento) -> preciosMinimos.get(evento.getId()),
-                    Comparator.nullsLast(Comparator.naturalOrder())
-            );
+                    Comparator.nullsLast(Comparator.naturalOrder()));
             case PRECIO_DESC -> Comparator.comparing(
                     (Evento evento) -> preciosMinimos.get(evento.getId()),
-                    Comparator.nullsLast(Comparator.reverseOrder())
-            );
+                    Comparator.nullsLast(Comparator.reverseOrder()));
             case RELEVANCIA -> Comparator.comparingInt(
                     (Evento evento) -> puntaje(
                             evento,
                             texto,
-                            nombresParticipantes.getOrDefault(evento.getId(), List.of())
-                    )
-            ).reversed();
+                            nombresParticipantes.getOrDefault(evento.getId(), List.of())))
+                    .reversed();
         };
 
         List<Evento> ordenados = new ArrayList<>(lista);
         ordenados.sort(
-                comparador.thenComparing(Evento::getFechaHora).thenComparing(Evento::getId)
-        );
+                comparador.thenComparing(Evento::getFechaHora).thenComparing(Evento::getId));
 
         return ordenados.stream()
                 .map(evento -> new EventoResumenResponseDTO(
@@ -609,8 +594,7 @@ public class EventoServiceImpl implements EventoService {
                         evento.getLugar().getNombre(),
                         evento.getOrganizador().getNombre(),
                         preciosMinimos.get(evento.getId()),
-                        evento.isAltaDemanda()
-                ))
+                        evento.isAltaDemanda()))
                 .toList();
     }
 
@@ -654,11 +638,11 @@ public class EventoServiceImpl implements EventoService {
                 lugarService.aLugarResponseDTO(evento.getLugar()),
                 evento.isAltaDemanda(),
                 construirOfertas(evento),
-                evento.getVersion()
-        );
+                evento.getVersion());
     }
 
-    // Devolvemos los sectores del evento con precios y asientos, no con stock disponible.
+    // Devolvemos los sectores del evento con precios y asientos, no con stock
+    // disponible.
     private List<PrecioSectorResponseDTO> construirOfertas(Evento evento) {
         List<Sector> sectoresDelLugar = sectorRepository.findByLugarIdOrderById(evento.getLugar().getId());
         if (sectoresDelLugar.isEmpty()) {
@@ -669,8 +653,7 @@ public class EventoServiceImpl implements EventoService {
                 .stream()
                 .collect(Collectors.toMap(
                         precio -> precio.getSector().getId(),
-                        PrecioSector::getPrecio
-                ));
+                        PrecioSector::getPrecio));
 
         List<Long> idsSectores = sectoresDelLugar.stream().map(Sector::getId).toList();
         Map<Long, List<AsientoResponseDTO>> asientosPorSector = new HashMap<>();
@@ -678,15 +661,13 @@ public class EventoServiceImpl implements EventoService {
         for (Asiento asiento : asientoRepository.findBySectorIdIn(idsSectores)) {
             asientosPorSector.computeIfAbsent(
                     asiento.getSector().getId(),
-                    clave -> new ArrayList<>()
-            ).add(asientoService.aAsientoResponseDTO(asiento));
+                    clave -> new ArrayList<>()).add(asientoService.aAsientoResponseDTO(asiento));
         }
 
         for (List<AsientoResponseDTO> listaAsientos : asientosPorSector.values()) {
             listaAsientos.sort(
                     Comparator.comparing(AsientoResponseDTO::getFila)
-                            .thenComparing(AsientoResponseDTO::getNumero)
-            );
+                            .thenComparing(AsientoResponseDTO::getNumero));
         }
 
         return sectoresDelLugar.stream()
@@ -696,8 +677,7 @@ public class EventoServiceImpl implements EventoService {
                         sector.isNumerado(),
                         sector.getCapacidad(),
                         preciosPorSector.get(sector.getId()),
-                        asientosPorSector.getOrDefault(sector.getId(), List.of())
-                ))
+                        asientosPorSector.getOrDefault(sector.getId(), List.of())))
                 .toList();
     }
 
@@ -711,4 +691,25 @@ public class EventoServiceImpl implements EventoService {
             throw ReglaNegocioException.conflicto(mensaje);
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PrecioSectorIndividualDTO obtenerPrecioSector(
+            Long eventoId,
+            Long sectorId) {
+
+        // Verificamos que el evento exista
+        buscarEvento(eventoId);
+
+        PrecioSector precio = precioSectorRepository
+                .findByEventoIdAndSectorId(eventoId, sectorId)
+                .orElseThrow(() -> ReglaNegocioException.noEncontrado(
+                        "El sector no tiene precio para este evento"));
+
+        return new PrecioSectorIndividualDTO(
+                eventoId,
+                sectorId,
+                precio.getPrecio());
+    }
+
 }

@@ -334,17 +334,19 @@ public class EntradaServiceImpl implements EntradaService {
                 entradaRepository.findByEventoIdAndEstado(eventoId, "EMITIDA");
 
         for (Entrada entrada : entradas) {
-
             entrada.setEstado("INVALIDADA");
-
-            // Liberar el lugar asociado a la reserva.
-            reservaFeignClient.liberarReserva(entrada.getReservaId());
-
-            // Coordinar el reintegro.
-            compraFeignClient.reintegrarCompra(entrada.getCompraId());
         }
 
-        entradaRepository.saveAll(entradas);
+        if (!entradas.isEmpty()) {
+            entradaRepository.saveAll(entradas);
+        }
+
+        /*
+         * La liberación de reservas confirmadas y la coordinación del
+         * reintegro quedan pendientes de la implementación de Compras.
+         * No se invocan endpoints de liberación temporal ni se simulan
+         * reintegros para mantener esta operación idempotente.
+         */
     }
 
 }

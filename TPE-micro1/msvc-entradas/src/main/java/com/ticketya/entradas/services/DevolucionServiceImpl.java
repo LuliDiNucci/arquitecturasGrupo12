@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ticketya.entradas.clients.CompraFeignClient;
 import com.ticketya.entradas.clients.EventoFeignClient;
 import com.ticketya.entradas.clients.ReservaFeignClient;
+import com.ticketya.entradas.dtos.DevolverEntradaDTO;
 import com.ticketya.entradas.dtos.DevolucionRequestDTO;
 import com.ticketya.entradas.dtos.DevolucionResponseDTO;
 import com.ticketya.entradas.dtos.EventoDTO;
@@ -126,8 +127,13 @@ public class DevolucionServiceImpl implements DevolucionService {
 
         entradaRepository.save(entrada);
 
-        // Liberar lugar.
-        reservaFeignClient.liberarReserva(entrada.getReservaId());
+        // Liberar únicamente el lugar correspondiente a esta entrada.
+        reservaFeignClient.devolverEntrada(
+                entrada.getReservaId(),
+                new DevolverEntradaDTO(
+                        entrada.getId(),
+                        entrada.getSectorId(),
+                        entrada.getAsientoId()));
 
         // Solicitar reintegro.
         compraFeignClient.reintegrarCompra(entrada.getCompraId());

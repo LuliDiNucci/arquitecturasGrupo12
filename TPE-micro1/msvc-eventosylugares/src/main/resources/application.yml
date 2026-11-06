@@ -1,6 +1,10 @@
 server:
   port: ${PORT:8081}
+
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:mysql}
+
   application:
     name: msvc-eventos-lugares
   datasource:
@@ -30,11 +34,16 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
-# Feign prepara los clientes, pero no envia solicitudes hasta habilitar la integracion.
+
 app:
   integraciones:
-    habilitadas: ${INTEGRACIONES_HABILITADAS:false}
+    habilitadas: ${INTEGRACIONES_HABILITADAS:true}
+
     reservas-base-url: ${RESERVAS_URL:http://localhost:8080}
     entradas-base-url: ${ENTRADAS_URL:http://localhost:8083}
-    compras-base-url: ${COMPRAS_URL:http://localhost:8081}
+    compras-base-url: ${COMPRAS_URL:http://localhost:8082}
+
+    entradas-habilitadas: ${ENTRADAS_HABILITADAS:false}
+    compras-habilitadas: ${COMPRAS_HABILITADAS:false}
+
     reintento-ms: 30000

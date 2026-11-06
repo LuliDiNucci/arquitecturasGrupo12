@@ -1,23 +1,26 @@
 package ar.edu.unicen.ticketya.eventos.service;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import ar.edu.unicen.ticketya.eventos.feign.ComprasFeignClient;
 import ar.edu.unicen.ticketya.eventos.feign.EntradasFeignClient;
 import ar.edu.unicen.ticketya.eventos.feign.ReservasFeignClient;
 import ar.edu.unicen.ticketya.eventos.integration.NotificadorCancelaciones;
 import ar.edu.unicen.ticketya.eventos.model.NotificacionCancelacion;
 import ar.edu.unicen.ticketya.eventos.repository.NotificacionCancelacionRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.Clock;
-import java.time.LocalDateTime;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class NotificadorCancelacionesTest {
@@ -34,10 +37,20 @@ class NotificadorCancelacionesTest {
                 LocalDateTime.now(clock), null, null);
     }
 
+
     private NotificadorCancelaciones notificador(boolean habilitadas) {
-        return new NotificadorCancelaciones(repository, reservasClient, entradasClient,
-                comprasClient, clock, habilitadas);
+        return new NotificadorCancelaciones(
+                repository,
+                reservasClient,
+                entradasClient,
+                comprasClient,
+                clock,
+                habilitadas,
+                true,  // entradasHabilitadas
+                true   // comprasHabilitadas
+        );
     }
+
 
     @Test
     void siFallanEntradasYComprasConservaAmbosAvisosPendientes() {

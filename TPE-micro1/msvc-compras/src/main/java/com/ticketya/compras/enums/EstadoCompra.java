@@ -1,0 +1,13 @@
+
+package com.ticketya.compras.enums;
+
+public enum EstadoCompra {
+    PENDIENTE,
+    CONFIRMACION_PENDIENTE,
+    COMPENSACION_PENDIENTE,
+    LIBERACION_PENDIENTE,
+    CONFIRMADA,
+    RECHAZADA,
+    REINTEGRO_PARCIAL,
+    REINTEGRADA
+}

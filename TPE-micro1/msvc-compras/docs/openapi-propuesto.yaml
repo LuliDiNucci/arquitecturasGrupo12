@@ -1,0 +1,184 @@
+openapi: 3.0.3
+info:
+  title: TicketYa — Compras y Pagos (propuesta)
+  version: 0.1.0
+  description: >-
+    CONTRATO DE DISEÑO, NO IMPLEMENTADO TODAVÍA. Esta propuesta sirve como
+    acuerdo previo al desarrollo y se actualizará con la implementación.
+servers:
+  - url: http://localhost:8082
+paths:
+  /compras:
+    post:
+      tags: [Compras]
+      summary: Iniciar compra de una reserva vigente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IniciarCompra' }
+            example: { clienteId: 10, reservaId: 15 }
+      responses:
+        '201': { description: Compra creada en estado PENDIENTE, content: { application/json: { schema: { $ref: '#/components/schemas/Compra' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /compras/{id}:
+    get:
+      tags: [Compras]
+      summary: Consultar compra y detalles
+      parameters:
+        - $ref: '#/components/parameters/CompraId'
+      responses:
+        '200': { description: Compra, content: { application/json: { schema: { $ref: '#/components/schemas/Compra' } } } }
+        '404': { $ref: '#/components/responses/Error' }
+  /compras/{id}/pagos:
+    post:
+      tags: [Pagos]
+      summary: Procesar pago idempotente mediante pasarela simulada
+      parameters:
+        - $ref: '#/components/parameters/CompraId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProcesarPago' }
+            example: { medioPago: TARJETA, claveIdempotencia: PAGO-1-001 }
+      responses:
+        '200': { description: Pago ya finalizado, content: { application/json: { schema: { $ref: '#/components/schemas/Pago' } } } }
+        '202': { description: Intento todavía en proceso o pendiente de conciliación }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    get:
+      tags: [Pagos]
+      summary: Consultar intentos de pago de una compra
+      parameters:
+        - $ref: '#/components/parameters/CompraId'
+      responses:
+        '200': { description: Lista de pagos, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Pago' } } } } }
+  /compras/reintegros:
+    post:
+      tags: [Reintegros]
+      summary: Procesar devolución aprobada de una entrada (interno)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitarReintegro' }
+      responses:
+        '200': { description: Reintegro procesado o repetición idempotente, content: { application/json: { schema: { $ref: '#/components/schemas/Reintegro' } } } }
+        '202': { description: Reintegro pendiente }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /compras/{id}/reintegros:
+    get:
+      tags: [Reintegros]
+      summary: Consultar reintegros de una compra
+      parameters:
+        - $ref: '#/components/parameters/CompraId'
+      responses:
+        '200': { description: Lista de reintegros, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Reintegro' } } } } }
+  /compras/evento/{eventoId}/cancelar:
+    post:
+      tags: [Reintegros]
+      summary: Recibir aviso de cancelación de Eventos (interno e idempotente)
+      parameters:
+        - name: eventoId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: X-Operacion-Id
+          in: header
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Aviso registrado, incluidos reintentos }
+        '400': { $ref: '#/components/responses/Error' }
+components:
+  parameters:
+    CompraId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+  schemas:
+    IniciarCompra:
+      type: object
+      required: [clienteId, reservaId]
+      properties:
+        clienteId: { type: integer, format: int64 }
+        reservaId: { type: integer, format: int64 }
+    ProcesarPago:
+      type: object
+      required: [medioPago, claveIdempotencia]
+      properties:
+        medioPago: { type: string, example: TARJETA }
+        claveIdempotencia: { type: string, example: PAGO-1-001 }
+    SolicitarReintegro:
+      type: object
+      required: [entradaId, operacionId, motivo]
+      properties:
+        entradaId: { type: integer, format: int64 }
+        operacionId: { type: string }
+        motivo: { type: string, example: DEVOLUCION_APROBADA }
+    Compra:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        clienteId: { type: integer, format: int64 }
+        reservaId: { type: integer, format: int64 }
+        eventoId: { type: integer, format: int64 }
+        estado: { type: string, example: PENDIENTE }
+        importeTotal: { type: number, example: 70000.00 }
+        detalles:
+          type: array
+          items: { $ref: '#/components/schemas/DetalleCompra' }
+    DetalleCompra:
+      type: object
+      properties:
+        sectorId: { type: integer, format: int64 }
+        cantidad: { type: integer, example: 2 }
+        precioUnitario: { type: number, example: 35000.00 }
+        subtotal: { type: number, example: 70000.00 }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ItemCompra' }
+    ItemCompra:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        asientoId: { type: integer, format: int64, nullable: true }
+        entradaId: { type: integer, format: int64, nullable: true }
+        precioPagado: { type: number, example: 35000.00 }
+    Pago:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        compraId: { type: integer, format: int64 }
+        estado: { type: string, example: APROBADO }
+        medioPago: { type: string, example: TARJETA }
+        importe: { type: number, example: 70000.00 }
+        fecha: { type: string, format: date-time }
+    Reintegro:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        entradaId: { type: integer, format: int64 }
+        importe: { type: number, example: 35000.00 }
+        estado: { type: string, example: PENDIENTE }
+        fecha: { type: string, format: date-time }
+    Error:
+      type: object
+      properties:
+        estado: { type: integer, example: 409 }
+        mensaje: { type: string, example: La reserva no está vigente }
+  responses:
+    Error:
+      description: Solicitud rechazada o dependencia no disponible
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

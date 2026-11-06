@@ -2,14 +2,19 @@
 package com.ticketya.compras.entities;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -20,24 +25,42 @@ public class DetalleCompra {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "compra_id", nullable = false)
     private Compra compra;
 
-    @Column(name = "evento_id")
+    @Column(name = "evento_id", nullable = false)
     private Long eventoId;
 
-    @Column(name = "sector_id")
+    @Column(name = "sector_id", nullable = false)
     private Long sectorId;
 
-    @Column(name = "asiento_id")
-    private Long asientoId;
+    @Column(name = "cantidad", nullable = false)
+    private Integer cantidad;
 
-    @Column(name = "precio_unitario", precision = 10, scale = 2)
+    @Column(
+        name = "precio_unitario",
+        nullable = false,
+        precision = 12,
+        scale = 2
+    )
     private BigDecimal precioUnitario;
 
+    @Column(
+        name = "subtotal",
+        nullable = false,
+        precision = 12,
+        scale = 2
+    )
+    private BigDecimal subtotal;
 
-     public DetalleCompra() {
+    @OneToMany(
+        mappedBy = "detalleCompra",
+        cascade = {CascadeType.PERSIST, CascadeType.MERGE}
+    )
+    private List<ItemCompra> items = new ArrayList<>();
+
+    public DetalleCompra() {
     }
 
     public Long getId() {
@@ -48,8 +71,8 @@ public class DetalleCompra {
         this.id = id;
     }
 
-   public Compra getCompra() {
-    return compra;
+    public Compra getCompra() {
+        return compra;
     }
 
     public void setCompra(Compra compra) {
@@ -72,12 +95,12 @@ public class DetalleCompra {
         this.sectorId = sectorId;
     }
 
-    public Long getAsientoId() {
-        return asientoId;
+    public Integer getCantidad() {
+        return cantidad;
     }
 
-    public void setAsientoId(Long asientoId) {
-        this.asientoId = asientoId;
+    public void setCantidad(Integer cantidad) {
+        this.cantidad = cantidad;
     }
 
     public BigDecimal getPrecioUnitario() {
@@ -86,5 +109,22 @@ public class DetalleCompra {
 
     public void setPrecioUnitario(BigDecimal precioUnitario) {
         this.precioUnitario = precioUnitario;
+    }
+
+    public BigDecimal getSubtotal() {
+        return subtotal;
+    }
+
+    public void setSubtotal(BigDecimal subtotal) {
+        this.subtotal = subtotal;
+    }
+
+    public List<ItemCompra> getItems() {
+        return items;
+    }
+
+    public void agregarItem(ItemCompra item) {
+        items.add(item);
+        item.setDetalleCompra(this);
     }
 }

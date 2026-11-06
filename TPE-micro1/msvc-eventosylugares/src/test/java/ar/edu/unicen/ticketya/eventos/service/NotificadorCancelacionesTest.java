@@ -25,10 +25,14 @@ import ar.edu.unicen.ticketya.eventos.repository.NotificacionCancelacionReposito
 @ExtendWith(MockitoExtension.class)
 class NotificadorCancelacionesTest {
 
-    @Mock private NotificacionCancelacionRepository repository;
-    @Mock private ReservasFeignClient reservasClient;
-    @Mock private EntradasFeignClient entradasClient;
-    @Mock private ComprasFeignClient comprasClient;
+    @Mock
+    private NotificacionCancelacionRepository repository;
+    @Mock
+    private ReservasFeignClient reservasClient;
+    @Mock
+    private EntradasFeignClient entradasClient;
+    @Mock
+    private ComprasFeignClient comprasClient;
 
     private final Clock clock = Clock.systemUTC();
 
@@ -36,7 +40,6 @@ class NotificadorCancelacionesTest {
         return new NotificacionCancelacion(10L, false, false, 0,
                 LocalDateTime.now(clock), null, null);
     }
-
 
     private NotificadorCancelaciones notificador(boolean habilitadas) {
         return new NotificadorCancelaciones(
@@ -46,27 +49,31 @@ class NotificadorCancelacionesTest {
                 comprasClient,
                 clock,
                 habilitadas,
-                true,  // entradasHabilitadas
-                true   // comprasHabilitadas
+                true, // entradasHabilitadas
+                true // comprasHabilitadas
         );
     }
 
-
     @Test
-    void siFallanEntradasYComprasConservaAmbosAvisosPendientes() {
+    void siFallaEntradasConservaAvisosPendientesSinLlamarACompras() {
         NotificacionCancelacion aviso = aviso();
+
         when(repository.pendientes()).thenReturn(List.of(aviso));
+
         doThrow(new RuntimeException("HTTP 404")).when(entradasClient)
                 .cancelarEvento(10L, "cancelacion-evento-10");
-        doThrow(new RuntimeException("HTTP 404")).when(comprasClient)
-                .cancelarEvento(10L, "cancelacion-evento-10");
+
         notificador(true).enviarPendientes();
+
         verify(reservasClient).cancelarEvento(10L, "cancelacion-evento-10");
+        verify(entradasClient).cancelarEvento(10L, "cancelacion-evento-10");
+        verifyNoInteractions(comprasClient);
+
         assertTrue(aviso.isReservasNotificadas());
         assertFalse(aviso.isEntradasNotificadas());
         assertFalse(aviso.isComprasNotificadas());
+
         assertTrue(aviso.getUltimoError().contains("Entradas"));
-        assertTrue(aviso.getUltimoError().contains("Compras"));
     }
 
     @Test
@@ -93,7 +100,7 @@ class NotificadorCancelacionesTest {
     }
 
     @Test
-    void siFallaEntradasSigueAvisandoACompras() {
+    void siFallaEntradasNoAvisaACompras() {
         NotificacionCancelacion aviso = aviso();
         when(repository.pendientes()).thenReturn(List.of(aviso));
         doThrow(new RuntimeException("No disponible"))
@@ -102,10 +109,10 @@ class NotificadorCancelacionesTest {
         notificador(true).enviarPendientes();
 
         verify(reservasClient).cancelarEvento(10L, "cancelacion-evento-10");
-        verify(comprasClient).cancelarEvento(10L, "cancelacion-evento-10");
+        verifyNoInteractions(comprasClient);
         assertTrue(aviso.isReservasNotificadas());
         assertFalse(aviso.isEntradasNotificadas());
-        assertTrue(aviso.isComprasNotificadas());
+        assertFalse(aviso.isComprasNotificadas());
         assertTrue(aviso.getUltimoError().contains("Entradas"));
     }
 }

@@ -43,7 +43,7 @@ app:
     entradas-base-url: ${ENTRADAS_URL:http://localhost:8083}
     compras-base-url: ${COMPRAS_URL:http://localhost:8082}
 
-    entradas-habilitadas: ${ENTRADAS_HABILITADAS:false}
-    compras-habilitadas: ${COMPRAS_HABILITADAS:false}
+    entradas-habilitadas: ${ENTRADAS_HABILITADAS:true}
+    compras-habilitadas: ${COMPRAS_HABILITADAS:true}
 
     reintento-ms: 30000

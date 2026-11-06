@@ -111,6 +111,4 @@
 - Entrega 1: pasarela simulada, API REST, bases separadas, Swagger, README, documentos y pruebas unitarias/concurrencia.
 - Entrega 2: JWT, Docker, log centralizado, resiliencia avanzada y estrategias completas de consistencia/compensación. No obstante, para US04 ya debe evitarse marcar como exitosa una compra incompleta.
 
-## Regla de trabajo
 
-No marcar una historia como «implementada y probada» solo por existir un controller: registrar evidencia en `05-TESTING.md`, y actualizar el README y los contratos tras cada cambio.

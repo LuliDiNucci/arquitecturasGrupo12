@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: msvc-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 3000
+            response-timeout: 5s
+          routes:
+            # Las rutas de documentación deben evaluarse antes que las rutas generales.
+            - id: eventos-api-docs
+              uri: ${EVENTOS_URL:http://localhost:8081}
+              predicates:
+                - Path=/eventos/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
+            - id: reservas-api-docs
+              uri: ${RESERVAS_URL:http://localhost:8080}
+              predicates:
+                - Path=/reservas/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
+            - id: compras-api-docs
+              uri: ${COMPRAS_URL:http://localhost:8082}
+              predicates:
+                - Path=/compras/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
+            - id: eventos-y-lugares
+              uri: ${EVENTOS_URL:http://localhost:8081}
+              predicates:
+                - Path=/eventos/**,/lugares/**,/sectores/**,/asientos/**,/organizadores/**,/participantes/**
+            - id: reservas
+              uri: ${RESERVAS_URL:http://localhost:8080}
+              predicates:
+                - Path=/reservas/**,/disponibilidad/**
+            - id: compras
+              uri: ${COMPRAS_URL:http://localhost:8082}
+              predicates:
+                - Path=/compras/**
+            - id: entradas-y-devoluciones
+              uri: ${ENTRADAS_URL:http://localhost:8083}
+              predicates:
+                - Path=/entradas/**,/devoluciones/**
+
+server:
+  port: ${PORT:8084}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

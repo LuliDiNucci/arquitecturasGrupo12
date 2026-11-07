@@ -242,6 +242,10 @@ public class EventoServiceImpl implements EventoService {
     @Override
     public EventoResponseDTO publicar(Long id) {
         Evento evento = buscarEvento(id);
+        
+        if (evento.getEstado() == EstadoEvento.PUBLICADO) {
+            return detalle(evento);
+        }
 
         if (evento.getEstado() != EstadoEvento.BORRADOR
                 && evento.getEstado() != EstadoEvento.SUSPENDIDO) {

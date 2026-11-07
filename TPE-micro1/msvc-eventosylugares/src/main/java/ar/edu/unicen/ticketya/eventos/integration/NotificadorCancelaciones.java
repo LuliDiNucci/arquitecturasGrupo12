@@ -36,8 +36,8 @@ public class NotificadorCancelaciones {
             ComprasFeignClient comprasClient,
             Clock clock,
             @Value("${app.integraciones.habilitadas:false}") boolean integracionesHabilitadas,
-            @Value("${app.integraciones.entradas.habilitadas:false}") boolean entradasHabilitadas,
-            @Value("${app.integraciones.compras.habilitadas:false}") boolean comprasHabilitadas) {
+            @Value("${app.integraciones.entradas-habilitadas:false}") boolean entradasHabilitadas,
+            @Value("${app.integraciones.compras-habilitadas:false}") boolean comprasHabilitadas) {
         this.pendientes = pendientes;
         this.reservasClient = reservasClient;
         this.entradasClient = entradasClient;

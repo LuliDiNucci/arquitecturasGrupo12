@@ -3,21 +3,50 @@ package com.ticketya.entradas.dtos;
 
 import java.time.LocalDateTime;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "Información de una entrada emitida")
 public class EntradaDTO {
 
+    @Schema(description = "Identificador de la entrada", example = "10")
     private Long id;
+
+    @Schema(description = "Identificador de la compra", example = "125")
     private Long compraId;
+
+    @Schema(description = "Identificador de la reserva", example = "50")
     private Long reservaId;
+
+    @Schema(description = "Identificador del detalle de reserva", example = "8")
     private Long detalleReservaId;
+
+    @Schema(description = "Índice del lugar dentro del detalle", example = "1")
     private Integer indiceLugar;
+
+    @Schema(description = "Identificador del cliente titular", example = "20")
     private Long clienteId;
+
+    @Schema(description = "Identificador del evento", example = "15")
     private Long eventoId;
+
+    @Schema(description = "Identificador del sector", example = "3")
     private Long sectorId;
+
+    @Schema(description = "Identificador del asiento. Puede ser nulo si no es numerado", example = "45")
     private Long asientoId;
+
+    @Schema(description = "Código QR único de la entrada", example = "a8f3c2d1")
     private String codigoQr;
+
+    @Schema(description = "Estado actual de la entrada", example = "EMITIDA")
     private String estado;
+
+    @Schema(description = "Fecha y hora de emisión", example = "2026-11-08T15:30:00")
     private LocalDateTime fechaEmision;
+
+    @Schema(description = "Imagen del código QR codificada en Base64")
     private String qrImagenBase64;
+
 
     public EntradaDTO() {
     }

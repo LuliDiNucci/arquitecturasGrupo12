@@ -22,6 +22,12 @@ spring:
                 - Path=/reservas/v3/api-docs
               filters:
                 - SetPath=/v3/api-docs
+            - id: entradas-api-docs
+              uri: ${ENTRADAS_URL:http://localhost:8083}
+              predicates:
+                - Path=/entradas/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
             - id: compras-api-docs
               uri: ${COMPRAS_URL:http://localhost:8082}
               predicates:
@@ -44,6 +50,7 @@ spring:
               uri: ${ENTRADAS_URL:http://localhost:8083}
               predicates:
                 - Path=/entradas/**,/devoluciones/**
+                
 
 server:
   port: ${PORT:8084}

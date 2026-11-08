@@ -1,7 +1,6 @@
 package com.ticketya.entradas.dtos;
 
 
-
 public class DevolucionRequestDTO {
     private Long entradaId;
     private String motivo;

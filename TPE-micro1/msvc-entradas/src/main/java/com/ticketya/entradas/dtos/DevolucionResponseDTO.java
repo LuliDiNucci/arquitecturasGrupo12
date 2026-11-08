@@ -2,13 +2,30 @@ package com.ticketya.entradas.dtos;
 
 import java.time.LocalDateTime;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "Información de una solicitud de devolución")
 public class DevolucionResponseDTO {
+    
+    @Schema(description = "Identificador de la solicitud", example = "5")
     private Long id;
+
+    @Schema(description = "Identificador de la entrada", example = "10")
     private Long entradaId;
+
+    @Schema(description = "Fecha y hora de la solicitud", example = "2026-11-08T15:30:00")
     private LocalDateTime fechaSolicitud;
+
+    @Schema(description = "Motivo de la devolución", example = "No puedo asistir")
     private String motivo;
+
+    @Schema(description = "Estado de la solicitud", example = "PENDIENTE")
     private String estado;
+
+    @Schema(description = "Fecha y hora de resolución", example = "2026-11-09T10:00:00")
     private LocalDateTime fechaResolucion;
+
+    @Schema(description = "Identificador del administrador que resolvió la solicitud", example = "2")
     private Long administradorId;
 
     public DevolucionResponseDTO() {}

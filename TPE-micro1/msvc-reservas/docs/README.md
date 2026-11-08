@@ -19,7 +19,7 @@ Su responsabilidad comprende:
 
 **No** administra eventos, sectores, asientos ni precios; tampoco procesa pagos, genera QR, aprueba devoluciones o efectúa reintegros. Esas operaciones corresponden a otros microservicios.
 
-Las historias de usuario oficiales **US01–US07**, sus criterios de aceptación y el estado real de implementación están en [`docs/01-FUNCIONALIDADES-Y-USER-STORIES.md`](docs/01-FUNCIONALIDADES-Y-USER-STORIES.md).
+Las historias de usuario oficiales **US01–US07**, sus criterios de aceptación y el estado real de implementación están en [`01-FUNCIONALIDADES-Y-USER-STORIES.md`](01-FUNCIONALIDADES-Y-USER-STORIES.md).
 
 ## 2. Requisitos y configuración
 
@@ -74,15 +74,14 @@ La documentación interactiva se genera con Springdoc a partir de los controller
 
 - **Swagger UI:** http://localhost:8080/swagger-ui.html
 - **Especificación OpenAPI JSON:** http://localhost:8080/v3/api-docs
-- **Contrato OpenAPI manual:** [`docs/openapi.yaml`](docs/openapi.yaml)
-- **Colección Postman:** [`docs/TicketYa-Reservas.postman_collection.json`](docs/TicketYa-Reservas.postman_collection.json)
+- **Contrato OpenAPI manual:** [`openapi.yaml`](openapi.yaml)
+- **Colección Postman:** [`TicketYa-Reservas.postman_collection.json`](TicketYa-Reservas.postman_collection.json)
 
 > Swagger sirve para visualizar y probar endpoints, **no** aplica seguridad por sí solo. El archivo `openapi.yaml` es una versión manual que debe mantenerse sincronizada con el contrato generado por Springdoc.
 
 ## 4. API REST
 
 | Método | Ruta | Descripción | Acceso previsto |
-|---|---|---|---|
 | `GET` | `/disponibilidad?eventoId={id}&sectorId={id}` | Consulta lugares y asientos **disponibles** | Consulta del cliente |
 | `POST` | `/reservas` | Crea una reserva temporal de 10 minutos | Flujo de compra |
 | `GET` | `/reservas/{id}` | Consulta una reserva y su estado | Acceso autorizado |
@@ -141,7 +140,7 @@ Los errores de negocio devuelven JSON con `estado` y `mensaje`, por ejemplo un `
 - **Cancelación de evento:** `cancelado=true` permanece registrado localmente e impide nuevas ventas. Las reservas confirmadas requieren coordinación externa para la gestión de reintegros.
 - **Devolución individual:** se registra `entradaId` en `entrada_liberada` para evitar doble liberación. La verificación de titularidad, aprobación y plazo de 72 horas pertenece al servicio autorizado que invoca la operación.
 
-Para más detalle, ver [`docs/06-DECISIONES-Y-LIMITACIONES.md`](docs/06-DECISIONES-Y-LIMITACIONES.md).
+Para más detalle, ver [`06-DECISIONES-Y-LIMITACIONES-RESERVAS.md`](06-DECISIONES-Y-LIMITACIONES-RESERVAS.md).
 
 ## 6. Comunicación con otros microservicios
 
@@ -162,7 +161,7 @@ Para más detalle, ver [`docs/06-DECISIONES-Y-LIMITACIONES.md`](docs/06-DECISION
 
 **Entradas / proceso autorizado → Reservas:** solicita liberar una entrada una vez validada y aprobada la devolución. El reintegro del dinero se gestiona fuera de Reservas.
 
-Estas integraciones requieren pruebas de extremo a extremo; **el éxito de las pruebas con simuladores no implica que ya estén integrados los microservicios reales**. Véase [`docs/contrato-eventos.md`](docs/contrato-eventos.md).
+**Estado de integración:** `EventoClient` y sus cinco operaciones Feign están implementados; los endpoints de confirmación/liberación que utiliza Compras y los endpoints de habilitación/cancelación invocados por Eventos también están implementados en Reservas. El endpoint de liberación individual de entradas está disponible para el servicio autorizado. La existencia de estos contratos no acredita por sí sola una prueba de extremo a extremo contra todos los servicios reales. El equipo debe registrar pruebas integradas de los flujos completos. La configuración y seguridad del Gateway se verifica en el microservicio Gateway, que no forma parte de este ZIP. Véase [`contrato-eventos.md`](contrato-eventos.md).
 
 Los endpoints internos deben quedar restringidos por la configuración del Gateway y/o la red, no por el hecho de que Swagger los etiquete como «internos».
 
@@ -192,39 +191,37 @@ El test `muchasSolicitudesMismoAsientoSoloUnaGana` realiza diez intentos concurr
 
 También se verificaron manualmente creación, confirmación, liberación, vencimiento lógico, cancelación, devolución individual, errores HTTP, idempotencia y disponibilidad mediante PowerShell, MySQL y un simulador de Eventos.
 
-Detalles y resultados: [`docs/05-TESTING.md`](docs/05-TESTING.md).
+Detalles y resultados: [`05-TESTING-RESERVAS.md`](05-TESTING-RESERVAS.md).
 
 ## 8. Estado de las historias de usuario y pendientes conocidos
 
 | Historia | Estado actual | Pendiente para cumplir todos sus criterios |
-|---|---|---|
 | **US01** Disponibilidad | **Parcial** | La API muestra asientos libres, **no lista explícitamente los ocupados**. |
-| **US02** Reserva temporal | **Implementada localmente** | Validar integración con Eventos real y flujo de venta. |
+| **US02** Reserva temporal | **Implementada localmente** | Validar contrato contra Eventos real y flujo de compra integrado. |
 | **US03** Concurrencia e idempotencia | **Implementada y probada en MySQL** | Pruebas distribuidas de varias instancias y de fallas de red. |
-| **US04** Vencimiento | **Parcial** | La capacidad se libera por tiempo; falta **actualización automática persistente del estado `VENCIDA`** sin consultas posteriores. |
-| **US05** Confirmación | **Implementada localmente** | Integración real con Compras/Entradas. |
-| **US06** Liberación por rechazo | **Implementada localmente** | Integración real con Compras/Entradas. |
-| **US07** Devoluciones y cancelación | **Parcial / integración pendiente** | Confirmar aprobación, titularidad y reintegros desde los servicios responsables; probar coordinación real de cancelación. |
+| **US04** Vencimiento | **Implementada con vencimiento lógico** | El equipo informó que verificó manualmente que la capacidad vuelve a estar disponible al cumplirse los 10 minutos. No se requiere scheduler en Entrega 1; el estado puede persistir temporalmente como `ACTIVA` hasta una operación posterior. |
+| **US05** Confirmación | **Endpoint implementado** | El cliente de Compras está desarrollado; falta evidencia de prueba integrada del flujo completo con pago y emisión de entradas. |
+| **US06** Liberación por rechazo | **Endpoint implementado** | El cliente de Compras está desarrollado; falta evidencia de prueba integrada del flujo completo de rechazo y liberación. |
+| **US07** Devoluciones y cancelación | **Endpoints implementados** | Falta prueba integrada de la coordinación con Entradas, Compras y Eventos para aprobación, titularidad, reintegros y cancelación. |
 
 **Prioridades funcionales pendientes identificadas al contrastar las historias proporcionadas:**
 
 1. **US01:** extender la respuesta de disponibilidad numerada para informar también los IDs ocupados, sin confundirlos con los disponibles; actualizar DTO, Service, Swagger, OpenAPI y tests si se adopta ese contrato.
-2. **US04:** incorporar un proceso automático, por ejemplo programado, si se exige que el estado persistido pase a `VENCIDA` sin consulta posterior. El vencimiento lógico de la ocupación **ya funciona**.
-3. **US03/US05–US07:** completar y probar integración y seguridad entre servicios.
+2. **US04:** no se incorpora scheduler en Entrega 1. El vencimiento lógico libera capacidad porque las consultas excluyen las reservas cuyo plazo ya pasó. El estado persistido se actualiza a `VENCIDA` cuando una operación posterior procesa esa reserva.
+3. **US03/US05–US07:** ejecutar y registrar pruebas integradas entre los microservicios reales, además de verificar la protección de los endpoints internos mediante Gateway/red.
 
 No se debe presentar estos criterios pendientes como terminados solo porque el servicio compile o Swagger muestre sus endpoints.
 
 ## 9. Documentación del proyecto
 
 | Archivo | Contenido |
-|---|---|
-| [`docs/01-FUNCIONALIDADES-Y-USER-STORIES.md`](docs/01-FUNCIONALIDADES-Y-USER-STORIES.md) | US01–US07, criterios de aceptación y trazabilidad |
-| [`docs/02-ARQUITECTURA-Y-DIAGRAMAS.md`](docs/02-ARQUITECTURA-Y-DIAGRAMAS.md) | Arquitectura, Feign y secuencias Mermaid |
-| [`docs/03-MODELO-DE-DATOS.md`](docs/03-MODELO-DE-DATOS.md) | Entidades, relaciones JPA y DER Mermaid |
-| [`docs/05-TESTING.md`](docs/05-TESTING.md) | Estrategia, ejecución y resultados de pruebas |
-| [`docs/06-DECISIONES-Y-LIMITACIONES.md`](docs/06-DECISIONES-Y-LIMITACIONES.md) | Concurrencia, idempotencia, límites y pendientes |
-| [`docs/contrato-eventos.md`](docs/contrato-eventos.md) | Contrato Feign con Eventos y Lugares |
-| [`docs/openapi.yaml`](docs/openapi.yaml) | Especificación OpenAPI mantenida manualmente |
-| [`docs/TicketYa-Reservas.postman_collection.json`](docs/TicketYa-Reservas.postman_collection.json) | Colección Postman |
+| [`01-FUNCIONALIDADES-Y-USER-STORIES.md`](01-FUNCIONALIDADES-Y-USER-STORIES.md) | US01–US07, criterios de aceptación y trazabilidad |
+| [`02-ARQUITECTURA-Y-DIAGRAMAS-RESERVAS.md`](02-ARQUITECTURA-Y-DIAGRAMAS-RESERVAS.md) | Arquitectura, Feign y secuencias Mermaid |
+| [`03-MODELO-DE-DATOS-RESERVAS.md`](03-MODELO-DE-DATOS-RESERVAS.md) | Entidades, relaciones JPA y DER Mermaid |
+| [`05-TESTING-RESERVAS.md`](05-TESTING-RESERVAS.md) | Estrategia, ejecución y resultados de pruebas |
+| [`06-DECISIONES-Y-LIMITACIONES-RESERVAS.md`](06-DECISIONES-Y-LIMITACIONES-RESERVAS.md) | Concurrencia, idempotencia, límites y pendientes |
+| [`contrato-eventos.md`](contrato-eventos.md) | Contrato Feign con Eventos y Lugares |
+| [`openapi.yaml`](openapi.yaml) | Especificación OpenAPI mantenida manualmente |
+| [`TicketYa-Reservas.postman_collection.json`](TicketYa-Reservas.postman_collection.json) | Colección Postman |
 
 > Los documentos `02`, `03`, `05` y `06` deben conservarse en `docs/` con los nombres indicados. Los cambios posteriores en el código, el contrato de Eventos o las historias de usuario deben reflejarse también en Swagger, OpenAPI y documentación técnica.

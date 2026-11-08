@@ -46,7 +46,7 @@ Los criterios que siguen se conservan conforme a las historias proporcionadas. *
 
 **Implementación actual:** `POST /reservas`; `ReservaController`, `ReservaServiceImpl`, `Reserva`, `DetalleReserva`, `AsignacionAsiento`.
 
-**Cobertura: IMPLEMENTADA LOCALMENTE.** Reserva `ACTIVA` con vencimiento de 10 minutos, validaciones de pertenencia de sector/asientos, precio y disponibilidad, habilitación previa del evento y límite de entradas configurable. La ocupación se registra en MySQL. **Pendiente:** prueba de extremo a extremo con Eventos real y Compras.
+**Cobertura: IMPLEMENTADA LOCALMENTE.** Reserva `ACTIVA` con vencimiento de 10 minutos, validaciones de pertenencia de sector/asientos, precio y disponibilidad, habilitación previa del evento y límite de entradas configurable. La ocupación se registra en MySQL. El cliente Feign de Eventos está implementado; falta comprobar compatibilidad y flujo completo contra los microservicios reales.
 
 ## US03 – Evitar reservas simultáneas del mismo lugar
 
@@ -82,7 +82,7 @@ Esta historia es especialmente importante porque la consigna exige una prueba de
 
 **Implementación actual:** `fechaVencimiento` y `EstadoReserva.VENCIDA` en `ReservaServiceImpl`; consultas de ocupación filtradas por vencimiento en repositorios y en `DisponibilidadServiceImpl`.
 
-**Cobertura: PARCIAL.** Los lugares de una reserva `ACTIVA` vencida **se excluyen automáticamente del conteo de ocupación**, por lo que vuelven a ofrecerse; una reserva vencida no puede confirmarse. `actualizarVencimiento()` modifica el estado a `VENCIDA` cuando una operación procesa la reserva. **No hay scheduler ni otro proceso que actualice automáticamente el estado de todas las reservas vencidas en MySQL**. Si el criterio exige cambio persistido al vencer, esta parte falta implementar. Las reservas `CONFIRMADA` continúan ocupando sus lugares hasta una devolución autorizada o coordinación de cancelación.
+**Cobertura: IMPLEMENTADA CON VENCIMIENTO LÓGICO.** Al cumplirse los 10 minutos, las reservas `ACTIVA` dejan de contarse como ocupación y los lugares vuelven a estar disponibles aunque el registro conserve temporalmente ese estado en MySQL. Una reserva vencida no puede confirmarse. `actualizarVencimiento()` persiste `VENCIDA` cuando una operación procesa la reserva. El equipo informó que verificó manualmente la liberación de capacidad después del vencimiento. **No se incorpora scheduler en Entrega 1**, porque la liberación de capacidad depende del filtro temporal y no de actualizar periódicamente el estado. Las reservas `CONFIRMADA` continúan ocupando sus lugares hasta una devolución autorizada o coordinación de cancelación.
 
 ## US05 – Confirmar una reserva después del pago
 
@@ -99,7 +99,7 @@ Esta historia es especialmente importante porque la consigna exige una prueba de
 
 **Implementación actual:** `POST /reservas/{id}/confirmar`, `ReservaServiceImpl.confirmarReserva`.
 
-**Cobertura: IMPLEMENTADA LOCALMENTE; INTEGRACIÓN PENDIENTE.** Solo confirma reservas vigentes en `ACTIVA`; cambia a `CONFIRMADA`; los lugares siguen ocupados sin vencimiento lógico. Confirmar nuevamente una reserva confirmada no crea otra venta. **Falta** conectar con pagos reales/simulados y comprobar la emisión de entradas desde el microservicio correspondiente.
+**Cobertura: ENDPOINT IMPLEMENTADO; INTEGRACIÓN PENDIENTE DE PRUEBA INTEGRADA.** `POST /reservas/{id}/confirmar` confirma una reserva `ACTIVA` y vigente, y admite reintentos idempotentes. El cliente de Compras para invocar la confirmación está desarrollado. La coordinación completa pago aprobado → confirmación → emisión de entradas debe comprobarse con los microservicios reales funcionando conjuntamente.
 
 ## US06 – Liberar una reserva por pago rechazado
 
@@ -115,7 +115,7 @@ Esta historia es especialmente importante porque la consigna exige una prueba de
 
 **Implementación actual:** `POST /reservas/{id}/liberar`, `ReservaServiceImpl.liberarReserva`.
 
-**Cobertura: IMPLEMENTADA LOCALMENTE; INTEGRACIÓN PENDIENTE.** Cambia una reserva activa a `LIBERADA`, libera capacidad y admite reintentos sin repetir el cambio. Rechaza liberar una reserva confirmada por esta vía. **Falta** verificar que Compras avise el rechazo y que Entradas no emita tickets para dicha reserva.
+**Cobertura: ENDPOINT IMPLEMENTADO; INTEGRACIÓN PENDIENTE DE PRUEBA INTEGRADA.** `POST /reservas/{id}/liberar` libera una reserva temporal, actualiza la disponibilidad y admite reintentos. El cliente de Compras para invocar la liberación está desarrollado. Falta comprobar el flujo completo de pago rechazado y la coordinación para que no se emitan entradas.
 
 ## US07 – Liberar lugares por devolución o cancelación del evento
 
@@ -133,28 +133,27 @@ Esta historia es especialmente importante porque la consigna exige una prueba de
 
 **Implementación actual:** `POST /reservas/{id}/devolver-entrada`, `POST /reservas/evento/{eventoId}/cancelar`, `EntradaLiberada`, `BloqueoEvento`.
 
-**Cobertura: PARCIAL / INTEGRACIÓN PENDIENTE.** Se puede liberar **una** entrada de una reserva confirmada y registrar `entradaId` para evitar una segunda liberación. Al cancelar un evento se bloquean nuevas ventas, se invalidan las reservas activas y la API de disponibilidad rechaza consultas de ese evento. **Falta** garantizar por integración que la devolución esté aprobada y que el solicitante tenga derecho a pedirla; no basta con recibir un `entradaId` arbitrario. Entradas/Compras deben validar titularidad, plazo de 72 horas, aprobación y reintegro. Las entradas de reservas confirmadas en un evento cancelado requieren coordinación adicional.
+**Cobertura: ENDPOINTS IMPLEMENTADOS; INTEGRACIÓN PENDIENTE DE PRUEBA INTEGRADA.** Reservas expone la liberación individual de una entrada y la cancelación de reservas temporales de un evento. El endpoint de devolución registra `entradaId` para evitar una segunda liberación, pero no verifica por sí solo titularidad, aprobación ni plazo de 72 horas: esas validaciones corresponden a los servicios responsables. La coordinación de entradas confirmadas y reintegros ante cancelación debe probarse con Entradas, Compras y Eventos funcionando conjuntamente.
 
 ---
 
 ## Trazabilidad resumida
 
 | Historia | Endpoint principal | Evidencia local | Estado |
-|---|---|---|---|
 | US01 | `GET /disponibilidad` | Consulta de sector numerado/no numerado, ocupación y evento cancelado | **Parcial:** faltan ocupados explícitos |
 | US02 | `POST /reservas` | Creación, 10 minutos, validaciones y límite de entradas | Implementada localmente |
 | US03 | `POST /reservas` | Test MySQL 10 solicitudes; idempotencia secuencial/simultánea | Implementada; probar varias instancias |
-| US04 | `GET /disponibilidad`, `GET /reservas/{id}`, confirmar | Vencimiento lógico; confirmación rechazada | **Parcial:** falta estado automático persistido |
-| US05 | `POST /reservas/{id}/confirmar` | Confirmación y reintento | Integración con Compras/Entradas pendiente |
-| US06 | `POST /reservas/{id}/liberar` | Liberación y reintento | Integración con Compras/Entradas pendiente |
-| US07 | `POST /reservas/{id}/devolver-entrada`; `POST /reservas/evento/{id}/cancelar` | Devolución idempotente, cancelación y bloqueo de ventas | Integración de aprobación/reintegro pendiente |
+| US04 | `GET /disponibilidad`, `GET /reservas/{id}`, confirmar | Vencimiento lógico y liberación de capacidad verificados manualmente | Implementada con vencimiento lógico; sin scheduler |
+| US05 | `POST /reservas/{id}/confirmar` | Confirmación y reintento; cliente de Compras disponible | Endpoint y cliente implementados; falta prueba integrada de extremo a extremo |
+| US06 | `POST /reservas/{id}/liberar` | Liberación y reintento; cliente de Compras disponible | Endpoint y cliente implementados; falta prueba integrada de extremo a extremo |
+| US07 | `POST /reservas/{id}/devolver-entrada`; `POST /reservas/evento/{id}/cancelar` | Devolución idempotente, cancelación y bloqueo de ventas | Endpoints implementados; coordinación con Entradas/Compras/Eventos pendiente de prueba integrada |
 
 ## Acciones necesarias para cerrar criterios pendientes
 
 1. **US01:** incluir `asientosOcupados` en la respuesta de disponibilidad de sectores numerados y añadir pruebas y ejemplos Swagger/OpenAPI; no basta con devolver únicamente `asientosDisponibles`.
-2. **US04:** si se exige cambio persistido automático, incorporar un mecanismo periódico o equivalente para pasar reservas activas vencidas a `VENCIDA`, sin tocar las confirmadas. Mantener el filtro por fecha existente para garantizar liberación oportuna.
+2. **US04:** no se considera necesario incorporar un scheduler en Entrega 1. El vencimiento lógico excluye los registros vencidos del cálculo de ocupación y libera capacidad; el estado persistido se actualiza a `VENCIDA` cuando una operación procesa la reserva.
 3. **US03:** ejecutar prueba de reserva concurrente con **más de una instancia** conectada a la misma base MySQL.
-4. **US05–US07:** probar de extremo a extremo los avisos desde Compras, Entradas y Eventos, los casos de aprobación/rechazo y las compensaciones necesarias.
+4. **US05–US07:** ejecutar y registrar pruebas integradas de extremo a extremo con Compras, Entradas y Eventos, incluyendo aprobación/rechazo, devolución y compensaciones.
 5. **Seguridad transversal:** restringir a servicios autorizados los endpoints internos de cambios de estado y devoluciones.
 
-**Documentación complementaria:** [arquitectura](02-ARQUITECTURA-Y-DIAGRAMAS.md) · [modelo de datos](03-MODELO-DE-DATOS.md) · [testing](05-TESTING.md) · [decisiones y limitaciones](06-DECISIONES-Y-LIMITACIONES.md) · [contrato OpenAPI](openapi.yaml).
+**Documentación complementaria:** [arquitectura](02-ARQUITECTURA-Y-DIAGRAMAS-RESERVAS.md) · [modelo de datos](03-MODELO-DE-DATOS-RESERVAS.md) · [testing](05-TESTING-RESERVAS.md) · [decisiones y limitaciones](06-DECISIONES-Y-LIMITACIONES-RESERVAS.md) · [contrato OpenAPI](openapi.yaml).

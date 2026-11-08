@@ -1,111 +1,208 @@
-# Modelo de datos — msvc-reservas (Entrega 1)
+# 03 — Modelo de datos de Reservas
 
-## 1. Base de datos y responsabilidad
+**Proyecto:** TicketYa · Microservicio `msvc-reservas` · Entrega 1
 
-`msvc-reservas` utiliza su propia base de datos relacional, `ticketya_reservas` (MySQL). Aquí persiste reservas, detalles, asignaciones de asientos y registros auxiliares para concurrencia e idempotencia. Los catálogos de eventos, lugares, sectores, asientos y precios pertenecen a **msvc-eventosylugares**.
+## 1. Objetivo
 
-Los campos `eventoId`, `sectorId`, `asientoId` y `clienteId` son **referencias por identificador**; no representan asociaciones JPA ni claves foráneas a tablas de otros microservicios.
+El modelo de datos de `msvc-reservas` permite registrar las reservas temporales y confirmadas de lugares para eventos, controlar su ocupación y evitar duplicaciones ante solicitudes simultáneas o reintentos.
 
-## 2. Diagrama entidad-relación (Mermaid)
+La base de datos es propia del microservicio y se denomina `ticketya_reservas`.
+
+Los datos maestros de eventos, sectores, asientos y precios pertenecen a `msvc-eventosylugares`. Reservas consulta esa información mediante `EventoClient` (OpenFeign), pero no administra esas entidades en su propia base.
+
+## 2. Entidades principales
+
+### 2.1. Reserva
+
+Representa una solicitud de reserva realizada por un cliente para un evento.
+
+| Atributo | Descripción |
+| `id` | Identificador único de la reserva |
+| `clienteId` | Identificador del cliente que realiza la reserva |
+| `eventoId` | Identificador del evento asociado |
+| `claveIdempotencia` | Clave utilizada para reconocer reintentos de creación |
+| `estado` | Estado actual de la reserva |
+| `fechaCreacion` | Fecha y hora de creación |
+| `fechaVencimiento` | Fecha y hora límite de la reserva temporal |
+
+Estados principales:
+
+- `ACTIVA`: reserva temporal vigente.
+- `CONFIRMADA`: reserva confirmada después de la aprobación del pago.
+- `VENCIDA`: reserva cuyo plazo terminó.
+- `LIBERADA`: reserva liberada por una operación correspondiente.
+- `CANCELADA`: reserva invalidada por la cancelación del evento.
+
+El vencimiento se calcula a partir de la fecha de creación. La disponibilidad deja de considerar una reserva cuando su fecha de vencimiento ya pasó, aunque el estado persistido todavía figure como `ACTIVA`.
+
+### 2.2. DetalleReserva
+
+Representa cada sector y cantidad de lugares incluidos en una reserva.
+
+| Atributo | Descripción |
+| `id` | Identificador del detalle |
+| `reserva` | Reserva a la que pertenece |
+| `sectorId` | Identificador del sector en Eventos y Lugares |
+| `cantidad` | Cantidad de lugares solicitados |
+
+Una reserva puede tener uno o varios detalles, según los sectores seleccionados.
+
+### 2.3. AsignacionAsiento
+
+Representa la asignación de un asiento concreto para una reserva de un sector numerado.
+
+| Atributo | Descripción |
+| `id` | Identificador de la asignación |
+| `detalleReserva` | Detalle de reserva al que pertenece |
+| `asientoId` | Identificador del asiento en Eventos y Lugares |
+
+Se utiliza para registrar los asientos elegidos y controlar que no existan asignaciones incompatibles.
+
+En los sectores no numerados no se registran asignaciones individuales de asiento: la ocupación se controla mediante la cantidad reservada y la capacidad del sector.
+
+### 2.4. BloqueoEvento
+
+Mantiene información de bloqueo y cancelación para serializar operaciones que modifican la ocupación de un evento.
+
+| Atributo | Descripción |
+| `eventoId` | Identificador del evento |
+| `cancelado` | Indica si el evento fue cancelado localmente |
+
+Se utiliza como punto de bloqueo pesimista para coordinar las operaciones concurrentes sobre un mismo evento.
+
+Cuando `cancelado` es verdadero, no se permiten nuevas reservas para ese evento.
+
+### 2.5. ClaveIdempotenciaBloqueo
+
+Registra las claves de idempotencia utilizadas en la creación de reservas.
+
+| Atributo | Descripción |
+| `id` | Identificador del registro |
+| `claveIdempotencia` | Clave única de la solicitud |
+| `eventoId` | Evento asociado a la solicitud |
+
+Permite coordinar solicitudes repetidas y evitar que un reintento genere una reserva duplicada.
+
+### 2.6. EntradaLiberada
+
+Registra las entradas que ya fueron procesadas para su liberación individual.
+
+| Atributo | Descripción |
+| `id` | Identificador del registro |
+| `entradaId` | Identificador de la entrada liberada |
+
+La identificación de la entrada permite reconocer reintentos y evitar que se procese dos veces la misma liberación.
+
+La aprobación de la devolución y la validación de titularidad corresponden a los servicios responsables; este registro no reemplaza esas validaciones.
+
+## 3. Relaciones entre entidades
+
+Las relaciones principales del modelo son:
+
+- Una `Reserva` puede contener varios `DetalleReserva`.
+- Cada `DetalleReserva` pertenece a una única `Reserva`.
+- Un `DetalleReserva` puede tener varias `AsignacionAsiento`.
+- Cada `AsignacionAsiento` pertenece a un único `DetalleReserva`.
+- `BloqueoEvento`, `ClaveIdempotenciaBloqueo` y `EntradaLiberada` son registros auxiliares utilizados para concurrencia e idempotencia.
+
+Los identificadores `eventoId`, `sectorId`, `asientoId` y `clienteId` son referencias a datos administrados por otros componentes del sistema. No representan relaciones JPA con entidades de otros microservicios.
+
+## 4. Diagrama entidad-relación
 
 ```mermaid
 erDiagram
-  RESERVA ||--|{ DETALLE_RESERVA : contiene
-  DETALLE_RESERVA ||--o{ ASIGNACION_ASIENTO : tiene
+    RESERVA ||--|{ DETALLE_RESERVA : contiene
+    DETALLE_RESERVA ||--o{ ASIGNACION_ASIENTO : asigna
 
-  RESERVA {
-    bigint id PK
-    bigint cliente_id
-    bigint evento_id
-    datetime fecha_creacion
-    datetime fecha_vencimiento
-    string estado
-    string clave_idempotencia UK
-  }
-  DETALLE_RESERVA {
-    bigint id PK
-    bigint reserva_id FK
-    bigint sector_id
-    int cantidad
-    int cantidad_liberada
-  }
-  ASIGNACION_ASIENTO {
-    bigint id PK
-    bigint detalle_reserva_id FK
-    bigint asiento_id
-    boolean liberado
-  }
-  BLOQUEO_EVENTO {
-    bigint evento_id PK
-    boolean cancelado
-  }
-  CLAVE_IDEMPOTENCIA_BLOQUEO {
-    string clave PK
-  }
-  ENTRADA_LIBERADA {
-    bigint entrada_id PK
-    bigint reserva_id
-    bigint sector_id
-    bigint asiento_id
-  }
+    RESERVA {
+        Long id PK
+        Long clienteId
+        Long eventoId
+        String claveIdempotencia
+        EstadoReserva estado
+        LocalDateTime fechaCreacion
+        LocalDateTime fechaVencimiento
+    }
+
+    DETALLE_RESERVA {
+        Long id PK
+        Long reserva_id FK
+        Long sectorId
+        Integer cantidad
+    }
+
+    ASIGNACION_ASIENTO {
+        Long id PK
+        Long detalle_reserva_id FK
+        Long asientoId
+    }
+
+    BLOQUEO_EVENTO {
+        Long eventoId PK
+        Boolean cancelado
+    }
+
+    CLAVE_IDEMPOTENCIA_BLOQUEO {
+        Long id PK
+        String claveIdempotencia UK
+        Long eventoId
+    }
+
+    ENTRADA_LIBERADA {
+        Long id PK
+        Long entradaId UK
+    }
 ```
 
-**Importante:** las tres tablas `BLOQUEO_EVENTO`, `CLAVE_IDEMPOTENCIA_BLOQUEO` y `ENTRADA_LIBERADA` aparecen separadas porque, en la implementación actual, **no tienen relaciones `@ManyToOne` / `@OneToMany` con `Reserva`**. Sus identificadores permiten relacionarlas lógicamente con reservas, eventos o entradas, pero no se deben dibujar como FKs JPA inexistentes.
+El diagrama representa las relaciones funcionales y las claves lógicas del modelo. Los nombres exactos de las columnas y restricciones deben contrastarse con las entidades y el esquema generado por Hibernate.
 
-## 3. Relaciones persistentes (JPA)
+## 5. Consideraciones de integridad y concurrencia
 
-| Relación | Cardinalidad | Implementación |
-|---|---|---|
-| `Reserva` → `DetalleReserva` | 1:N | `Reserva.detalles` (`@OneToMany`) y `DetalleReserva.reserva` (`@ManyToOne`); FK `detalle_reserva.reserva_id` |
-| `DetalleReserva` → `AsignacionAsiento` | 1:N | `DetalleReserva.asignaciones` (`@OneToMany`) y `AsignacionAsiento.detalleReserva` (`@ManyToOne`); FK `asignacion_asiento.detalle_reserva_id` |
+### 5.1. Integridad de los datos
 
-En ambos casos, la colección padre utiliza `cascade = ALL` y `orphanRemoval = true`. Una reserva tiene uno o más detalles válidos; cada detalle de un sector numerado puede tener múltiples asignaciones de asiento. Un detalle de sector no numerado no requiere asignaciones individuales.
+- Las claves primarias identifican cada registro.
+- Las relaciones entre reserva, detalle y asignación se mantienen mediante claves foráneas.
+- La clave de idempotencia debe identificar una solicitud de creación.
+- La entrada liberada se registra una sola vez.
+- Los identificadores de entidades externas no deben interpretarse como claves foráneas locales si no existe una tabla correspondiente en esta base.
 
-## 4. Responsabilidad de cada tabla
+### 5.2. Control de concurrencia
 
-| Tabla | Propósito |
-|---|---|
-| `reserva` | Identifica cliente, evento, fechas, estado y clave de idempotencia de cada reserva. |
-| `detalle_reserva` | Guarda el sector, cantidad original y número de entradas liberadas. |
-| `asignacion_asiento` | Registra cada asiento reservado y si fue liberado individualmente. |
-| `bloqueo_evento` | Mantiene una fila por evento habilitado, utilizada para el bloqueo pesimista y para marcar eventos cancelados. |
-| `clave_idempotencia_bloqueo` | Mantiene filas bloqueables por clave para serializar reintentos simultáneos. |
-| `entrada_liberada` | Registra una única vez el `entradaId` ya liberado, junto con `reservaId`, `sectorId` y `asientoId` opcional. |
+El registro `BloqueoEvento` se utiliza para adquirir un bloqueo pesimista sobre el evento antes de modificar su ocupación.
 
-## 5. Restricciones y reglas principales
+Esto permite serializar operaciones concurrentes sobre un mismo evento cuando las instancias de Reservas comparten la base MySQL.
 
-- `reserva.clave_idempotencia` tiene restricción de unicidad; representa la misma operación ante reintentos.
-- `entrada_liberada.entrada_id` es clave primaria y evita registrar dos veces la liberación de una misma entrada.
-- `bloqueo_evento.evento_id` es clave primaria: una fila representa el evento que Reservas puede bloquear durante operaciones concurrentes.
-- `clave_idempotencia_bloqueo.clave` es clave primaria: permite un bloqueo por clave antes del bloqueo por evento.
-- En sectores numerados, se guarda una `AsignacionAsiento` por asiento seleccionado; solo las asignaciones no liberadas de reservas vigentes cuentan como ocupación.
-- En sectores no numerados, se cuenta `cantidad - cantidadLiberada` por detalle para determinar la ocupación.
-- Solo las reservas `CONFIRMADA` o `ACTIVA` con `fechaVencimiento` futura ocupan capacidad. Las reservas vencidas dejan de contar incluso si su estado aún figura como `ACTIVA` en MySQL.
-- Una reserva temporal se crea con `fechaVencimiento = fechaCreacion + 10 minutos`.
-- Los estados persistidos son `ACTIVA`, `CONFIRMADA`, `VENCIDA`, `LIBERADA` y `CANCELADA`.
-- El límite de entradas por cliente y evento es configurable (`reservas.max-entradas-por-cliente`, valor local 4).
+Además, las restricciones de unicidad y el registro de claves de idempotencia contribuyen a evitar duplicaciones.
 
-## 6. Por qué existen las tablas auxiliares
+### 5.3. Vencimiento de reservas
 
-### `bloqueo_evento`
+La fecha `fechaVencimiento` determina si una reserva temporal sigue ocupando lugares.
 
-Permite ejecutar operaciones concurrentes del mismo evento bajo `PESSIMISTIC_WRITE`: cuando varios clientes intentan reservar el mismo asiento o último lugar, el cálculo de disponibilidad y la persistencia quedan serializados dentro de Reservas. La fila se crea al habilitar el evento, **antes de iniciar las ventas**. También permite rechazar nuevas ventas tras una cancelación.
+Las consultas de disponibilidad excluyen reservas activas cuyo vencimiento ya pasó. Por lo tanto, no es necesario modificar inmediatamente el estado persistido para liberar capacidad.
 
-### `clave_idempotencia_bloqueo`
+Una operación posterior puede actualizar el estado a `VENCIDA`.
 
-El bloqueo de la clave se adquiere antes que el del evento. Así, dos solicitudes simultáneas con la misma `claveIdempotencia` no generan dos reservas diferentes. Los bloqueos forman parte de una transacción local de MySQL.
+## 6. Datos que no pertenecen a esta base
 
-### `entrada_liberada`
+Reservas no mantiene copias propias de las siguientes entidades:
 
-Permite registrar que una devolución individual ya fue aplicada. No sustituye a la entidad `Entrada` de otro microservicio ni acredita por sí sola la titularidad o la aprobación de la devolución.
+| Dato | Microservicio responsable | Uso en Reservas |
+| Evento | Eventos y Lugares | Verificar existencia y estado |
+| Sector | Eventos y Lugares | Verificar pertenencia y capacidad |
+| Asiento | Eventos y Lugares | Validar los asientos seleccionados |
+| Precio | Eventos y Lugares | Verificar que exista precio para el evento y sector |
+| Cliente | Servicio responsable de clientes | Identificar al comprador |
+| Entrada | Entradas | Identificar la entrada asociada a una devolución |
+| Pago | Compras | Determinar si corresponde confirmar o liberar la reserva |
 
-## 7. Límites de consistencia entre microservicios
+Las referencias se realizan mediante identificadores y comunicación entre microservicios. No se establecen relaciones JPA directas entre bases de datos independientes.
 
-No existe una transacción distribuida que abarque las bases de Reservas, Eventos, Compras y Entradas. Por lo tanto, la publicación y cancelación de un evento, la aprobación de un pago y los reintegros requieren llamadas internas coordinadas, reintentos y, cuando corresponda, compensaciones. Las relaciones con entidades de otros microservicios se mantienen únicamente mediante IDs y contratos REST.
+## 7. Documentación relacionada
 
-## 8. Código fuente de referencia
+- [01 — Funcionalidades e historias de usuario](01-FUNCIONALIDADES-Y-USER-STORIES.md)
+- [02 — Arquitectura y diagramas](02-ARQUITECTURA-Y-DIAGRAMAS-RESERVAS.md)
+- [05 — Testing](05-TESTING-RESERVAS.md)
+- [06 — Decisiones y limitaciones](06-DECISIONES-Y-LIMITACIONES-RESERVAS.md)
+- [Contrato con Eventos y Lugares](contrato-eventos.md)
 
-- `src/main/java/com/ticketya/reservas/entities/` — entidades JPA.
-- `src/main/java/com/ticketya/reservas/repositories/` — consultas y bloqueos sobre MySQL.
-- `src/main/java/com/ticketya/reservas/services/ReservaServiceImpl.java` — creación, estados, idempotencia y concurrencia.
-- `src/main/java/com/ticketya/reservas/services/DisponibilidadServiceImpl.java` — cálculo de capacidad y asientos libres.
+**Nota:** este documento describe el modelo lógico de Reservas. Ante cualquier diferencia entre el diagrama y las clases Java, prevalecen las entidades y las restricciones efectivamente implementadas en el código.

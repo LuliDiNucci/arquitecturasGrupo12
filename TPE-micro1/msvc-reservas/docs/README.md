@@ -82,6 +82,7 @@ La documentación interactiva se genera con Springdoc a partir de los controller
 ## 4. API REST
 
 | Método | Ruta | Descripción | Acceso previsto |
+|---|---|---|---|
 | `GET` | `/disponibilidad?eventoId={id}&sectorId={id}` | Consulta lugares y asientos **disponibles** | Consulta del cliente |
 | `POST` | `/reservas` | Crea una reserva temporal de 10 minutos | Flujo de compra |
 | `GET` | `/reservas/{id}` | Consulta una reserva y su estado | Acceso autorizado |
@@ -196,6 +197,7 @@ Detalles y resultados: [`05-TESTING-RESERVAS.md`](05-TESTING-RESERVAS.md).
 ## 8. Estado de las historias de usuario y pendientes conocidos
 
 | Historia | Estado actual | Pendiente para cumplir todos sus criterios |
+|---|---|---|
 | **US01** Disponibilidad | **Parcial** | La API muestra asientos libres, **no lista explícitamente los ocupados**. |
 | **US02** Reserva temporal | **Implementada localmente** | Validar contrato contra Eventos real y flujo de compra integrado. |
 | **US03** Concurrencia e idempotencia | **Implementada y probada en MySQL** | Pruebas distribuidas de varias instancias y de fallas de red. |
@@ -215,6 +217,7 @@ No se debe presentar estos criterios pendientes como terminados solo porque el s
 ## 9. Documentación del proyecto
 
 | Archivo | Contenido |
+|---|---|
 | [`01-FUNCIONALIDADES-Y-USER-STORIES.md`](01-FUNCIONALIDADES-Y-USER-STORIES.md) | US01–US07, criterios de aceptación y trazabilidad |
 | [`02-ARQUITECTURA-Y-DIAGRAMAS-RESERVAS.md`](02-ARQUITECTURA-Y-DIAGRAMAS-RESERVAS.md) | Arquitectura, Feign y secuencias Mermaid |
 | [`03-MODELO-DE-DATOS-RESERVAS.md`](03-MODELO-DE-DATOS-RESERVAS.md) | Entidades, relaciones JPA y DER Mermaid |

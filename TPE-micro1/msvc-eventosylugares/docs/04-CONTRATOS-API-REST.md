@@ -2,7 +2,7 @@
 
 **Base local:** `http://localhost:8081` — Content-Type: `application/json`. Fecha/hora sin zona (`LocalDateTime`) en horario local de Argentina. Entrega 1: sin JWT. **Swagger:** `/swagger-ui.html`; especificación JSON: `/v3/api-docs`.
 
-## Endpoints (26)
+## Endpoints (27)
 
 | Método | Ruta | Parámetros / DTO | Éxito | Errores posibles |
 |---|---|---|---|---|
@@ -19,6 +19,7 @@
 | GET | `/participantes` | — | 200 | — |
 | POST | `/eventos` | `EventoRequestDTO` | 201 | 400, 404 |
 | GET | `/eventos` | — | 200 | — |
+| GET | `/eventos/publicados` | — | 200 | — |
 | GET | `/eventos/buscar` | filtros query | 200 | 400 |
 | GET | `/eventos/{id}` | id evento | 200 | 404 |
 | PUT | `/eventos/{id}` | `EventoRequestDTO` | 200 | 400, 404, 409 |
@@ -189,12 +190,72 @@ La lista debe incluir **exactamente los IDs de los sectores del lugar del evento
 
 `timestamp` es ilustrativo, no un valor fijo. En validación de campos (400), `detalles` indica qué campos fallaron.
 
-## Contratos de cancelacion verificados
 
-Reservas implementa `POST /reservas/evento/{id}/cancelar` (puerto 8080).
-Entradas y Compras tienen clientes Feign preparados para `POST /entradas/evento/{id}/invalidar` y `POST /compras/evento/{id}/cancelar`. Estas rutas son propuestas y aun no existen en los receptores. Con integraciones habilitadas se envia HTTP; ante errores, los avisos quedan pendientes y se reintentan.
-`X-Operacion-Id` se envia a Reservas, pero el receptor no implementa deduplicacion por esa cabecera.
+## Integraciones con otros microservicios
 
-## Listado publico
+Esta sección distingue los endpoints propios de Eventos de los endpoints externos que consume mediante clientes Feign.
 
-`GET /eventos/publicados` devuelve PUBLICADO y AGOTADO con el mismo criterio de `/eventos/buscar`. `GET /eventos` conserva todos los estados para uso administrativo. El detalle y las operaciones de administracion no cambian.
+### Endpoints externos consumidos por Eventos
+
+| Microservicio | Método y ruta | Uso | Estado verificado |
+| Reservas | `POST /reservas/evento/{id}/cancelar` | Notificar la cancelación del evento | Implementado en el receptor |
+| Reservas | `POST /reservas/evento/{id}/habilitar` | Habilitar reservas para un evento | Implementado en el receptor |
+| Entradas | `POST /entradas/evento/{id}/invalidar` | Invalidar entradas de un evento cancelado | Implementado en el receptor |
+| Compras | `POST /compras/evento/{id}/cancelar` | Gestionar los reintegros por cancelación | Implementado en el receptor |
+
+Los clientes Feign de Eventos utilizan las siguientes direcciones configurables:
+
+- `RESERVAS_URL`: por defecto `http://localhost:8080`.
+- `ENTRADAS_URL`: por defecto `http://localhost:8083`.
+- `COMPRAS_URL`: por defecto `http://localhost:8082`.
+
+Los puertos corresponden a la configuración predeterminada actual de cada microservicio y pueden modificarse mediante variables de entorno.
+
+### Notificación de cancelaciones
+
+Cuando se ejecuta `PATCH /eventos/{id}/cancelar`:
+
+1. Eventos cambia el estado del evento a `CANCELADO`.
+2. Guarda una notificación pendiente en su propia base de datos.
+3. Devuelve la respuesta al administrador sin esperar a que los otros microservicios terminen sus operaciones.
+4. El componente `NotificadorCancelaciones` procesa los avisos mediante un scheduler con intervalo de 30 segundos.
+5. Reservas se notifica primero. Entradas se notifica de forma independiente.
+6. Compras se notifica cuando Reservas y Entradas fueron notificadas correctamente, siempre que esas integraciones estén habilitadas.
+
+Si una notificación falla, se registra el error y permanece pendiente para un nuevo intento. El estado de cada aviso se puede consultar mediante:
+
+`GET /eventos/{id}/notificaciones-cancelacion`
+
+La configuración predeterminada de `application.yml` habilita las integraciones:
+
+- `INTEGRACIONES_HABILITADAS=true`
+- `ENTRADAS_HABILITADAS=true`
+- `COMPRAS_HABILITADAS=true`
+
+Estas opciones pueden modificarse mediante variables de entorno.
+
+### Encabezado `X-Operacion-Id`
+
+Eventos envía un identificador estable para la cancelación mediante el encabezado `X-Operacion-Id`.
+
+Su tratamiento depende del microservicio receptor:
+
+- **Reservas:** recibe el encabezado, pero no lo utiliza para deduplicar operaciones.
+- **Entradas:** el cliente Feign lo envía, pero el endpoint receptor no lo procesa.
+- **Compras:** exige y valida el encabezado. La prevención de reintegros duplicados se implementa mediante el registro de reintegros por ítem y la reutilización de los que ya fueron aprobados.
+
+### Comportamiento de Compras ante una cancelación
+
+Compras verifica que el evento esté cancelado y solicita la invalidación de sus entradas antes de procesar los reintegros.
+
+Para cada compra con pago aprobado:
+
+- Procesa los reintegros por ítem utilizando el precio histórico de cada uno.
+- No vuelve a procesar un reintegro que ya esté aprobado.
+- Actualiza la compra a `REINTEGRADA` cuando todos los ítems fueron reintegrados.
+- La deja en `REINTEGRO_PARCIAL` cuando solamente algunos ítems fueron reintegrados.
+- Si no se aprobó ningún reintegro, no asigna un nuevo estado a la compra.
+
+Si alguna compra no puede completar su reintegro, la operación informa el error para permitir un nuevo intento.
+
+**Importante:** las notificaciones y los reintegros no constituyen una única transacción distribuida entre las bases de datos. Un fallo en un microservicio no revierte automáticamente los cambios confirmados en los demás.

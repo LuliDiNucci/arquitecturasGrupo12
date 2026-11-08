@@ -1,58 +1,430 @@
-# 04 — Contratos REST propuestos (no implementados todavía)
+# 04 — Contratos REST de msvc-compras
 
-## Endpoints propios de Compras
+## 1. Alcance
 
-| Operación | Método / ruta | Entrada | Resultado esperado |
-|---|---|---|---|
-| Iniciar compra | `POST /compras` | `{clienteId,reservaId}` | `201 CompraDTO` PENDIENTE; 400/404/409/503 |
-| Consultar compra | `GET /compras/{id}` | ID | `200 CompraDTO`; 404 |
-| Procesar pago | `POST /compras/{id}/pagos` | `{medioPago,claveIdempotencia}` | `200 PagoDTO` final, `202` en proceso, `409` por conflicto; 503 dependencia |
-| Consultar pagos | `GET /compras/{id}/pagos` | ID | `200 [PagoDTO]` |
-| Reintegrar una entrada (interno) | `POST /compras/reintegros` | `{entradaId,operacionId,motivo}`; SOLO aprobación verificada | `200/202 ReintegroDTO`, 400/404/409 |
-| Consultar reintegros | `GET /compras/{id}/reintegros` | ID | `200 [ReintegroDTO]` |
-| Notificar cancelación (interno) | `POST /compras/evento/{eventoId}/cancelar` | encabezado `X-Operacion-Id` | `204`, idempotente |
+Este documento describe los contratos REST observados en la implementación actual de `msvc-compras`.
 
-**Estos códigos y cuerpos son una propuesta del servicio nuevo, no una API existente.** Ajustar Swagger y colección Postman junto con la implementación; documentar siempre request, response, errores y ejemplos.
+Se distinguen:
+- **Endpoints propios:** operaciones expuestas por los controladores de Compras.
+- **Comunicación entre microservicios:** operaciones invocadas mediante clientes Feign.
+- **Validaciones y reglas:** condiciones de negocio que afectan las respuestas.
 
-### Ejemplo iniciar compra
+Los códigos HTTP indicados corresponden a los documentados en las anotaciones Swagger de los controladores. No implican que se hayan probado todos los escenarios mediante tests de integración.
+
+---
+
+## 2. Endpoints propios de Compras
+
+| Operación      | Método y ruta   | Entrada            | Respuesta |
+| Iniciar compra | `POST /compras` | `IniciarCompraDTO` | `201 Created` — `CompraDTO` |
+| Consultar compra | `GET /compras/{id}` | ID de compra | `200 OK` — `CompraDTO` |
+| Confirmar compra | `POST /compras/{id}/confirmar` | ID de compra | `200 OK` — `CompraDTO` |
+| Consultar estado de confirmación | `GET /compras/{id}/confirmacion` | ID de compra | `200 OK` — `ConfirmacionCompraDTO` |
+| Procesar pago | `POST /compras/{id}/pagar` | `ProcesarPagoDTO` | `200 OK` — `PagoDTO` |
+| Reintentar liberación de reserva | `POST /compras/{id}/reintentar-liberacion` | ID de compra | `204 No Content` |
+| Registrar reintegro | `POST /compras/reintegros` | `SolicitudReintegroDTO` | `200 OK` — `ReintegroDTO` |
+| Consultar reintegros | `GET /compras/{id}/reintegros` | ID de compra | `200 OK` — lista de `ReintegroDTO` |
+| Cancelar compras de un evento | `POST /compras/evento/{eventoId}/cancelar` | ID de evento y encabezado `X-Operacion-Id` | `204 No Content` |
+| Compensar compra | `POST /compras/{id}/compensar` | ID de compra | `204 No Content` |
+
+### 2.1. Iniciar compra
+
+**Request**
 
 ```http
 POST /compras
 Content-Type: application/json
-
-{"clienteId": 10, "reservaId": 15}
 ```
 
-La solicitud **no** acepta precios ni total desde el cliente. El servicio obtiene detalles y fecha de vencimiento de Reservas y el precio de Eventos, luego guarda la instantánea de precios.
+```json
+{
+  "clienteId": 200,
+  "reservaId": 9
+}
+```
 
-### Ejemplo pago
+El cuerpo utiliza `IniciarCompraDTO`:
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `clienteId` | Long | Cliente que inicia la compra. Debe coincidir con el cliente de la reserva. |
+| `reservaId` | Long | Reserva temporal que se desea comprar. |
+
+**Response — `201 Created`**
+
+Devuelve un `CompraDTO` con la información de la compra creada:
+
+```json
+{
+  "id": 1,
+  "clienteId": 200,
+  "reservaId": 9,
+  "eventoId": 21,
+  "fechaCompra": "2026-11-05",
+  "total": 30000.00,
+  "estado": "PENDIENTE",
+  "detalles": []
+}
+```
+
+El ejemplo muestra la estructura general. Los elementos internos de `detalles` corresponden a `DetalleCompraRespuestaDTO`.
+
+El cliente no envía precios ni el importe total. Compras obtiene la información de la reserva y consulta los precios de los sectores en Eventos. Luego calcula el importe y conserva los precios utilizados para la compra.
+
+**Respuestas documentadas:**
+- `201`: compra iniciada.
+- `400`: solicitud o datos inválidos.
+- `404`: reserva inexistente.
+- `409`: reserva vencida, inactiva o ya asociada a otra compra.
+- `503`: microservicio externo no disponible.
+
+### 2.2. Consultar compra
+
+**Request**
 
 ```http
-POST /compras/1/pagos
-Content-Type: application/json
-
-{"medioPago":"TARJETA", "claveIdempotencia":"PAGO-1-001"}
+GET /compras/1
 ```
 
-No enviar ni persistir número de tarjeta, CVV ni otros datos sensibles. La pasarela mock decide el resultado según una configuración de prueba documentada y reproducible; nunca por el valor de `medioPago`.
+**Response — `200 OK`**
 
-## Contratos ya conocidos de los otros servicios
+Devuelve un `CompraDTO`, con los siguientes campos:
 
-**Reservas (observados en código previamente proporcionado):**
-- `GET /reservas/{id}` → `ReservaDTO {id,clienteId,eventoId,fechaCreacion,fechaVencimiento,estado,detalles:[{id,sectorId,cantidad,cantidadLiberada,asientoIds}]}`.
-- `POST /reservas/{id}/confirmar` → reserva actualizada, exige estado ACTIVA y vigencia.
-- `POST /reservas/{id}/liberar` → reserva liberada.
+| Campo | Tipo |
+|---|---|
+| `id` | Long |
+| `clienteId` | Long |
+| `reservaId` | Long |
+| `eventoId` | Long |
+| `fechaCompra` | LocalDate |
+| `total` | BigDecimal |
+| `estado` | String |
+| `detalles` | List de `DetalleCompraRespuestaDTO` |
 
-**Eventos (ruta acordada en la integración anterior; comprobar en la rama actual):**
-- `GET /eventos/{eventoId}/sectores/{sectorId}/precio` → `{eventoId,sectorId,precio}`; 404 si la relación no existe.
-- Desde Eventos a Compras: `POST /compras/evento/{id}/cancelar` con `X-Operacion-Id` (ruta ya anticipada en su `ComprasFeignClient`).
+**Respuestas documentadas:**
+- `200`: compra encontrada.
+- `400`: identificador inválido.
+- `404`: compra inexistente.
 
-**Entradas: PENDIENTE DE ACORDAR.** Falta definir emisión idempotente, retorno de una entrada por cada item de compra, asociación de ID de entrada y aviso de devolución aprobada. No inventar una ruta definitiva.
+### 2.3. Confirmar compra
 
-## Validaciones clave
+**Request**
 
-- Al iniciar y justo antes del cobro: reserva `ACTIVA`, `fechaVencimiento > ahora`, cliente consistente y cantidades válidas.
-- Una compra por `reservaId`, garantizada por restricción única en MySQL.
-- Pago: misma clave + mismos datos = mismo resultado; misma clave + datos distintos = 409; concurrencia sin cobros duplicados.
-- No declarar `CONFIRMADA` antes de confirmar Reservas y asociar todas las entradas esperadas.
-- Reintegro basado en `ItemCompra.precioPagado` y único por item, aunque llegue dos veces un aviso de cancelación o devolución.
+```http
+POST /compras/1/confirmar
+```
+
+No requiere un cuerpo específico.
+
+Esta operación coordina la confirmación de la reserva y la emisión de las entradas correspondientes. La compra no debe quedar en estado `CONFIRMADA` hasta completar correctamente el proceso.
+
+**Response — `200 OK`**
+
+Devuelve un `CompraDTO` actualizado.
+
+**Respuestas documentadas:**
+- `200`: compra confirmada o ya confirmada.
+- `400`: identificador inválido.
+- `404`: compra o reserva inexistente.
+- `409`: pago no aprobado, reserva vencida o problema con la emisión.
+- `503`: microservicio de Reservas o Entradas no disponible.
+
+### 2.4. Consultar estado de confirmación
+
+**Request**
+
+```http
+GET /compras/1/confirmacion
+```
+
+**Response — `200 OK`**
+
+Devuelve un `ConfirmacionCompraDTO`:
+
+```json
+{
+  "id": 1,
+  "clienteId": 200,
+  "reservaId": 10,
+  "estado": "CONFIRMACION_PENDIENTE",
+  "pagoAprobado": true
+}
+```
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | Long | Identificador de la compra. |
+| `clienteId` | Long | Identificador del cliente. |
+| `reservaId` | Long | Identificador de la reserva. |
+| `estado` | String | Estado actual de la compra. |
+| `pagoAprobado` | Boolean | Indica si el pago fue aprobado. |
+
+**Respuestas documentadas:**
+- `200`: información de confirmación.
+- `404`: compra inexistente.
+
+### 2.5. Procesar pago
+
+**Request**
+
+```http
+POST /compras/1/pagar
+Content-Type: application/json
+```
+
+```json
+{
+  "medioPago": "TARJETA",
+  "claveIdempotencia": "PAGO-001"
+}
+```
+
+El cuerpo utiliza `ProcesarPagoDTO`:
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `medioPago` | String | Medio de pago seleccionado. |
+| `claveIdempotencia` | String | Clave única utilizada para reconocer reintentos de una misma operación. |
+
+**Response — `200 OK`**
+
+Devuelve un `PagoDTO`:
+
+```json
+{
+  "id": 1,
+  "compraId": 1,
+  "importe": 30000.00,
+  "medioPago": "TARJETA",
+  "estado": "APROBADO",
+  "fechaSolicitud": "2026-11-05T21:15:00",
+  "fechaPago": "2026-11-05T21:15:02",
+  "referenciaExterna": "MOCK-PAGO-001"
+}
+```
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | Long | Identificador del pago. |
+| `compraId` | Long | Compra asociada. |
+| `importe` | BigDecimal | Importe procesado. |
+| `medioPago` | String | Medio de pago utilizado. |
+| `estado` | String | Estado del pago: `PENDIENTE`, `PROCESANDO`, `APROBADO`, `RECHAZADO` o `ERROR`. |
+| `fechaSolicitud` | LocalDateTime | Fecha y hora de solicitud. |
+| `fechaPago` | LocalDateTime | Fecha y hora del resultado. |
+| `referenciaExterna` | String | Identificador de la operación en la pasarela simulada. |
+
+**Respuestas documentadas:**
+- `200`: resultado del pago.
+- `400`: solicitud inválida o medio de pago no válido.
+- `404`: compra o reserva inexistente.
+- `409`: compra no pendiente, reserva vencida o conflicto de idempotencia.
+- `503`: microservicio de Reservas no disponible.
+
+No se envían ni almacenan datos sensibles de tarjetas, como número o CVV. La pasarela utilizada es simulada.
+
+### 2.6. Reintentar liberación de reserva
+
+**Request**
+
+```http
+POST /compras/1/reintentar-liberacion
+```
+
+Permite reintentar la liberación de una reserva cuando una operación anterior no pudo completarla.
+
+**Response — `204 No Content`**
+
+No devuelve cuerpo.
+
+**Respuestas documentadas:**
+- `204`: operación realizada.
+- `400`: identificador inválido.
+- `404`: compra o reserva inexistente.
+- `409`: no existe una liberación pendiente.
+- `503`: microservicio de Reservas no disponible.
+
+### 2.7. Registrar reintegro
+
+**Request**
+
+```http
+POST /compras/reintegros
+Content-Type: application/json
+```
+
+```json
+{
+  "entradaId": 100,
+  "motivo": "DEVOLUCION_CLIENTE"
+}
+```
+
+El cuerpo utiliza `SolicitudReintegroDTO`:
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `entradaId` | Long | Identificador de la entrada cuya devolución fue aprobada. |
+| `motivo` | String | Motivo informado por Entradas. |
+
+Este endpoint recibe el aviso de una devolución aprobada por el microservicio de Entradas. Compras verifica la operación y registra el reintegro correspondiente.
+
+**Response — `200 OK`**
+
+Devuelve un `ReintegroDTO`:
+
+```json
+{
+  "id": 1,
+  "pagoId": 1,
+  "compraId": 1,
+  "entradaId": 100,
+  "importe": 10000.00,
+  "estado": "APROBADO",
+  "motivo": "DEVOLUCION_CLIENTE",
+  "fechaSolicitud": "2026-11-05T22:30:00",
+  "fechaReintegro": "2026-11-05T22:30:02",
+  "referenciaExterna": "MOCK-REINTEGRO-001"
+}
+```
+
+**Respuestas documentadas:**
+- `200`: reintegro registrado o existente.
+- `400`: identificador de entrada inválido.
+- `404`: entrada inexistente en Entradas.
+- `409`: devolución no aprobada o compra no confirmada.
+- `503`: microservicio de Entradas no disponible.
+
+### 2.8. Consultar reintegros
+
+**Request**
+
+```http
+GET /compras/1/reintegros
+```
+
+**Response — `200 OK`**
+
+Devuelve una lista de objetos `ReintegroDTO`, con los campos descriptos en el apartado anterior.
+
+**Respuestas documentadas:**
+- `200`: lista de reintegros.
+- `404`: compra inexistente.
+
+### 2.9. Cancelar compras de un evento
+
+**Request**
+
+```http
+POST /compras/evento/21/cancelar
+X-Operacion-Id: CANCELACION-EVENTO-21
+```
+
+Esta operación recibe la notificación de cancelación de un evento y procesa los reintegros correspondientes.
+
+El encabezado `X-Operacion-Id` identifica la operación de cancelación y permite reconocer reintentos.
+
+**Response — `204 No Content`**
+
+No devuelve cuerpo.
+
+**Respuestas documentadas:**
+- `204`: operación procesada.
+- `400`: datos inválidos.
+- `409`: existe una compra pagada que todavía no tiene las entradas emitidas.
+
+### 2.10. Compensar compra
+
+**Request**
+
+```http
+POST /compras/1/compensar
+```
+
+Permite ejecutar o reintentar la compensación de una compra ante una situación en la que no se pudo completar el proceso de confirmación.
+
+**Response — `204 No Content`**
+
+No devuelve cuerpo.
+
+**Respuestas documentadas:**
+- `204`: compensación realizada o ya completada.
+- `400`: identificador de compra inválido.
+- `404`: compra inexistente.
+- `409`: compra no compensable o con entradas ya emitidas.
+
+---
+
+## 3. Comunicación con otros microservicios
+
+Compras utiliza clientes Feign para comunicarse con Reservas, Eventos y Entradas.
+
+Estas rutas representan llamadas salientes desde Compras, no endpoints propios de sus controladores.
+
+### 3.1. Comunicación con Reservas
+
+Cliente: `ReservaClient`.
+
+| Método | Ruta | Uso |
+|---|---|---|
+| GET | `/reservas/{id}` | Consultar una reserva. |
+| POST | `/reservas/{id}/confirmar` | Confirmar una reserva. |
+| POST | `/reservas/{id}/liberar` | Liberar una reserva. |
+
+La información de la reserva permite validar su estado, vigencia, cliente y detalles antes de continuar con la compra.
+
+### 3.2. Comunicación con Eventos
+
+Cliente: `EventoClient`.
+
+| Método | Ruta | Uso |
+|---|---|---|
+| GET | `/eventos/{eventoId}/sectores/{sectorId}/precio` | Obtener el precio de un sector para un evento. |
+| GET | `/eventos/{id}` | Consultar información del evento. |
+
+Compras utiliza el precio obtenido de Eventos para calcular el total y conservar el importe histórico de los ítems de la compra.
+
+### 3.3. Comunicación con Entradas
+
+Cliente: `EntradaClient`.
+
+| Método | Ruta | Uso |
+|---|---|---|
+| POST | `/entradas/emitir` | Solicitar la emisión de entradas. |
+| POST | `/entradas/evento/{eventoId}/invalidar` | Solicitar la invalidación de entradas de un evento. |
+| GET | `/entradas/cliente/{clienteId}` | Consultar las entradas de un cliente. |
+| GET | `/entradas/{id}` | Consultar una entrada, enviando el encabezado `X-Cliente-Id`. |
+
+La emisión utiliza una solicitud `SolicitudEmisionDTO` y devuelve una lista de `EntradaDTO`.
+
+La consulta individual de una entrada requiere el encabezado `X-Cliente-Id`.
+
+**Nota:** los campos completos de los DTO intercambiados con los otros microservicios deben documentarse junto con los contratos de sus respectivos módulos.
+
+---
+
+## 4. Validaciones y reglas de negocio relacionadas con los contratos
+
+- Al iniciar una compra, la reserva debe existir, estar `ACTIVA` y no haber vencido.
+- El cliente informado debe coincidir con el cliente asociado a la reserva.
+- No se debe iniciar más de una compra para la misma reserva.
+- El importe se calcula en Compras a partir de los precios consultados en Eventos. El cliente no puede establecer el precio ni el total.
+- Para procesar el pago, la compra debe encontrarse en un estado que permita realizar la operación.
+- La clave de idempotencia permite reconocer reintentos y evitar cobros duplicados.
+- Una compra no debe pasar a `CONFIRMADA` hasta completar la confirmación de la reserva y la emisión de todas las entradas esperadas.
+- Los reintegros se calculan utilizando el importe histórico pagado por la entrada.
+- Las operaciones de devolución y cancelación deben poder reconocer reintentos para evitar reintegros duplicados.
+- Las operaciones de compensación y liberación permiten recuperar procesos que quedaron pendientes por fallas en las comunicaciones entre microservicios.
+
+---
+
+## 5. Observaciones sobre el contrato
+
+- No existe actualmente un endpoint `GET /compras/{id}/pagos` en los controladores revisados.
+- El endpoint de pago implementado es `POST /compras/{id}/pagar`, no `POST /compras/{id}/pagos`.
+- El procesamiento de pago documenta `200 OK`; no se declara `202 Accepted` en el controlador.
+- El aviso de devolución recibe `entradaId` y `motivo`, sin un campo `operacionId` en `SolicitudReintegroDTO`.
+- La cancelación de un evento recibe el identificador de operación mediante el encabezado `X-Operacion-Id`.
+- Los contratos de los servicios externos se describen a partir de las rutas utilizadas por los clientes Feign. Los detalles de sus respuestas deben contrastarse con los DTO de cada microservicio.
+
+**Importante:** este documento refleja los controladores, DTO y clientes Feign de la implementación revisada. La especificación OpenAPI debe mantenerse alineada con estos contratos para evitar diferencias entre la documentación y el código.

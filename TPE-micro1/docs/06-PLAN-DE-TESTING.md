@@ -52,9 +52,8 @@ Se cuenta con pruebas unitarias y de API que verifican:
 
 Desde la raíz del proyecto:
 
-```bash
 mvn clean test
-```
+
 
 Las pruebas de API utilizan H2 en memoria, separada de la base de datos local.
 
@@ -98,15 +97,12 @@ Esta prueba utiliza MySQL real y permite verificar el bloqueo pesimista y las tr
 
 Desde `msvc-reservas`:
 
-```powershell
 mvn test
-```
 
 Para ejecutar específicamente la prueba de concurrencia:
 
-```powershell
 mvn "-Dtest=ConcurrenciaMySQLIT" test
-```
+
 
 Esta última requiere una base MySQL exclusiva para pruebas.
 
@@ -160,15 +156,15 @@ Estas pruebas utilizan MySQL para la persistencia y simulan las dependencias ext
 
 Desde `msvc-compras`:
 
-```bash
+
 mvn test
-```
+
 
 Para ejecutar específicamente la prueba de concurrencia:
 
-```bash
+
 mvn -Dtest=PagoConcurrenciaMySQLIT test
-```
+
 
 La prueba de concurrencia requiere la base `ticketya_compras_test`. Debe ejecutarse exclusivamente contra una base de pruebas.
 

@@ -66,7 +66,7 @@ Las versiones y configuraciones específicas se encuentran documentadas en cada 
 
 ## 5. Estructura del repositorio
 
-```text
+
 TPE-micro1/
 │
 ├── README.md
@@ -84,7 +84,7 @@ TPE-micro1/
 ├── msvc-compras/
 ├── msvc-entradas/
 └── msvc-gateway/
-```
+
 
 Cada microservicio contiene su propio código fuente, configuración y documentación específica.
 
@@ -108,15 +108,11 @@ Cada microservicio es un proyecto Maven independiente y cuenta con su propia con
 
 Para ejecutar un servicio localmente, ingresar a su directorio y utilizar:
 
-```bash
 mvn spring-boot:run
-```
 
 Para compilar y ejecutar las pruebas configuradas:
 
-```bash
 mvn clean test
-```
 
 La ejecución del sistema completo requiere configurar las bases de datos, los puertos y las direcciones de los servicios según las propiedades de cada microservicio.
 
@@ -130,4 +126,3 @@ Las funcionalidades y validaciones deben interpretarse de acuerdo con el estado 
 
 ---
 
-**TicketYa — Trabajo Práctico Especial de Arquitectura Web.**

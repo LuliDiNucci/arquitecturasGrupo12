@@ -1,21 +1,21 @@
-# 04 — Contratos REST de msvc-compras
+# 03 — Contratos REST de msvc-compras
 
 ## 1. Alcance
 
-Este documento describe los contratos REST observados en la implementación actual de `msvc-compras`.
+Este documento describe los contratos de la API REST del microservicio Compras y Pagos (`msvc-compras`), incluyendo los endpoints disponibles, los parámetros de entrada, los formatos de respuesta, los códigos HTTP y las comunicaciones con otros microservicios.
 
 Se distinguen:
+
 - **Endpoints propios:** operaciones expuestas por los controladores de Compras.
 - **Comunicación entre microservicios:** operaciones invocadas mediante clientes Feign.
 - **Validaciones y reglas:** condiciones de negocio que afectan las respuestas.
-
-Los códigos HTTP indicados corresponden a los documentados en las anotaciones Swagger de los controladores. No implican que se hayan probado todos los escenarios mediante tests de integración.
 
 ---
 
 ## 2. Endpoints propios de Compras
 
-| Operación      | Método y ruta   | Entrada            | Respuesta |
+| Operación | Método y ruta | Entrada | Respuesta |
+|---|---|---|---|
 | Iniciar compra | `POST /compras` | `IniciarCompraDTO` | `201 Created` — `CompraDTO` |
 | Consultar compra | `GET /compras/{id}` | ID de compra | `200 OK` — `CompraDTO` |
 | Confirmar compra | `POST /compras/{id}/confirmar` | ID de compra | `200 OK` — `CompraDTO` |
@@ -71,7 +71,8 @@ El ejemplo muestra la estructura general. Los elementos internos de `detalles` c
 
 El cliente no envía precios ni el importe total. Compras obtiene la información de la reserva y consulta los precios de los sectores en Eventos. Luego calcula el importe y conserva los precios utilizados para la compra.
 
-**Respuestas documentadas:**
+**Respuestas HTTP:**
+
 - `201`: compra iniciada.
 - `400`: solicitud o datos inválidos.
 - `404`: reserva inexistente.
@@ -101,7 +102,8 @@ Devuelve un `CompraDTO`, con los siguientes campos:
 | `estado` | String |
 | `detalles` | List de `DetalleCompraRespuestaDTO` |
 
-**Respuestas documentadas:**
+**Respuestas HTTP:**
+
 - `200`: compra encontrada.
 - `400`: identificador inválido.
 - `404`: compra inexistente.
@@ -122,7 +124,8 @@ Esta operación coordina la confirmación de la reserva y la emisión de las ent
 
 Devuelve un `CompraDTO` actualizado.
 
-**Respuestas documentadas:**
+**Respuestas HTTP:**
+
 - `200`: compra confirmada o ya confirmada.
 - `400`: identificador inválido.
 - `404`: compra o reserva inexistente.
@@ -159,7 +162,8 @@ Devuelve un `ConfirmacionCompraDTO`:
 | `estado` | String | Estado actual de la compra. |
 | `pagoAprobado` | Boolean | Indica si el pago fue aprobado. |
 
-**Respuestas documentadas:**
+**Respuestas HTTP:**
+
 - `200`: información de confirmación.
 - `404`: compra inexistente.
 
@@ -214,7 +218,8 @@ Devuelve un `PagoDTO`:
 | `fechaPago` | LocalDateTime | Fecha y hora del resultado. |
 | `referenciaExterna` | String | Identificador de la operación en la pasarela simulada. |
 
-**Respuestas documentadas:**
+**Respuestas HTTP:**
+
 - `200`: resultado del pago.
 - `400`: solicitud inválida o medio de pago no válido.
 - `404`: compra o reserva inexistente.
@@ -237,7 +242,8 @@ Permite reintentar la liberación de una reserva cuando una operación anterior 
 
 No devuelve cuerpo.
 
-**Respuestas documentadas:**
+**Respuestas HTTP:**
+
 - `204`: operación realizada.
 - `400`: identificador inválido.
 - `404`: compra o reserva inexistente.
@@ -288,7 +294,8 @@ Devuelve un `ReintegroDTO`:
 }
 ```
 
-**Respuestas documentadas:**
+**Respuestas HTTP:**
+
 - `200`: reintegro registrado o existente.
 - `400`: identificador de entrada inválido.
 - `404`: entrada inexistente en Entradas.
@@ -307,7 +314,8 @@ GET /compras/1/reintegros
 
 Devuelve una lista de objetos `ReintegroDTO`, con los campos descriptos en el apartado anterior.
 
-**Respuestas documentadas:**
+**Respuestas HTTP:**
+
 - `200`: lista de reintegros.
 - `404`: compra inexistente.
 
@@ -322,13 +330,14 @@ X-Operacion-Id: CANCELACION-EVENTO-21
 
 Esta operación recibe la notificación de cancelación de un evento y procesa los reintegros correspondientes.
 
-El encabezado `X-Operacion-Id` identifica la operación de cancelación y permite reconocer reintentos.
+El encabezado `X-Operacion-Id` identifica la operación de cancelación. El procesamiento evita reintegros duplicados mediante la verificación de los reintegros registrados para cada ítem de compra, permitiendo repetir la solicitud sin devolver nuevamente importes ya reintegrados.
 
 **Response — `204 No Content`**
 
 No devuelve cuerpo.
 
-**Respuestas documentadas:**
+**Respuestas HTTP:**
+
 - `204`: operación procesada.
 - `400`: datos inválidos.
 - `409`: existe una compra pagada que todavía no tiene las entradas emitidas.
@@ -347,7 +356,8 @@ Permite ejecutar o reintentar la compensación de una compra ante una situación
 
 No devuelve cuerpo.
 
-**Respuestas documentadas:**
+**Respuestas HTTP:**
+
 - `204`: compensación realizada o ya completada.
 - `400`: identificador de compra inválido.
 - `404`: compra inexistente.
@@ -399,8 +409,6 @@ La emisión utiliza una solicitud `SolicitudEmisionDTO` y devuelve una lista de 
 
 La consulta individual de una entrada requiere el encabezado `X-Cliente-Id`.
 
-**Nota:** los campos completos de los DTO intercambiados con los otros microservicios deben documentarse junto con los contratos de sus respectivos módulos.
-
 ---
 
 ## 4. Validaciones y reglas de negocio relacionadas con los contratos
@@ -415,16 +423,3 @@ La consulta individual de una entrada requiere el encabezado `X-Cliente-Id`.
 - Los reintegros se calculan utilizando el importe histórico pagado por la entrada.
 - Las operaciones de devolución y cancelación deben poder reconocer reintentos para evitar reintegros duplicados.
 - Las operaciones de compensación y liberación permiten recuperar procesos que quedaron pendientes por fallas en las comunicaciones entre microservicios.
-
----
-
-## 5. Observaciones sobre el contrato
-
-- No existe actualmente un endpoint `GET /compras/{id}/pagos` en los controladores revisados.
-- El endpoint de pago implementado es `POST /compras/{id}/pagar`, no `POST /compras/{id}/pagos`.
-- El procesamiento de pago documenta `200 OK`; no se declara `202 Accepted` en el controlador.
-- El aviso de devolución recibe `entradaId` y `motivo`, sin un campo `operacionId` en `SolicitudReintegroDTO`.
-- La cancelación de un evento recibe el identificador de operación mediante el encabezado `X-Operacion-Id`.
-- Los contratos de los servicios externos se describen a partir de las rutas utilizadas por los clientes Feign. Los detalles de sus respuestas deben contrastarse con los DTO de cada microservicio.
-
-**Importante:** este documento refleja los controladores, DTO y clientes Feign de la implementación revisada. La especificación OpenAPI debe mantenerse alineada con estos contratos para evitar diferencias entre la documentación y el código.

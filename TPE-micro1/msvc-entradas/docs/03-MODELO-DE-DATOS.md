@@ -1,4 +1,4 @@
-# 03 - Modelo de Datos
+# 03 — Modelo de datos de Entradas
 
 ## 1. Descripción general
 
@@ -52,8 +52,6 @@ Se encuentra asociada a una compra, una reserva y un detalle específico de esa 
 - **fechaUso:** campo destinado a registrar la fecha y hora de uso de la entrada.
 
 ### 2.3. Restricciones e índices
-
-La entidad define las siguientes restricciones:
 
 **Restricción de unicidad del lugar**
 
@@ -110,11 +108,11 @@ Se almacena en la tabla `solicitud_devolucion`.
 
 La solicitud de devolución tiene una relación `ManyToOne` con la entidad `Entrada`.
 
-Esto significa que cada solicitud está asociada obligatoriamente a una entrada, mientras que una entrada puede estar relacionada con varias solicitudes a lo largo del tiempo.
+Cada solicitud está asociada obligatoriamente a una entrada, mientras que una entrada puede estar relacionada con varias solicitudes a lo largo del tiempo.
 
 La relación se implementa mediante la columna `entrada_id`, definida como obligatoria.
 
-No se define una restricción única sobre `entrada_id`, por lo que la base de datos permite almacenar más de una solicitud para una misma entrada. La lógica del servicio evita que existan dos solicitudes pendientes simultáneamente para la misma entrada.
+No se define una restricción única sobre `entrada_id`, por lo que la base de datos permite almacenar más de una solicitud para una misma entrada. La lógica del servicio impide que existan dos solicitudes pendientes simultáneamente para la misma entrada.
 
 ## 4. Relaciones entre las entidades
 
@@ -123,9 +121,7 @@ Las dos entidades persistentes del microservicio se relacionan de la siguiente m
 - Una `Entrada` puede estar asociada a varias `SolicitudDevolucion`.
 - Cada `SolicitudDevolucion` debe estar asociada a una única `Entrada`.
 
-Las relaciones con Compras, Reservas, Clientes, Eventos y Sectores se representan mediante identificadores (`Long`) y no mediante relaciones JPA entre entidades.
-
-Esto se debe a que esos datos pertenecen a otros microservicios.
+Las relaciones con Compras, Reservas, Clientes, Eventos y Sectores se representan mediante identificadores (`Long`) y no mediante relaciones JPA entre entidades, debido a que esos datos pertenecen a otros microservicios.
 
 ## 5. Diagrama del modelo de datos
 
@@ -168,7 +164,7 @@ El acceso a las entidades se realiza mediante interfaces que extienden `JpaRepos
 
 Permite realizar operaciones de persistencia y búsqueda sobre las entradas.
 
-Métodos personalizados:
+**Métodos personalizados:**
 
 | Método | Función |
 |---|---|
@@ -184,20 +180,20 @@ Además, hereda las operaciones habituales de `JpaRepository`, como buscar por I
 
 Permite realizar operaciones de persistencia y búsqueda sobre las solicitudes de devolución.
 
-Métodos personalizados:
+**Métodos personalizados:**
 
 | Método | Función |
 |---|---|
 | `findByEstado(String estado)` | Busca las solicitudes que tienen un estado determinado. |
 | `findByEntrada_IdAndEstado(Long entradaId, String estado)` | Busca una solicitud asociada a una entrada específica y con un estado determinado. Devuelve un `Optional<SolicitudDevolucion>`, ya que puede existir o no una solicitud que cumpla las condiciones. |
 
-El segundo método se utiliza para consultar si una entrada tiene una solicitud pendiente. La lógica del servicio garantiza que no existan dos solicitudes pendientes simultáneamente para la misma entrada.
+El segundo método permite consultar si una entrada tiene una solicitud pendiente. La lógica del servicio evita que existan dos solicitudes pendientes simultáneamente para la misma entrada.
 
 ## 7. Consideraciones del modelo
 
 - Cada entrada representa un lugar adquirido dentro de una reserva.
 - Los sectores no numerados pueden tener `asientoId` nulo.
 - El código QR se almacena como texto único; la imagen se genera cuando se construye el DTO de respuesta.
-- Las solicitudes de devolución conservan su historial de resolución mediante su estado, fecha de resolución y administrador.
+- Las solicitudes de devolución conservan su historial mediante su estado, fecha de resolución y administrador.
 - Los identificadores de entidades pertenecientes a otros microservicios se almacenan como valores simples, sin relaciones JPA.
-- La prevención de solicitudes de devolución pendientes duplicadas se realiza mediante lógica de negocio, no mediante una restricción única en la base de datos.
+- La prevención de solicitudes de devolución pendientes duplicadas se realiza mediante lógica de negocio y no mediante una restricción única en la base de datos.

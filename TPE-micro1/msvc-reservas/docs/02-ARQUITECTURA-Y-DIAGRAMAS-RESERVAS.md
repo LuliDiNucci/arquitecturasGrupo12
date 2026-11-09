@@ -1,34 +1,36 @@
 # 02 — Arquitectura y diagramas de Reservas
 
-**Proyecto:** TicketYa · Microservicio `msvc-reservas` · Entrega 1
-
 ## 1. Responsabilidad del microservicio
 
-`msvc-reservas` administra la disponibilidad y el ciclo de vida de las reservas temporales de lugares para eventos.
+El microservicio `msvc-reservas` administra la disponibilidad y el ciclo de vida de las reservas temporales de lugares para eventos dentro del sistema TicketYa.
 
 Sus responsabilidades principales son:
 
-- Consultar disponibilidad de sectores numerados y no numerados.
-- Crear reservas temporales con vencimiento de 10 minutos.
+- Consultar la disponibilidad de sectores numerados y no numerados.
+- Crear reservas temporales con una vigencia de 10 minutos.
 - Evitar la doble asignación de asientos y la sobreventa de capacidad.
-- Gestionar la idempotencia de las solicitudes.
+- Gestionar la idempotencia de las solicitudes de reserva.
 - Confirmar reservas cuando Compras informa un pago aprobado.
 - Liberar reservas cuando el pago es rechazado.
 - Cancelar reservas temporales cuando se cancela un evento.
-- Liberar individualmente un lugar cuando un servicio autorizado informa una devolución aprobada.
+- Liberar individualmente un lugar cuando se aprueba la devolución de una entrada.
 
-No administra los eventos ni sus precios, no procesa pagos y no emite entradas ni códigos QR.
+Reservas no administra los eventos ni sus precios, no procesa pagos y no emite entradas ni códigos QR. Estas responsabilidades corresponden a los demás microservicios.
 
 ## 2. Arquitectura lógica
 
-El microservicio sigue una arquitectura por capas:
+El microservicio utiliza una arquitectura por capas, desarrollada con Spring Boot y Spring Data JPA.
+
+Sus componentes principales son:
 
 - **Controllers:** reciben las solicitudes HTTP, validan los parámetros de entrada y delegan las operaciones.
-- **Services:** contienen las reglas de negocio y coordinan las operaciones.
+- **Services:** implementan las reglas de negocio y coordinan las operaciones.
 - **Repositories:** acceden a la base de datos mediante Spring Data JPA.
-- **Entities:** representan las entidades persistidas.
-- **DTOs:** definen los datos de entrada y salida de la API.
-- **Clients:** permiten comunicarse con otros microservicios mediante OpenFeign.
+- **Entities:** representan las entidades persistentes.
+- **DTOs:** definen los datos de entrada y salida de la API REST.
+- **Clients:** permiten la comunicación con otros microservicios mediante OpenFeign.
+
+### Diagrama de componentes
 
 ```mermaid
 flowchart TB
@@ -50,7 +52,9 @@ flowchart TB
     Client --> Eventos
 ```
 
-La base de datos de Reservas es propia del microservicio. Los datos de eventos, sectores, asientos y precios se consultan a través de Eventos y Lugares; no se debe asumir que Reservas comparte su base de datos.
+La base de datos `ticketya_reservas` es propia del microservicio.
+
+Los datos de eventos, sectores, asientos y precios se consultan a través de Eventos y Lugares. No existe acceso directo a la base de datos de ese microservicio.
 
 ## 3. Comunicación con otros microservicios
 
@@ -58,63 +62,73 @@ La base de datos de Reservas es propia del microservicio. Los datos de eventos, 
 
 La comunicación se realiza mediante `EventoClient`, implementado con OpenFeign.
 
-Operaciones declaradas en el cliente:
-
 | Método HTTP | Ruta | Uso |
 |---|---|---|
-| GET | `/eventos/{id}` | Consultar un evento |
-| GET | `/sectores/{id}` | Consultar un sector |
-| GET | `/asientos/{id}` | Consultar un asiento |
-| GET | `/sectores/{id}/asientos` | Consultar los asientos de un sector |
-| GET | `/eventos/{eventoId}/sectores/{sectorId}/precio` | Consultar el precio del sector para el evento |
+| GET | `/eventos/{id}` | Consultar un evento. |
+| GET | `/sectores/{id}` | Consultar un sector. |
+| GET | `/asientos/{id}` | Consultar un asiento. |
+| GET | `/sectores/{id}/asientos` | Consultar los asientos de un sector. |
+| GET | `/eventos/{eventoId}/sectores/{sectorId}/precio` | Consultar el precio de un sector para el evento. |
 
-La URL base se configura mediante `msvc.eventos.url`, cuyo valor local predeterminado es `http://localhost:8081`.
+La URL base se configura mediante la propiedad `msvc.eventos.url`, cuyo valor predeterminado para la ejecución local es `http://localhost:8081`.
 
-**Estado:** el cliente Feign está implementado. Las pruebas realizadas con un simulador permiten probar el comportamiento local, pero no demuestran por sí solas la compatibilidad completa con el servicio real de Eventos y Lugares.
+La información obtenida permite validar que el evento exista, que los sectores y asientos correspondan al lugar indicado y que se cumplan las condiciones para realizar la reserva.
 
 ### 3.2. Compras → Reservas
 
-Reservas expone operaciones para que Compras confirme o libere una reserva según el resultado del pago:
+Reservas expone las siguientes operaciones para que Compras gestione las reservas según el resultado del pago:
 
 - `POST /reservas/{id}/confirmar`
 - `POST /reservas/{id}/liberar`
 
-El cliente de Compras para invocar estas operaciones está desarrollado.
+La confirmación se solicita cuando el pago fue aprobado y permite establecer el estado `CONFIRMADA`.
 
-**Estado:** existen los endpoints y el cliente. La coordinación completa del flujo de pago aprobado o rechazado debe quedar respaldada por una prueba integrada entre ambos microservicios.
+La liberación se solicita cuando el pago es rechazado y permite devolver los lugares al inventario disponible.
+
+Las operaciones verifican el estado de la reserva para evitar modificaciones incompatibles o duplicadas.
 
 ### 3.3. Eventos y Lugares → Reservas
 
-Reservas expone operaciones internas para preparar la venta o cancelar un evento:
+Reservas expone operaciones de integración para habilitar y cancelar eventos:
 
 - `POST /reservas/evento/{eventoId}/habilitar`
 - `POST /reservas/evento/{eventoId}/cancelar`
 
-La primera prepara el registro de bloqueo del evento cuando se habilita la venta. La segunda registra la cancelación local, impide nuevas reservas y cancela las reservas temporales correspondientes.
+La primera prepara el registro de bloqueo correspondiente al evento cuando se habilita la venta.
 
-**Estado:** los endpoints están implementados en Reservas. Debe verificarse el envío real de las solicitudes desde Eventos y Lugares y la coordinación completa de la cancelación.
+La segunda registra la cancelación local del evento, impide nuevas reservas y cancela las reservas temporales correspondientes.
+
+Estas operaciones forman parte de la coordinación entre Eventos y Lugares y Reservas.
 
 ### 3.4. Entradas → Reservas
 
-Reservas expone:
+Reservas expone la operación:
 
-- `POST /reservas/{id}/devolver-entrada`
+`POST /reservas/{id}/devolver-entrada`
 
-Esta operación permite liberar individualmente una entrada previamente aprobada para devolución. El registro de `entradaId` permite evitar una segunda liberación.
+Permite liberar individualmente el lugar correspondiente a una entrada cuya devolución fue aprobada.
 
-**Estado:** el endpoint está implementado. La validación de titularidad, aprobación de la devolución y plazo correspondiente pertenece a los servicios responsables. La coordinación completa debe probarse entre los microservicios involucrados.
+La solicitud utiliza la información de la entrada, el sector y el asiento asociado.
 
-### 3.5. Gateway y seguridad
+El registro de `entradaId` permite reconocer solicitudes repetidas y evitar liberar dos veces el mismo lugar.
 
-Los endpoints de confirmación, liberación, cancelación, habilitación y devolución son operaciones internas.
+La validación de titularidad, el plazo de devolución y la aprobación de la solicitud corresponden al microservicio Entradas.
 
-La etiqueta de endpoint interno en Swagger no constituye una medida de seguridad. Su protección debe verificarse mediante la configuración del Gateway y/o las restricciones de red correspondientes.
+### 3.5. API Gateway
 
-La configuración del Gateway no forma parte de este microservicio, por lo que no se afirma aquí que esos endpoints ya estén protegidos.
+Las solicitudes externas ingresan al sistema mediante el API Gateway, que centraliza el acceso a las APIs de los microservicios.
+
+Reservas expone operaciones de consulta y creación de reservas, además de endpoints utilizados para la comunicación interna con Eventos y Lugares, Compras y Entradas.
+
+Durante la entrega 1, la identificación de los clientes se realiza mediante los identificadores incluidos en las solicitudes, de acuerdo con el alcance de seguridad definido para esta etapa.
 
 ## 4. Flujo de creación de una reserva temporal
 
-El cliente consulta disponibilidad y luego solicita una reserva. La consulta de disponibilidad no bloquea lugares: la disponibilidad definitiva se valida nuevamente al crear la reserva.
+El cliente consulta la disponibilidad de un evento y posteriormente solicita reservar los lugares seleccionados.
+
+La consulta de disponibilidad no bloquea lugares. La disponibilidad definitiva se verifica nuevamente durante la creación de la reserva, dentro de una operación transaccional.
+
+### Diagrama de secuencia
 
 ```mermaid
 sequenceDiagram
@@ -129,11 +143,11 @@ sequenceDiagram
     Cliente->>RC: POST /reservas
     RC->>RS: crearReserva(request)
     RS->>EC: Consultar evento, sector, asientos y precio
-    EC->>Eventos: GET correspondientes
+    EC->>Eventos: Solicitudes GET correspondientes
     Eventos-->>EC: Datos del evento y lugares
-    EC-->>RS: Datos remotos
+    EC-->>RS: Datos del evento
 
-    RS->>Repo: Adquirir bloqueo e idempotencia
+    RS->>Repo: Adquirir bloqueo y validar idempotencia
     Repo->>DB: Operaciones transaccionales
     DB-->>Repo: Bloqueo adquirido
 
@@ -153,13 +167,19 @@ sequenceDiagram
     end
 ```
 
-La creación registra la reserva y sus detalles, junto con la fecha de vencimiento. En sectores numerados se validan los asientos solicitados; en sectores no numerados se controla que la cantidad no supere la capacidad disponible.
+La creación registra la reserva, sus detalles y la fecha de vencimiento.
 
-El bloqueo de concurrencia y las validaciones dentro de la transacción permiten evitar que dos solicitudes incompatibles confirmen la ocupación del mismo lugar.
+En sectores numerados se validan los asientos seleccionados. En sectores no numerados se verifica que la cantidad solicitada no supere la capacidad disponible.
+
+El bloqueo de concurrencia y las validaciones transaccionales impiden que dos solicitudes incompatibles ocupen simultáneamente el mismo lugar.
 
 ## 5. Flujo de confirmación después del pago
 
-El procesamiento del pago corresponde a Compras. Cuando el pago se aprueba, Compras informa a Reservas para confirmar la reserva.
+El procesamiento del pago corresponde al microservicio Compras.
+
+Cuando el pago es aprobado, Compras solicita a Reservas la confirmación de los lugares adquiridos.
+
+### Diagrama de secuencia
 
 ```mermaid
 sequenceDiagram
@@ -182,7 +202,7 @@ sequenceDiagram
         Repo->>DB: Guardar cambios
         DB-->>Repo: Confirmación persistida
         RS-->>RC: Resultado exitoso
-        RC-->>Compras: Confirmación
+        RC-->>Compras: Reserva confirmada
         Note over Compras,Entradas: Compras coordina la emisión de entradas
     else Reserva vencida o no confirmable
         RS-->>RC: Error de negocio
@@ -190,13 +210,19 @@ sequenceDiagram
     end
 ```
 
-La confirmación solo corresponde a una reserva activa y vigente. Una reserva vencida no debe confirmarse.
+La confirmación requiere que la reserva se encuentre en estado `ACTIVA` y que no haya superado su fecha de vencimiento.
 
-La emisión de entradas es responsabilidad de Compras y Entradas. El diagrama representa la coordinación funcional esperada, no una prueba de extremo a extremo ya acreditada.
+Una vez confirmada, la reserva permanece ocupando los lugares correspondientes.
+
+Compras coordina posteriormente la emisión de las entradas mediante el microservicio Entradas.
+
+Una reserva vencida, liberada o cancelada no puede confirmarse.
 
 ## 6. Flujo de liberación por pago rechazado
 
-Cuando Compras recibe un rechazo de pago, solicita a Reservas liberar la reserva temporal.
+Cuando la pasarela de pago rechaza una operación, Compras solicita la liberación de la reserva temporal.
+
+### Diagrama de secuencia
 
 ```mermaid
 sequenceDiagram
@@ -224,13 +250,19 @@ sequenceDiagram
     end
 ```
 
-La liberación debe ser idempotente: los reintentos no deben provocar una segunda liberación ni modificar indebidamente una reserva confirmada.
+Cuando la reserva pasa al estado `LIBERADA`, los lugares dejan de considerarse ocupados y pueden volver a reservarse si el evento continúa habilitado.
+
+La operación es idempotente: repetir una solicitud de liberación no provoca una segunda liberación ni modifica indebidamente una reserva confirmada.
 
 ## 7. Vencimiento lógico de reservas
 
-Cada reserva temporal tiene una fecha de vencimiento de 10 minutos.
+Las reservas temporales tienen una vigencia de 10 minutos desde su creación.
 
-La disponibilidad se calcula excluyendo las reservas activas cuyo vencimiento ya pasó. Por eso, aunque el registro permanezca temporalmente como `ACTIVA` en MySQL, el lugar deja de contarse como ocupado y puede reservarse nuevamente.
+El sistema utiliza la fecha de vencimiento para determinar si una reserva activa continúa bloqueando lugares.
+
+Cuando el plazo expira, la reserva deja de contarse como ocupación, aunque su estado persistido todavía sea `ACTIVA`.
+
+### Diagrama de vencimiento
 
 ```mermaid
 flowchart TD
@@ -241,15 +273,21 @@ flowchart TD
     D --> F["Una operación posterior puede persistir VENCIDA"]
 ```
 
-**Decisión para Entrega 1:** no se incorpora un Scheduler. La liberación de capacidad se obtiene mediante el filtro temporal aplicado en las consultas de ocupación y disponibilidad. El equipo informó que verificó manualmente que la capacidad vuelve a estar disponible al cumplirse los 10 minutos.
+La liberación de capacidad se realiza mediante las condiciones temporales aplicadas en las consultas de ocupación y disponibilidad.
 
-La actualización del estado persistido a `VENCIDA` puede producirse cuando una operación posterior procesa la reserva. Esto no impide que el lugar vuelva a estar disponible.
+Por este motivo, no se requiere una tarea programada para que los lugares de una reserva vencida vuelvan a estar disponibles.
 
-Las reservas `CONFIRMADA` no se liberan por vencimiento.
+Una operación posterior sobre la reserva puede actualizar su estado persistido a `VENCIDA`.
+
+Las reservas en estado `CONFIRMADA` no se liberan por el vencimiento temporal.
 
 ## 8. Cancelación de un evento
 
-Cuando un evento se cancela, Reservas debe impedir nuevas operaciones de compra y cancelar las reservas temporales todavía activas.
+Cuando un evento se cancela, Reservas registra la cancelación local, impide nuevas reservas y cancela las reservas temporales activas correspondientes.
+
+La cancelación es comunicada por el microservicio Eventos y Lugares.
+
+### Diagrama de secuencia
 
 ```mermaid
 sequenceDiagram
@@ -273,34 +311,66 @@ sequenceDiagram
     RC-->>Eventos: 204 No Content
 ```
 
-La cancelación queda registrada localmente mediante el indicador `cancelado` asociado al evento. En esta versión, el registro de cancelación es irreversible.
+La cancelación queda registrada localmente mediante el indicador `cancelado` asociado al evento.
 
-Las reservas confirmadas y las entradas emitidas requieren coordinación con Compras y Entradas para gestionar las consecuencias económicas y operativas. Reservas no realiza por sí mismo reintegros ni anula entradas emitidas.
+Este registro impide que se creen nuevas reservas o se confirmen reservas temporales del evento cancelado.
+
+La cancelación local es irreversible.
+
+Las entradas emitidas y los reintegros correspondientes son gestionados por Entradas y Compras, respectivamente. Eventos y Lugares coordina las comunicaciones entre los servicios involucrados.
 
 ## 9. Concurrencia e idempotencia
 
-La solución utiliza mecanismos de concurrencia en la base MySQL de Reservas:
+La prevención de la doble venta es una responsabilidad central de Reservas.
 
-- Bloqueo pesimista `PESSIMISTIC_WRITE` sobre el registro de `bloqueo_evento`.
-- Registro de claves de idempotencia para solicitudes de reserva.
-- Restricciones de unicidad en la base de datos para evitar duplicaciones.
-- Transacciones para mantener consistentes los cambios locales.
-- Control de ocupación para asientos numerados y capacidad de sectores no numerados.
+El microservicio utiliza mecanismos de concurrencia y consistencia implementados sobre su base de datos MySQL.
 
-El bloqueo por evento permite serializar las operaciones que modifican la ocupación de un mismo evento entre instancias que comparten la misma base de datos.
+### 9.1. Bloqueo pesimista
 
-Esto no significa que exista una transacción distribuida entre microservicios: las llamadas HTTP a otros servicios no quedan cubiertas por la transacción local de Reservas. Los errores de red y los resultados inciertos de operaciones remotas deben tratarse mediante reintentos y compensaciones en los servicios responsables.
+Se utiliza `PESSIMISTIC_WRITE` sobre el registro correspondiente de la tabla `bloqueo_evento`.
 
-La prueba `ConcurrenciaMySQLIT` contempla diez solicitudes simultáneas por el mismo asiento sobre una base MySQL de pruebas. La verificación de varias instancias reales conectadas a la misma base queda como prueba adicional.
+El bloqueo permite serializar las operaciones que modifican la ocupación de un mismo evento.
 
-## 10. Diagramas y documentación relacionada
+De esta manera, dos solicitudes simultáneas no pueden confirmar una ocupación incompatible sobre el mismo asiento o superar la capacidad de un sector no numerado.
 
-| Documento | Contenido |
-| [`01-FUNCIONALIDADES-Y-USER-STORIES.md`](01-FUNCIONALIDADES-Y-USER-STORIES.md) | Requisitos, criterios de aceptación y cobertura de US01–US07 |
-| [`03-MODELO-DE-DATOS-RESERVAS.md`](03-MODELO-DE-DATOS-RESERVAS.md) | Entidades, relaciones y modelo de datos |
-| [`05-TESTING-RESERVAS.md`](05-TESTING-RESERVAS.md) | Pruebas unitarias, concurrencia y pruebas manuales |
-| [`06-DECISIONES-Y-LIMITACIONES-RESERVAS.md`](06-DECISIONES-Y-LIMITACIONES-RESERVAS.md) | Decisiones técnicas, riesgos y limitaciones |
-| [`contrato-eventos.md`](contrato-eventos.md) | Contrato de comunicación con Eventos y Lugares |
-| [`openapi.yaml`](openapi.yaml) | Contrato REST de Reservas |
+El mecanismo se apoya en la base de datos compartida por las instancias del microservicio, permitiendo coordinar las operaciones concurrentes.
 
-**Nota sobre el estado de los diagramas:** los flujos muestran las responsabilidades y contratos implementados o previstos según el estado documentado. No deben interpretarse como evidencia de que todos los microservicios ya ejecutan esos recorridos de extremo a extremo.
+### 9.2. Idempotencia
+
+Las solicitudes de creación de reservas utilizan claves de idempotencia.
+
+Cuando se recibe nuevamente una solicitud con la misma clave y los mismos datos, el sistema recupera la reserva original sin generar otra.
+
+Las restricciones de unicidad de la base de datos complementan este mecanismo y evitan duplicaciones.
+
+Las operaciones de confirmación, liberación y devolución también verifican los estados y registros correspondientes para evitar efectos duplicados.
+
+### 9.3. Transacciones locales
+
+Las operaciones que modifican reservas y asignaciones se ejecutan mediante transacciones locales.
+
+Estas transacciones permiten mantener consistentes los cambios sobre la base de datos de Reservas.
+
+La comunicación HTTP con otros microservicios no forma parte de la misma transacción de base de datos.
+
+Cada servicio administra su persistencia y las operaciones distribuidas se coordinan mediante los mecanismos de confirmación, liberación, compensación y reintento correspondientes.
+
+### 9.4. Prueba de concurrencia
+
+La clase `ConcurrenciaMySQLIT` contiene una prueba que simula diez solicitudes simultáneas para reservar el mismo asiento utilizando una base de datos MySQL.
+
+El escenario verifica que solamente una de las solicitudes consiga reservar el lugar y que no se generen reservas simultáneas incompatibles.
+
+Esta prueba permite comprobar el mecanismo de bloqueo y control de ocupación en condiciones de concurrencia sobre la base de datos.
+
+## 10. Documentación relacionada
+
+La documentación específica del microservicio se complementa con:
+
+- `01-FUNCIONALIDADES-Y-USER-STORIES.md`: historias de usuario y criterios de aceptación.
+- `03-MODELO-DE-DATOS-RESERVAS.md`: entidades, relaciones, restricciones y diagrama entidad-relación.
+- `05-TESTING-RESERVAS.md`: pruebas unitarias, pruebas de concurrencia y pruebas de API.
+
+El contrato REST se encuentra documentado mediante OpenAPI y Swagger.
+
+La documentación general del proyecto describe la arquitectura completa de TicketYa, el circuito de compra y las integraciones entre microservicios.

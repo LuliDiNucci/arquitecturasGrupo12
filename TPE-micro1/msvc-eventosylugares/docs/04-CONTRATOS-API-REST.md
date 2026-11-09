@@ -1,10 +1,24 @@
-# Diseño de API REST — Eventos y Lugares
+# 04 — Contratos de API REST de Eventos y Lugares
 
-**Base local:** `http://localhost:8081` — Content-Type: `application/json`. Fecha/hora sin zona (`LocalDateTime`) en horario local de Argentina. Entrega 1: sin JWT. **Swagger:** `/swagger-ui.html`; especificación JSON: `/v3/api-docs`.
+## 1. Descripción general
 
-## Endpoints (27)
+El microservicio `msvc-eventosylugares` expone una API REST para administrar lugares, sectores, asientos, organizadores, participantes y eventos.
 
-| Método | Ruta | Parámetros / DTO | Éxito | Errores posibles |
+También permite configurar precios, gestionar estados de eventos, realizar búsquedas y coordinar notificaciones de cancelación con otros microservicios.
+
+**Configuración local:**
+
+- **URL base:** `http://localhost:8081`
+- **Formato de intercambio:** JSON (`application/json`)
+- **Formato de fecha y hora:** `LocalDateTime`, utilizando el horario local de Argentina.
+- **Swagger UI:** `http://localhost:8081/swagger-ui.html`
+- **Especificación OpenAPI:** `http://localhost:8081/v3/api-docs`
+
+La API utiliza los métodos HTTP correspondientes a cada operación y devuelve códigos de respuesta según el resultado de las validaciones y reglas de negocio.
+
+## 2. Endpoints REST
+
+| Método | Ruta | Parámetros / DTO | Éxito | Errores |
 |---|---|---|---|---|
 | POST | `/lugares` | `LugarRequestDTO` | 201 | 400 |
 | GET | `/lugares` | — | 200 | — |
@@ -20,7 +34,7 @@
 | POST | `/eventos` | `EventoRequestDTO` | 201 | 400, 404 |
 | GET | `/eventos` | — | 200 | — |
 | GET | `/eventos/publicados` | — | 200 | — |
-| GET | `/eventos/buscar` | filtros query | 200 | 400 |
+| GET | `/eventos/buscar` | Filtros de consulta | 200 | 400 |
 | GET | `/eventos/{id}` | id evento | 200 | 404 |
 | PUT | `/eventos/{id}` | `EventoRequestDTO` | 200 | 400, 404, 409 |
 | PUT | `/eventos/{id}/precios` | `PreciosEventoRequestDTO` | 200 | 400, 404, 409 |
@@ -34,17 +48,64 @@
 | GET | `/eventos/{id}/habilitado` | id evento | 200 | 404 |
 | GET | `/eventos/{id}/notificaciones-cancelacion` | id evento | 200 | 404 |
 
-La tabla muestra códigos contemplados por la lógica; Spring puede devolver 500 ante fallos no controlados de infraestructura.
+Los códigos indicados corresponden a las respuestas de negocio contempladas por los endpoints. Los errores de infraestructura no controlados pueden producir respuestas `500 Internal Server Error`.
 
-## Búsqueda `/eventos/buscar`
+## 3. Búsqueda de eventos
 
-Parámetros opcionales: `tipo` (`RECITAL`, `FESTIVAL`, `TEATRO`, `DEPORTE`, `CONFERENCIA`, `OTRO`), `organizadorId` Long, `participanteId` Long, `ciudad` String, `desde`/`hasta` (`YYYY-MM-DDTHH:mm:ss`), `q` String, `ordenar` (`FECHA_ASC`, `FECHA_DESC`, `PRECIO_ASC`, `PRECIO_DESC`, `RELEVANCIA`), `incluirNoPublicados` boolean, por defecto `false`.
+### 3.1. Endpoint
 
-Por defecto solo se listan PUBLICADO y AGOTADO. `GET /eventos` lista todos los eventos con propósito operativo: **no equivale a búsqueda pública**. La autenticación/roles se añade en Entrega 2.
+`GET /eventos/buscar`
 
-### Ejemplo de búsqueda
+Permite realizar búsquedas utilizando múltiples criterios combinables.
 
-`GET /eventos/buscar?tipo=RECITAL&ciudad=Tandil&ordenar=PRECIO_ASC`
+### 3.2. Parámetros de consulta
+
+| Parámetro | Tipo | Descripción |
+|---|---|---|
+| `tipo` | String | Tipo de evento. |
+| `organizadorId` | Long | Identificador del organizador. |
+| `participanteId` | Long | Identificador de un participante. |
+| `ciudad` | String | Ciudad del lugar donde se realiza el evento. |
+| `desde` | LocalDateTime | Fecha y hora inicial del rango. |
+| `hasta` | LocalDateTime | Fecha y hora final del rango. |
+| `q` | String | Texto utilizado en la búsqueda. |
+| `ordenar` | String | Criterio de ordenamiento. |
+| `incluirNoPublicados` | Boolean | Permite incluir eventos de otros estados. Valor predeterminado: `false`. |
+
+**Tipos de evento:**
+
+- `RECITAL`
+- `FESTIVAL`
+- `TEATRO`
+- `DEPORTE`
+- `CONFERENCIA`
+- `OTRO`
+
+**Criterios de ordenamiento:**
+
+- `FECHA_ASC`
+- `FECHA_DESC`
+- `PRECIO_ASC`
+- `PRECIO_DESC`
+- `RELEVANCIA`
+
+Las fechas deben enviarse con el formato:
+
+`YYYY-MM-DDTHH:mm:ss`
+
+Por defecto, la búsqueda devuelve eventos en estado `PUBLICADO` o `AGOTADO`.
+
+El endpoint `GET /eventos` permite obtener el listado general de eventos con fines operativos, independientemente de los filtros utilizados en la búsqueda pública.
+
+### 3.3. Ejemplo de búsqueda
+
+**Request:**
+
+```http
+GET /eventos/buscar?tipo=RECITAL&ciudad=Tandil&ordenar=PRECIO_ASC
+```
+
+**Response — `200 OK`:**
 
 ```json
 [
@@ -63,199 +124,469 @@ Por defecto solo se listan PUBLICADO y AGOTADO. `GET /eventos` lista todos los e
 ]
 ```
 
-## Ejemplos de requests
+El campo `precioDesde` representa el menor precio configurado entre los sectores del evento.
 
-**1. Lugar** — `POST /lugares`
+No representa la disponibilidad real de entradas, que es administrada por el microservicio Reservas.
 
-```json
-{"nombre":"Estadio Municipal", "direccion":"Av. Central 150", "ciudad":"Tandil", "latitud":-37.321, "longitud":-59.137}
-```
+Si el parámetro `desde` es posterior a `hasta`, la API responde `400 Bad Request`.
 
-**Respuesta 201** (el ID asignado es ilustrativo):
+## 4. Ejemplos de solicitudes y respuestas
 
-```json
-{"id":1, "nombre":"Estadio Municipal", "direccion":"Av. Central 150", "ciudad":"Tandil", "latitud":-37.321, "longitud":-59.137}
-```
+### 4.1. Crear un lugar
 
-**2. Sector numerado** — `POST /lugares/1/sectores`
+**Endpoint:** `POST /lugares`
 
-```json
-{"nombre":"Platea", "numerado":true, "capacidad":2}
-```
-
-**Sector no numerado** — `POST /lugares/1/sectores`
-
-```json
-{"nombre":"Campo", "numerado":false, "capacidad":500}
-```
-
-**3. Asientos** — `POST /sectores/1/asientos`
-
-```json
-{"asientos":[{"fila":"A", "numero":1}, {"fila":"A", "numero":2}]}
-```
-
-**Respuesta 201:**
-
-```json
-[{"id":1, "fila":"A", "numero":1}, {"id":2, "fila":"A", "numero":2}]
-```
-
-**4. Organizador** — `POST /organizadores`
-
-```json
-{"nombre":"Producciones Sierra", "email":"contacto@ejemplo.com"}
-```
-
-**5. Participante** — `POST /participantes`
-
-```json
-{"nombre":"Banda Ejemplo", "tipo":"ARTISTA"}
-```
-
-**6. Evento** — `POST /eventos`
+**Request:**
 
 ```json
 {
-  "nombre":"Recital de prueba", "descripcion":"Presentacion en vivo",
-  "tipo":"RECITAL", "organizadorId":1, "lugarId":1,
-  "fechaHora":"2027-12-20T21:00:00", "participantesIds":[1], "altaDemanda":false
+  "nombre": "Estadio Municipal",
+  "direccion": "Av. Central 150",
+  "ciudad": "Tandil",
+  "latitud": -37.321,
+  "longitud": -59.137
 }
 ```
 
-**Respuesta 201 (fragmento representativo; valores de IDs de ejemplo):**
+**Response — `201 Created`:**
 
 ```json
 {
-  "id":1, "nombre":"Recital de prueba", "descripcion":"Presentacion en vivo",
-  "tipo":"RECITAL", "estado":"BORRADOR",
-  "organizador":{"id":1,"nombre":"Producciones Sierra","email":"contacto@ejemplo.com"},
-  "participantes":[{"id":1,"nombre":"Banda Ejemplo","tipo":"ARTISTA"}],
-  "fechaHora":"2027-12-20T21:00:00",
-  "lugar":{"id":1,"nombre":"Estadio Municipal","direccion":"Av. Central 150","ciudad":"Tandil","latitud":-37.321,"longitud":-59.137},
-  "altaDemanda":false,
-  "sectores":[{"sectorId":1,"nombre":"Platea","numerado":true,"capacidad":2,"precio":null,"asientos":[{"id":1,"fila":"A","numero":1},{"id":2,"fila":"A","numero":2}]}],
-  "version":0
+  "id": 1,
+  "nombre": "Estadio Municipal",
+  "direccion": "Av. Central 150",
+  "ciudad": "Tandil",
+  "latitud": -37.321,
+  "longitud": -59.137
 }
 ```
 
-`version` es gestionada por Hibernate y puede variar según cambios o configuración.
+El identificador es asignado por el sistema.
 
-**7. Precios por evento** — `PUT /eventos/1/precios`
+### 4.2. Crear sectores
+
+**Endpoint:** `POST /lugares/{id}/sectores`
+
+**Sector numerado:**
 
 ```json
-{"precios":[{"sectorId":1,"precio":35000.00},{"sectorId":2,"precio":20000.00}]}
+{
+  "nombre": "Platea",
+  "numerado": true,
+  "capacidad": 2
+}
 ```
 
-La lista debe incluir **exactamente los IDs de los sectores del lugar del evento**; los IDs aquí son ilustrativos.
+**Sector no numerado:**
 
-**8. Publicar, suspender y cancelar** — `PATCH /eventos/1/publicar`, `PATCH /eventos/1/suspender`, `PATCH /eventos/1/cancelar` sin body. La respuesta es `EventoResponseDTO` completo, con el campo `estado` actualizado.
+```json
+{
+  "nombre": "Campo",
+  "numerado": false,
+  "capacidad": 500
+}
+```
 
-**9. Ofertas para Reservas** — `GET /eventos/1/sectores`
+Cada sector pertenece a un lugar y posee una capacidad máxima.
+
+Los sectores numerados permiten identificar asientos individuales, mientras que los no numerados utilizan su capacidad general.
+
+### 4.3. Registrar asientos
+
+**Endpoint:** `POST /sectores/{id}/asientos`
+
+**Request:**
+
+```json
+{
+  "asientos": [
+    {
+      "fila": "A",
+      "numero": 1
+    },
+    {
+      "fila": "A",
+      "numero": 2
+    }
+  ]
+}
+```
+
+**Response — `201 Created`:**
 
 ```json
 [
-  {"sectorId":1,"nombre":"Platea","numerado":true,"capacidad":2,"precio":35000.00,
-    "asientos":[{"id":1,"fila":"A","numero":1},{"id":2,"fila":"A","numero":2}]},
-  {"sectorId":2,"nombre":"Campo","numerado":false,"capacidad":500,"precio":20000.00,"asientos":[]}
+  {
+    "id": 1,
+    "fila": "A",
+    "numero": 1
+  },
+  {
+    "id": 2,
+    "fila": "A",
+    "numero": 2
+  }
 ]
 ```
 
-**10. Habilitación** — `GET /eventos/1/habilitado`
+No se permite registrar combinaciones duplicadas de fila y número dentro de un mismo sector ni superar su capacidad máxima.
 
-```json
-{"eventoId":1, "estado":"PUBLICADO", "habilitadoParaReservar":true, "fechaHora":"2027-12-20T21:00:00"}
-```
+### 4.4. Registrar un organizador
 
-**11. Estado de los avisos** — `GET /eventos/1/notificaciones-cancelacion`
+**Endpoint:** `POST /organizadores`
 
-```json
-{"eventoId":1,"reservasNotificadas":false,"entradasNotificadas":false,"comprasNotificadas":false,"intentos":0,"ultimoError":null}
-```
-
-## Ejemplo de error JSON
-
-**Publicación inválida: 409 Conflict**
+**Request:**
 
 ```json
 {
-  "timestamp":"2026-11-04T15:00:00",
-  "status":409,
-  "error":"Conflict",
-  "mensaje":"Faltan precios de uno o mas sectores del evento",
-  "path":"/eventos/1/publicar",
-  "detalles":[]
+  "nombre": "Producciones Sierra",
+  "email": "contacto@ejemplo.com"
 }
 ```
 
-`timestamp` es ilustrativo, no un valor fijo. En validación de campos (400), `detalles` indica qué campos fallaron.
+### 4.5. Registrar un participante
 
+**Endpoint:** `POST /participantes`
 
-## Integraciones con otros microservicios
+**Request:**
 
-Esta sección distingue los endpoints propios de Eventos de los endpoints externos que consume mediante clientes Feign.
+```json
+{
+  "nombre": "Banda Ejemplo",
+  "tipo": "ARTISTA"
+}
+```
 
-### Endpoints externos consumidos por Eventos
+### 4.6. Crear un evento
 
-| Microservicio | Método y ruta | Uso | Estado verificado |
-| Reservas | `POST /reservas/evento/{id}/cancelar` | Notificar la cancelación del evento | Implementado en el receptor |
-| Reservas | `POST /reservas/evento/{id}/habilitar` | Habilitar reservas para un evento | Implementado en el receptor |
-| Entradas | `POST /entradas/evento/{id}/invalidar` | Invalidar entradas de un evento cancelado | Implementado en el receptor |
-| Compras | `POST /compras/evento/{id}/cancelar` | Gestionar los reintegros por cancelación | Implementado en el receptor |
+**Endpoint:** `POST /eventos`
 
-Los clientes Feign de Eventos utilizan las siguientes direcciones configurables:
+**Request:**
 
-- `RESERVAS_URL`: por defecto `http://localhost:8080`.
-- `ENTRADAS_URL`: por defecto `http://localhost:8083`.
-- `COMPRAS_URL`: por defecto `http://localhost:8082`.
+```json
+{
+  "nombre": "Recital de prueba",
+  "descripcion": "Presentacion en vivo",
+  "tipo": "RECITAL",
+  "organizadorId": 1,
+  "lugarId": 1,
+  "fechaHora": "2027-12-20T21:00:00",
+  "participantesIds": [1],
+  "altaDemanda": false
+}
+```
 
-Los puertos corresponden a la configuración predeterminada actual de cada microservicio y pueden modificarse mediante variables de entorno.
+**Response — `201 Created`:**
 
-### Notificación de cancelaciones
+```json
+{
+  "id": 1,
+  "nombre": "Recital de prueba",
+  "descripcion": "Presentacion en vivo",
+  "tipo": "RECITAL",
+  "estado": "BORRADOR",
+  "organizador": {
+    "id": 1,
+    "nombre": "Producciones Sierra",
+    "email": "contacto@ejemplo.com"
+  },
+  "participantes": [
+    {
+      "id": 1,
+      "nombre": "Banda Ejemplo",
+      "tipo": "ARTISTA"
+    }
+  ],
+  "fechaHora": "2027-12-20T21:00:00",
+  "lugar": {
+    "id": 1,
+    "nombre": "Estadio Municipal",
+    "direccion": "Av. Central 150",
+    "ciudad": "Tandil",
+    "latitud": -37.321,
+    "longitud": -59.137
+  },
+  "altaDemanda": false,
+  "sectores": [
+    {
+      "sectorId": 1,
+      "nombre": "Platea",
+      "numerado": true,
+      "capacidad": 2,
+      "precio": null,
+      "asientos": [
+        {
+          "id": 1,
+          "fila": "A",
+          "numero": 1
+        },
+        {
+          "id": 2,
+          "fila": "A",
+          "numero": 2
+        }
+      ]
+    }
+  ],
+  "version": 0
+}
+```
 
-Cuando se ejecuta `PATCH /eventos/{id}/cancelar`:
+El evento se registra inicialmente en estado `BORRADOR`.
+
+Los precios de los sectores se configuran mediante una operación independiente.
+
+El campo `version` es administrado por Hibernate para el control de versiones de la entidad.
+
+### 4.7. Configurar precios por evento
+
+**Endpoint:** `PUT /eventos/{id}/precios`
+
+**Request:**
+
+```json
+{
+  "precios": [
+    {
+      "sectorId": 1,
+      "precio": 35000.00
+    },
+    {
+      "sectorId": 2,
+      "precio": 20000.00
+    }
+  ]
+}
+```
+
+La lista debe incluir exactamente un precio por cada sector del lugar asociado al evento.
+
+Los identificadores mostrados son ilustrativos y corresponden a un evento cuyo lugar tiene dos sectores registrados.
+
+La configuración de precios se realiza mientras el evento se encuentra en estado `BORRADOR`.
+
+### 4.8. Publicar, suspender y cancelar un evento
+
+**Endpoints:**
+
+```http
+PATCH /eventos/1/publicar
+PATCH /eventos/1/suspender
+PATCH /eventos/1/cancelar
+```
+
+Estas operaciones no requieren cuerpo JSON.
+
+La respuesta devuelve un `EventoResponseDTO` con la información del evento y su estado actualizado.
+
+Las transiciones se encuentran sujetas a las reglas de negocio correspondientes.
+
+### 4.9. Consultar sectores y precios de un evento
+
+**Endpoint:** `GET /eventos/{id}/sectores`
+
+**Response — `200 OK`:**
+
+```json
+[
+  {
+    "sectorId": 1,
+    "nombre": "Platea",
+    "numerado": true,
+    "capacidad": 2,
+    "precio": 35000.00,
+    "asientos": [
+      {
+        "id": 1,
+        "fila": "A",
+        "numero": 1
+      },
+      {
+        "id": 2,
+        "fila": "A",
+        "numero": 2
+      }
+    ]
+  },
+  {
+    "sectorId": 2,
+    "nombre": "Campo",
+    "numerado": false,
+    "capacidad": 500,
+    "precio": 20000.00,
+    "asientos": []
+  }
+]
+```
+
+Este endpoint proporciona la configuración de los sectores y sus precios.
+
+La información no incluye la ocupación ni la cantidad de lugares disponibles en tiempo real.
+
+### 4.10. Consultar habilitación para reservar
+
+**Endpoint:** `GET /eventos/{id}/habilitado`
+
+**Response — `200 OK`:**
+
+```json
+{
+  "eventoId": 1,
+  "estado": "PUBLICADO",
+  "habilitadoParaReservar": true,
+  "fechaHora": "2027-12-20T21:00:00"
+}
+```
+
+El campo `habilitadoParaReservar` indica si el evento reúne las condiciones para admitir nuevas reservas.
+
+Para estar habilitado, el evento debe encontrarse en estado `PUBLICADO` y tener una fecha futura.
+
+### 4.11. Consultar notificaciones de cancelación
+
+**Endpoint:** `GET /eventos/{id}/notificaciones-cancelacion`
+
+**Response — `200 OK`:**
+
+```json
+{
+  "eventoId": 1,
+  "reservasNotificadas": false,
+  "entradasNotificadas": false,
+  "comprasNotificadas": false,
+  "intentos": 0,
+  "ultimoError": null
+}
+```
+
+La respuesta permite consultar el estado del procesamiento de las notificaciones asociadas a la cancelación de un evento.
+
+Los indicadores muestran qué microservicios procesaron la cancelación y si se registraron errores durante los intentos de comunicación.
+
+## 5. Manejo de errores
+
+La API devuelve respuestas JSON para informar errores de validación y reglas de negocio.
+
+### Ejemplo: publicación inválida
+
+**Response — `409 Conflict`:**
+
+```json
+{
+  "timestamp": "2026-11-04T15:00:00",
+  "status": 409,
+  "error": "Conflict",
+  "mensaje": "Faltan precios de uno o mas sectores del evento",
+  "path": "/eventos/1/publicar",
+  "detalles": []
+}
+```
+
+Los principales códigos HTTP utilizados son:
+
+| Código | Descripción |
+|---|---|
+| `200 OK` | Operación de consulta o actualización realizada correctamente. |
+| `201 Created` | Recurso creado correctamente. |
+| `400 Bad Request` | Solicitud inválida, parámetros incorrectos o errores de validación. |
+| `404 Not Found` | Recurso solicitado inexistente. |
+| `409 Conflict` | Operación incompatible con las reglas de negocio o el estado del recurso. |
+| `500 Internal Server Error` | Error interno no controlado. |
+
+El campo `timestamp` corresponde al momento de generación de la respuesta.
+
+Cuando existen errores de validación de campos, el atributo `detalles` permite informar las condiciones que no se cumplieron.
+
+## 6. Integraciones con otros microservicios
+
+Eventos y Lugares utiliza clientes Feign para comunicarse con Reservas, Entradas y Compras.
+
+Estas operaciones forman parte de la coordinación del circuito de cancelación de eventos.
+
+### 6.1. Endpoints externos
+
+| Microservicio | Método | Ruta | Función |
+|---|---|---|---|
+| Reservas | POST | `/reservas/evento/{id}/cancelar` | Cancelar las reservas asociadas al evento. |
+| Reservas | POST | `/reservas/evento/{id}/habilitar` | Habilitar reservas para un evento. |
+| Entradas | POST | `/entradas/evento/{id}/invalidar` | Invalidar las entradas emitidas de un evento cancelado. |
+| Compras | POST | `/compras/evento/{id}/cancelar` | Procesar los reintegros correspondientes a un evento cancelado. |
+
+### 6.2. Configuración de clientes Feign
+
+Las direcciones de los servicios externos se configuran mediante variables de entorno.
+
+| Variable | Valor predeterminado |
+|---|---|
+| `RESERVAS_URL` | `http://localhost:8080` |
+| `ENTRADAS_URL` | `http://localhost:8083` |
+| `COMPRAS_URL` | `http://localhost:8082` |
+
+Los valores corresponden a la configuración local y pueden modificarse según el entorno de ejecución.
+
+## 7. Notificaciones de cancelación
+
+Cuando se ejecuta:
+
+`PATCH /eventos/{id}/cancelar`
+
+se realiza el siguiente proceso:
 
 1. Eventos cambia el estado del evento a `CANCELADO`.
-2. Guarda una notificación pendiente en su propia base de datos.
-3. Devuelve la respuesta al administrador sin esperar a que los otros microservicios terminen sus operaciones.
-4. El componente `NotificadorCancelaciones` procesa los avisos mediante un scheduler con intervalo de 30 segundos.
-5. Reservas se notifica primero. Entradas se notifica de forma independiente.
-6. Compras se notifica cuando Reservas y Entradas fueron notificadas correctamente, siempre que esas integraciones estén habilitadas.
+2. Registra una notificación de cancelación en su propia base de datos.
+3. Devuelve la respuesta al administrador sin esperar a que finalicen las comunicaciones externas.
+4. El componente `NotificadorCancelaciones` procesa las notificaciones mediante un scheduler con un intervalo de 30 segundos.
+5. Reservas recibe la notificación de cancelación. Entradas se notifica de forma independiente.
+6. Compras recibe la notificación cuando Reservas y Entradas completaron sus operaciones, siempre que las integraciones estén habilitadas.
 
-Si una notificación falla, se registra el error y permanece pendiente para un nuevo intento. El estado de cada aviso se puede consultar mediante:
+Si una comunicación falla, se registra el error y se conserva la notificación para su posterior reintento.
+
+El estado de procesamiento puede consultarse mediante:
 
 `GET /eventos/{id}/notificaciones-cancelacion`
 
-La configuración predeterminada de `application.yml` habilita las integraciones:
+### 7.1. Configuración de las integraciones
+
+La configuración utiliza las siguientes variables:
 
 - `INTEGRACIONES_HABILITADAS=true`
 - `ENTRADAS_HABILITADAS=true`
 - `COMPRAS_HABILITADAS=true`
 
-Estas opciones pueden modificarse mediante variables de entorno.
+Estas propiedades permiten controlar las comunicaciones entre microservicios según el entorno de ejecución.
 
-### Encabezado `X-Operacion-Id`
+### 7.2. Encabezado X-Operacion-Id
 
-Eventos envía un identificador estable para la cancelación mediante el encabezado `X-Operacion-Id`.
+Las notificaciones de cancelación incluyen el encabezado `X-Operacion-Id`, que identifica la operación correspondiente.
 
 Su tratamiento depende del microservicio receptor:
 
-- **Reservas:** recibe el encabezado, pero no lo utiliza para deduplicar operaciones.
-- **Entradas:** el cliente Feign lo envía, pero el endpoint receptor no lo procesa.
-- **Compras:** exige y valida el encabezado. La prevención de reintegros duplicados se implementa mediante el registro de reintegros por ítem y la reutilización de los que ya fueron aprobados.
+- **Reservas:** recibe el encabezado y controla las operaciones mediante las validaciones de estado de sus reservas.
+- **Entradas:** recibe la solicitud de invalidación y evita modificar nuevamente entradas que ya se encuentran invalidadas.
+- **Compras:** exige y valida el encabezado. La prevención de reintegros duplicados se realiza verificando los reintegros registrados para cada ítem de compra.
 
-### Comportamiento de Compras ante una cancelación
+Este mecanismo permite repetir las operaciones de cancelación sin duplicar los efectos que ya fueron procesados correctamente.
 
-Compras verifica que el evento esté cancelado y solicita la invalidación de sus entradas antes de procesar los reintegros.
+## 8. Procesamiento de reintegros por cancelación
 
-Para cada compra con pago aprobado:
+El microservicio Compras verifica que el evento se encuentre cancelado y solicita la invalidación de sus entradas antes de procesar los reintegros.
 
-- Procesa los reintegros por ítem utilizando el precio histórico de cada uno.
-- No vuelve a procesar un reintegro que ya esté aprobado.
-- Actualiza la compra a `REINTEGRADA` cuando todos los ítems fueron reintegrados.
-- La deja en `REINTEGRO_PARCIAL` cuando solamente algunos ítems fueron reintegrados.
-- Si no se aprobó ningún reintegro, no asigna un nuevo estado a la compra.
+Para cada compra con un pago aprobado:
 
-Si alguna compra no puede completar su reintegro, la operación informa el error para permitir un nuevo intento.
+1. Identifica los ítems correspondientes.
+2. Consulta los reintegros registrados.
+3. Utiliza el precio histórico de cada ítem para determinar el importe.
+4. Evita procesar nuevamente los reintegros ya aprobados.
+5. Solicita los reintegros correspondientes a la pasarela simulada.
+6. Actualiza los estados de los reintegros y de la compra.
 
-**Importante:** las notificaciones y los reintegros no constituyen una única transacción distribuida entre las bases de datos. Un fallo en un microservicio no revierte automáticamente los cambios confirmados en los demás.
+Los estados principales son:
+
+- `REINTEGRADA`: todos los ítems de la compra fueron reintegrados.
+- `REINTEGRO_PARCIAL`: solamente algunos ítems fueron reintegrados.
+
+Cuando ningún reintegro fue aprobado, el procesamiento no asigna un nuevo estado de reintegro a la compra.
+
+Si alguna operación no puede completarse, se registra el error y la notificación de cancelación permite reintentar el procesamiento.
+
+Las operaciones utilizan transacciones locales y mecanismos de idempotencia para evitar efectos duplicados durante las comunicaciones entre microservicios.

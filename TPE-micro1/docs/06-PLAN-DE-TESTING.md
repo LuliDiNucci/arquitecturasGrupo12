@@ -1,298 +1,403 @@
 # 06 — Plan de testing y validación general
 
-## 1. Objetivo
+## 1. Descripción general
 
-Este documento reúne la estrategia de testing de los microservicios que componen TicketYa durante la Entrega 1:
+Este documento describe la estrategia de testing utilizada para verificar el funcionamiento de TicketYa y sus principales reglas de negocio.
+
+El sistema está compuesto por cuatro microservicios funcionales:
 
 - `msvc-eventosylugares`
 - `msvc-reservas`
 - `msvc-compras`
 - `msvc-entradas`
 
-El objetivo es verificar las reglas de negocio, la persistencia, la concurrencia, el comportamiento de los endpoints y las interacciones entre servicios.
+Las pruebas se orientan a comprobar el comportamiento de los servicios, las validaciones de negocio, la persistencia, el control de concurrencia, los contratos REST y los principales circuitos funcionales.
 
-Se distinguen las pruebas unitarias, las pruebas con bases de datos reales, las verificaciones manuales y las pruebas de integración entre microservicios.
+La estrategia incluye pruebas unitarias, pruebas de integración con bases de datos, pruebas de API y verificaciones manuales mediante Postman.
 
-**Importante:** la existencia de un caso de prueba implementado no significa necesariamente que se haya ejecutado en todos los entornos. Los resultados se identifican según la evidencia documentada por cada equipo.
+## 2. Estrategia de testing
 
-## 2. Estrategia general
-
-Se utilizan los siguientes niveles de prueba:
+### 2.1. Niveles de prueba
 
 | Nivel | Objetivo | Herramientas |
-| Unitarias | Verificar reglas de negocio y comportamientos individuales. | JUnit 5, Mockito |
-| Integración con base de datos | Verificar persistencia, transacciones y concurrencia. | Spring Boot Test, MySQL |
-| API y pruebas manuales | Verificar endpoints, respuestas HTTP y flujos de negocio. | Postman, PowerShell |
-| Integración entre microservicios | Verificar la comunicación y coordinación entre servicios reales. | REST, Feign, servicios ejecutándose conjuntamente |
+|---|---|---|
+| Pruebas unitarias | Verificar reglas de negocio y comportamiento de los servicios. | JUnit 5, Mockito |
+| Pruebas de integración con base de datos | Verificar persistencia, transacciones y concurrencia. | Spring Boot Test, MySQL, H2 |
+| Pruebas de API REST | Verificar endpoints, parámetros, estados y respuestas HTTP. | Spring Boot Test, Postman |
+| Pruebas manuales | Comprobar flujos funcionales y respuestas del sistema. | Postman, PowerShell |
+| Pruebas entre microservicios | Evaluar la comunicación y coordinación de los servicios durante los circuitos de negocio. | REST, OpenFeign, RestClient |
 
-Las pruebas unitarias utilizan dependencias simuladas cuando corresponde. Esto permite verificar la lógica de cada servicio sin necesitar que todos los microservicios estén disponibles.
+Las pruebas unitarias utilizan dependencias simuladas cuando corresponde, lo que permite verificar las reglas de negocio de cada servicio sin depender de la disponibilidad de los demás microservicios.
 
-Las pruebas de integración entre servicios son necesarias para comprobar que los contratos, rutas, DTO y estados sean compatibles en el sistema completo.
+Las pruebas de integración con base de datos comprueban el comportamiento de las operaciones transaccionales y de persistencia.
 
-## 3. Testing por microservicio
+Las pruebas manuales permiten observar el comportamiento de los endpoints y las respuestas del sistema durante su ejecución local.
 
-### 3.1. Eventos y Lugares
+## 3. Pruebas de Eventos y Lugares
 
-**Pruebas implementadas:**
+El microservicio `msvc-eventosylugares` cuenta con pruebas orientadas a verificar la administración de eventos, lugares, sectores, asientos, precios y cancelaciones.
 
-Se cuenta con pruebas unitarias y de API que verifican:
+### 3.1. Clases de prueba
 
-- Publicación de eventos y validaciones de sectores, precios y asientos.
-- Rechazo de configuraciones incompletas.
-- Modificación de eventos publicados.
-- Cancelación de eventos y prevención de avisos duplicados.
-- Búsquedas y filtros por ciudad, participante, fechas y precio.
-- Creación de sectores y validación de asientos.
-- Respuestas HTTP ante solicitudes inválidas y conflictos.
-- Notificación de cancelaciones hacia los otros tres microservicios, utilizando respuestas simuladas.
+| Clase | Funcionalidad |
+|---|---|
+| `EventoServiceTest` | Reglas de publicación, modificación, cancelación y búsqueda de eventos. |
+| `AsientoServiceTest` | Validaciones de asientos, capacidad y duplicaciones. |
+| `SectorServiceTest` | Creación y validación de sectores. |
+| `EventoApiIntegrationTest` | Pruebas de endpoints REST y respuestas HTTP. |
+| `NotificadorCancelacionesTest` | Procesamiento y reintento de notificaciones de cancelación. |
 
-**Clases principales:** `EventoServiceTest`, `AsientoServiceTest`, `SectorServiceTest`, `EventoApiIntegrationTest` y `NotificadorCancelacionesTest`.
+### 3.2. Escenarios verificados
 
-**Ejecución documentada:**
+Las pruebas contemplan los siguientes comportamientos:
 
-Desde la raíz del proyecto:
+- Publicación de eventos con configuración completa.
+- Rechazo de publicaciones sin sectores, precios o asientos necesarios.
+- Validación de modificaciones según el estado del evento.
+- Cancelación de eventos y prevención de notificaciones duplicadas.
+- Búsquedas por ciudad, participante, fechas y precios.
+- Ordenamiento por el menor precio configurado de cada evento.
+- Validación de sectores y asientos duplicados.
+- Control de capacidad de sectores numerados.
+- Respuestas HTTP ante solicitudes inválidas.
+- Procesamiento de notificaciones de cancelación con dependencias simuladas.
 
+Las pruebas de API utilizan H2 en memoria, mediante una configuración independiente de la base utilizada durante la ejecución local.
+
+### 3.3. Ejecución
+
+Desde el directorio `msvc-eventosylugares`:
+
+```powershell
 mvn clean test
+```
 
+Este comando ejecuta las pruebas automatizadas reconocidas por Maven.
 
-Las pruebas de API utilizan H2 en memoria, separada de la base de datos local.
+## 4. Pruebas de Reservas
 
-**Alcance y pendientes:**
+El microservicio `msvc-reservas` cuenta con pruebas destinadas a verificar el ciclo de vida de las reservas, la ocupación de lugares, el vencimiento, la idempotencia y la concurrencia.
 
-- Las pruebas cubren el comportamiento interno de Eventos y Lugares.
-- No representan pruebas de integración con los otros microservicios reales.
-- Queda pendiente verificar la ejecución completa de la suite y documentar su resultado.
-- La prueba de concurrencia para evitar la sobreventa corresponde principalmente a Reservas.
+### 4.1. Pruebas unitarias
 
-### 3.2. Reservas
+La clase `ReservaServiceImplTest` verifica escenarios como:
 
-**Pruebas unitarias implementadas:**
+| Caso de prueba | Comportamiento verificado |
+|---|---|
+| `rechazaSolicitudIncompletaSinGuardar` | Las solicitudes incompletas se rechazan sin persistir reservas. |
+| `rechazaReservaSiEventoCanceladoLocalmente` | No se permite reservar un evento cancelado. |
+| `noConfirmaReservaVencida` | Una reserva vencida no puede confirmarse. |
+| `cancelacionMarcaElEventoYCancelaActivas` | La cancelación registra el evento como cancelado y actualiza las reservas temporales activas. |
 
-Se utiliza `ReservaServiceImplTest` para verificar:
+### 4.2. Prueba de concurrencia
 
-- Rechazo de solicitudes incompletas.
-- Rechazo de reservas para eventos cancelados.
-- Imposibilidad de confirmar reservas vencidas.
-- Cancelación de eventos y de reservas temporales activas.
+La clase `ConcurrenciaMySQLIT` permite comprobar el control de concurrencia sobre un mismo asiento.
 
-**Prueba de concurrencia con MySQL:**
+El escenario utiliza una base de datos MySQL y ejecuta diez solicitudes concurrentes que intentan reservar el mismo lugar.
 
-Se implementó `ConcurrenciaMySQLIT`, que envía diez solicitudes simultáneas para reservar el mismo asiento.
+La prueba verifica que:
 
-El resultado informado durante el desarrollo fue el esperado: **una sola solicitud consigue crear la reserva**, mientras que las restantes son rechazadas.
+1. Solamente una solicitud consiga crear la reserva.
+2. Las demás solicitudes no puedan reservar el asiento ocupado.
+3. No se registren asignaciones incompatibles.
+4. El bloqueo pesimista y las transacciones mantengan la consistencia de la ocupación.
 
-Esta prueba utiliza MySQL real y permite verificar el bloqueo pesimista y las transacciones para evitar que dos clientes ocupen el mismo lugar.
+El escenario fue ejecutado con MySQL durante el desarrollo y obtuvo una única reserva exitosa.
 
-**Pruebas manuales informadas:**
+### 4.3. Pruebas manuales
 
-- Crear y consultar reservas.
-- Consultar disponibilidad.
-- Confirmar y liberar reservas.
-- Verificar el vencimiento lógico a los diez minutos.
-- Cancelar eventos.
-- Registrar devoluciones individuales.
-- Comprobar idempotencia y respuestas ante errores.
+Las pruebas manuales de Reservas contemplan:
 
-**Ejecución:**
+- Creación y consulta de reservas temporales.
+- Consulta de disponibilidad en sectores numerados y no numerados.
+- Consulta de asientos disponibles y ocupados.
+- Confirmación de reservas activas y vigentes.
+- Liberación de reservas.
+- Vencimiento lógico de reservas después de 10 minutos.
+- Cancelación de reservas temporales por cancelación de eventos.
+- Devolución individual de lugares.
+- Idempotencia de solicitudes repetidas.
+- Respuestas HTTP ante errores de validación y conflictos de disponibilidad.
 
-Desde `msvc-reservas`:
+El vencimiento lógico permite que una reserva activa cuyo plazo terminó deje de bloquear lugares, aunque su estado persistido todavía sea `ACTIVA`.
 
+### 4.4. Ejecución
+
+Desde el directorio `msvc-reservas`:
+
+```powershell
 mvn test
+```
 
 Para ejecutar específicamente la prueba de concurrencia:
 
+```powershell
 mvn "-Dtest=ConcurrenciaMySQLIT" test
+```
 
+La prueba de concurrencia utiliza una base MySQL independiente, denominada `ticketya_reservas_test`, cuya configuración se encuentra detallada en la documentación de testing de Reservas.
 
-Esta última requiere una base MySQL exclusiva para pruebas.
+## 5. Pruebas de Compras y Pagos
 
-**Alcance y pendientes:**
+El microservicio `msvc-compras` dispone de pruebas unitarias y pruebas de concurrencia destinadas a verificar las compras, el procesamiento de pagos y los reintegros.
 
-- La prueba de concurrencia fue ejecutada con MySQL real.
-- Queda pendiente probar varias instancias reales del microservicio conectadas simultáneamente.
-- Las pruebas con simuladores no demuestran la integración completa con los demás servicios.
-- La coordinación de pago, confirmación, emisión y devolución requiere pruebas conjuntas.
-- La consulta de disponibilidad todavía no devuelve explícitamente la lista de asientos ocupados.
+### 5.1. Clases de prueba
 
-### 3.3. Compras
+| Clase | Funcionalidad |
+|---|---|
+| `CompraServiceImplTest` | Creación, validación y confirmación de compras. |
+| `PagoServiceImplTest` | Procesamiento de pagos e idempotencia. |
+| `ReintegroServiceImplTest` | Gestión de reintegros individuales y por cancelación. |
+| `PagoConcurrenciaMySQLIT` | Control de concurrencia en operaciones de pago. |
 
-**Pruebas implementadas:**
+La suite documentada incluye once pruebas unitarias y dos escenarios de concurrencia con MySQL.
 
-Se identificaron trece métodos de prueba:
+### 5.2. Escenarios de negocio
 
-- Once pruebas unitarias con JUnit y Mockito.
-- Dos pruebas de concurrencia con Spring Boot y MySQL.
+Las pruebas verifican:
 
-Se cubren los siguientes escenarios:
-
-- Cálculo del importe total y creación de detalles de compra.
-- Prevención de compras duplicadas para una reserva.
-- Confirmación de compras y emisión de entradas.
-- Idempotencia de pagos.
+- Cálculo del importe total de las compras.
+- Creación de detalles con precios históricos.
+- Prevención de compras duplicadas para una misma reserva.
+- Confirmación de compras y coordinación de emisión de entradas.
+- Idempotencia en el procesamiento de pagos.
 - Prevención de cobros duplicados.
-- Reutilización incorrecta de claves de idempotencia.
-- Reintegros utilizando precios históricos.
-- Reintegros parciales.
+- Rechazo de reutilización incompatible de claves de idempotencia.
+- Cálculo de reintegros utilizando importes históricos.
+- Procesamiento de reintegros parciales.
 - Prevención de reintegros duplicados.
-- Cancelación repetida de eventos.
+- Cancelaciones repetidas de eventos.
 
-**Clases principales:**
+### 5.3. Pruebas de concurrencia
 
-- `CompraServiceImplTest`
-- `PagoServiceImplTest`
-- `ReintegroServiceImplTest`
-- `PagoConcurrenciaMySQLIT`
+La clase `PagoConcurrenciaMySQLIT` contempla dos escenarios principales.
 
-**Pruebas de concurrencia:**
+**Escenario 1: pago simultáneo de una misma compra**
 
-Se verifican dos situaciones:
+Dos solicitudes intentan procesar simultáneamente el pago de una misma compra utilizando la misma clave de idempotencia.
 
-1. Dos solicitudes simultáneas para pagar la misma compra con la misma clave de idempotencia. Se espera un único pago y una sola invocación a la pasarela.
-2. Dos compras diferentes que intentan utilizar la misma clave. Se espera que solamente una operación sea aceptada.
+Se verifica que se registre un único pago y que la pasarela simulada sea invocada una sola vez.
 
-Estas pruebas utilizan MySQL para la persistencia y simulan las dependencias externas.
+**Escenario 2: reutilización de una clave de idempotencia**
 
-**Ejecución:**
+Dos compras diferentes intentan procesar pagos utilizando la misma clave.
 
-Desde `msvc-compras`:
+Se verifica que solamente una operación pueda utilizarla correctamente, evitando registros incompatibles.
 
+Las pruebas utilizan MySQL para comprobar la persistencia y el control de concurrencia, mientras que las dependencias externas se simulan durante la ejecución.
 
+### 5.4. Ejecución
+
+Desde el directorio `msvc-compras`:
+
+```powershell
 mvn test
-
+```
 
 Para ejecutar específicamente la prueba de concurrencia:
 
+```powershell
+mvn "-Dtest=PagoConcurrenciaMySQLIT" test
+```
 
-mvn -Dtest=PagoConcurrenciaMySQLIT test
+La prueba de concurrencia requiere una base MySQL exclusiva para testing, denominada `ticketya_compras_test`.
 
+## 6. Pruebas de Entradas
 
-La prueba de concurrencia requiere la base `ticketya_compras_test`. Debe ejecutarse exclusivamente contra una base de pruebas.
+El microservicio `msvc-entradas` incluye pruebas unitarias para verificar la emisión, consulta, devolución e invalidación de entradas digitales.
 
-**Alcance y pendientes:**
+### 6.1. Clases de prueba
 
-- Existe cobertura de las principales reglas de compra, pago y reintegro.
-- Falta una prueba específica del rechazo de pago y la liberación de la reserva.
-- Quedan pendientes escenarios de fallos de comunicación, reservas vencidas y recuperación de operaciones.
-- No se identificaron pruebas específicas de controladores con MockMvc ni pruebas de contrato HTTP con los demás microservicios.
-- La ejecución efectiva de las pruebas debe respaldarse con los resultados de Maven.
+| Clase | Funcionalidad |
+|---|---|
+| `EntradaServiceTest` | Validaciones de emisión y consulta de entradas. |
+| `EntradaServiceImplTest` | Emisión idempotente e invalidación de entradas. |
+| `DevolucionServiceImplTest` | Solicitudes, aprobación y rechazo de devoluciones. |
+| `QrCodeServiceImplTest` | Generación de códigos QR. |
 
-### 3.4. Entradas
+También se incluye una prueba de inicialización del contexto de Spring Boot mediante `@SpringBootTest`.
 
-**Pruebas unitarias implementadas:**
+### 6.2. Escenarios de negocio
 
-Se verifican los principales comportamientos de emisión, consulta, invalidación y devolución de entradas.
-
-Los escenarios incluyen:
+Las pruebas contemplan:
 
 - Rechazo de emisión para compras inválidas o no confirmadas.
-- Emisión de una entrada por cada lugar de una reserva.
+- Emisión de una entrada por cada lugar adquirido.
 - Generación de códigos QR únicos.
 - Prevención de entradas duplicadas ante solicitudes repetidas.
-- Validación de que un cliente no pueda consultar una entrada perteneciente a otro.
-- Invalidación de entradas cuando se cancela un evento.
-- Prevención de solicitudes de devolución duplicadas.
-- Validación del plazo de 72 horas para solicitar devoluciones.
+- Validación de titularidad durante la consulta individual de entradas.
+- Invalidación de entradas correspondientes a eventos cancelados.
+- Prevención de solicitudes de devolución pendientes duplicadas.
+- Validación de la anticipación de 72 horas para solicitar devoluciones.
 - Aprobación y rechazo de solicitudes.
-- Solicitud de liberación de lugares a Reservas y reintegros a Compras.
-- Generación de imágenes QR PNG codificadas en Base64.
+- Solicitud de devolución de lugares a Reservas.
+- Solicitud de reintegros a Compras.
+- Generación de imágenes QR en formato PNG codificadas en Base64.
 
-**Clases principales:**
+### 6.3. Ejecución
 
-- `EntradaServiceTest`
-- `EntradaServiceImplTest`
-- `DevolucionServiceImplTest`
-- `QrCodeServiceImplTest`
+Desde el directorio `msvc-entradas`:
 
-También se incluye una prueba de inicialización del contexto de Spring mediante `@SpringBootTest`.
+```powershell
+mvn test
+```
 
-**Alcance y pendientes:**
+Las pruebas unitarias utilizan mocks para simular repositorios y dependencias externas, permitiendo evaluar las reglas de negocio de manera aislada.
 
-- Las dependencias externas se simulan mediante mocks.
-- No se cuenta con pruebas específicas de integración de los endpoints REST.
-- No se identificaron pruebas de autenticación y autorización para todos los controladores.
-- Falta verificar el reintento de operaciones externas después de aprobar una devolución.
-- No se identificó una prueba específica del límite exacto de las 72 horas.
-- La consulta de entradas por cliente no verifica actualmente la identidad del solicitante.
+## 7. Pruebas de integración funcional
 
-## 4. Pruebas de integración entre microservicios
+Los circuitos principales de TicketYa requieren la coordinación de varios microservicios.
 
-Las pruebas individuales permiten verificar las reglas internas de cada servicio, pero no garantizan que el circuito completo de TicketYa funcione correctamente.
+La validación funcional del sistema contempla los siguientes escenarios:
 
-Por eso, se deben validar conjuntamente las siguientes integraciones:
+| Flujo | Servicios involucrados | Comportamiento esperado |
+|---|---|---|
+| Consulta de eventos | Gateway y Eventos y Lugares | Obtener eventos, sectores y precios. |
+| Consulta de disponibilidad | Reservas y Eventos y Lugares | Informar los lugares disponibles y ocupados. |
+| Creación de reserva | Reservas y Eventos y Lugares | Validar el evento y registrar una reserva temporal. |
+| Inicio de compra | Compras, Reservas y Eventos y Lugares | Validar la reserva y calcular el importe. |
+| Pago aprobado | Compras, Reservas y Entradas | Confirmar la reserva y emitir entradas digitales. |
+| Pago rechazado | Compras y Reservas | Liberar la reserva sin emitir entradas. |
+| Devolución individual | Entradas, Reservas y Compras | Invalidar la entrada, liberar el lugar y gestionar el reintegro. |
+| Cancelación de evento | Eventos y Lugares, Reservas, Entradas y Compras | Cancelar reservas, invalidar entradas y procesar reintegros. |
+| Acceso mediante Gateway | Gateway y microservicios | Enrutar las solicitudes hacia los servicios correspondientes. |
 
-| Flujo | Servicios involucrados | Validación |
-| Consulta de eventos y sectores | Reservas → Eventos y Lugares | Obtener datos y precios correctos. |
-| Creación de reserva | Reservas → Eventos y Lugares | Verificar disponibilidad y creación de la reserva temporal. |
-| Inicio de compra | Compras → Reservas y Eventos | Validar reserva y obtener precios. |
-| Pago aprobado | Compras → Reservas y Entradas | Confirmar reserva y emitir las entradas. |
-| Pago rechazado | Compras → Reservas | Liberar la reserva sin generar entradas. |
-| Devolución individual | Entradas → Reservas y Compras | Liberar el lugar y registrar el reintegro. |
-| Cancelación de evento | Eventos y Lugares → Reservas, Entradas y Compras | Cancelar reservas, invalidar entradas y procesar reintegros. |
-| Acceso a través del Gateway | Gateway → Microservicios | Verificar el enrutamiento y las restricciones de acceso. |
+Estos escenarios constituyen el circuito de validación funcional del sistema completo.
 
-**Estado general:** los clientes y endpoints necesarios están desarrollados en los respectivos microservicios, pero las pruebas unitarias con mocks no reemplazan la validación conjunta contra los servicios reales.
+Las pruebas individuales con dependencias simuladas verifican las reglas de cada componente. La ejecución conjunta de los servicios permite comprobar, adicionalmente, la compatibilidad de sus contratos HTTP y la coordinación de sus operaciones.
 
-Por lo tanto, los flujos completos deben considerarse pendientes de validación integrada cuando no se dispone de evidencia de una ejecución conjunta satisfactoria.
+## 8. Validación de concurrencia y prevención de sobreventa
 
-## 5. Prueba crítica de concurrencia y sobreventa
+Uno de los requisitos principales de TicketYa es evitar que varios usuarios puedan reservar o adquirir simultáneamente el mismo lugar.
 
-Uno de los requisitos centrales de TicketYa es evitar que varios usuarios consigan reservar o comprar simultáneamente el mismo asiento o el último lugar disponible.
+### 8.1. Reserva simultánea de un asiento
 
-Para verificarlo se debe realizar una prueba con múltiples solicitudes concurrentes.
+El escenario de concurrencia consiste en:
 
-**Escenario propuesto:**
+1. Preparar un evento con un único asiento disponible.
+2. Ejecutar diez solicitudes simultáneas de reserva sobre ese asiento.
+3. Comprobar que solamente una solicitud consiga reservarlo.
+4. Verificar que las restantes no puedan registrar una reserva incompatible.
+5. Consultar la persistencia para confirmar que el asiento no tenga asignaciones activas duplicadas.
 
-1. Crear un evento con un único asiento disponible.
-2. Iniciar N solicitudes simultáneas para reservar ese mismo asiento.
-3. Verificar que solamente una solicitud consiga reservarlo.
-4. Comprobar que las restantes sean rechazadas.
-5. Confirmar que no existan reservas duplicadas.
-6. Verificar que no se generen cobros ni entradas duplicadas.
+**Resultado esperado:** una única reserva exitosa, sin doble asignación del asiento.
 
-**Resultado esperado:** exactamente una reserva exitosa y ninguna sobreventa.
+Este escenario se encuentra representado en la prueba `ConcurrenciaMySQLIT` de Reservas.
 
-Reservas cuenta con una prueba ejecutada con diez solicitudes concurrentes sobre el mismo asiento. Compras también cuenta con pruebas específicas para evitar cobros duplicados.
+### 8.2. Capacidad de sectores no numerados
 
-Sin embargo, la validación conjunta del circuito de reserva y compra, incluyendo varias instancias de los servicios, debe documentarse por separado. No se debe considerar demostrada únicamente por las pruebas individuales.
+En los sectores no numerados, la disponibilidad se determina utilizando la capacidad máxima del sector y la cantidad de lugares ocupados.
 
-## 6. Pruebas pendientes prioritarias
+El escenario de validación consiste en ejecutar solicitudes concurrentes sobre los últimos lugares disponibles.
 
-Para completar la validación de la Entrega 1 se priorizan los siguientes escenarios:
+El control transaccional debe impedir que la cantidad de reservas confirmables supere la capacidad del sector.
 
-| Prioridad | Prueba pendiente | Resultado esperado |
-| Alta | Compra con pago aprobado | Reserva confirmada y entradas emitidas correctamente. |
-| Alta | Compra con pago rechazado | Reserva liberada y ausencia de entradas emitidas. |
-| Alta | Solicitudes simultáneas por el último lugar | Una sola reserva exitosa, sin sobreventa. |
-| Alta | Cancelación de evento | Reservas canceladas, entradas invalidadas y reintegros correspondientes. |
-| Alta | Devolución individual aprobada | Lugar liberado y reintegro registrado sin duplicaciones. |
-| Media | Fallo de comunicación entre servicios | Operación recuperable, sin estados inconsistentes. |
-| Media | Reintentos de notificaciones | Sin duplicar efectos de una misma operación. |
-| Media | Acceso a través del Gateway | Rutas y restricciones de acceso correctas. |
+### 8.3. Prevención de cobros duplicados
 
-Estos escenarios representan validaciones pendientes o ampliaciones recomendadas, no resultados de pruebas ya aprobadas.
+Compras incorpora mecanismos de idempotencia y control de concurrencia durante el procesamiento de pagos.
 
-## 7. Evidencias para la entrega
+Las pruebas contemplan solicitudes simultáneas con una misma clave de idempotencia, verificando que no se registren cobros duplicados.
 
-Para respaldar las pruebas realizadas se recomienda conservar:
+La prevención de reservas incompatibles corresponde a Reservas, mientras que la prevención de pagos duplicados corresponde a Compras.
 
-- Resultado real de la ejecución de Maven en cada microservicio.
-- Cantidad de pruebas ejecutadas, aprobadas y fallidas.
-- Capturas o exportaciones de Postman con solicitudes exitosas y errores HTTP.
-- Evidencia de las pruebas de concurrencia con MySQL.
-- Registros de solicitudes y respuestas entre microservicios.
-- Evidencia de los flujos completos de compra, devolución y cancelación.
-- Versión o commit del código utilizado para cada ejecución.
+## 9. Pruebas manuales con Postman
 
-Los escenarios pendientes deben permanecer identificados como tales hasta contar con evidencia de su ejecución satisfactoria.
+El repositorio incluye colecciones Postman para ejecutar solicitudes HTTP y comprobar los principales circuitos de TicketYa.
 
-## 8. Conclusión
+### 9.1. Preparación
 
-Los cuatro microservicios cuentan con pruebas orientadas a verificar sus principales reglas de negocio.
+Antes de comenzar las pruebas:
 
-Eventos y Lugares cubre la publicación, búsqueda y cancelación de eventos. Reservas verifica la disponibilidad, el vencimiento lógico y la concurrencia sobre un mismo asiento. Compras cubre la creación, el pago, la confirmación y los reintegros. Entradas verifica la emisión, invalidación, devolución y generación de códigos QR.
+1. Iniciar las bases de datos requeridas.
+2. Levantar Eventos y Lugares en el puerto `8081`.
+3. Levantar Reservas en el puerto `8080`.
+4. Levantar Compras y Pagos en el puerto `8082`.
+5. Levantar Entradas en el puerto `8083`.
+6. Levantar el API Gateway en el puerto `8084`.
+7. Importar las colecciones Postman del repositorio.
+8. Configurar las variables de entorno necesarias.
 
-Se destacan las pruebas de concurrencia con MySQL implementadas en Reservas y Compras, que permiten comprobar mecanismos para evitar reservas y cobros duplicados.
+### 9.2. Circuito de prueba
 
-Como validación final del sistema, es necesario completar y documentar las pruebas integradas entre microservicios, especialmente los circuitos de compra, pago, emisión, devolución y cancelación de eventos.
+El circuito funcional comprende:
 
-De esta manera, se diferencia la cobertura individual de cada servicio de la validación del funcionamiento conjunto de TicketYa.
+1. Crear los organizadores, participantes y lugares necesarios.
+2. Configurar sectores y asientos.
+3. Crear un evento y asignar sus precios.
+4. Publicar el evento.
+5. Consultar los eventos publicados.
+6. Consultar disponibilidad de lugares.
+7. Crear una reserva temporal.
+8. Iniciar una compra.
+9. Procesar el pago.
+10. Verificar la confirmación de la reserva y la emisión de entradas.
+11. Consultar las entradas y sus códigos QR.
+12. Ejecutar una solicitud de devolución.
+13. Aprobar o rechazar la devolución.
+14. Verificar la actualización de la entrada, la disponibilidad y los reintegros.
+15. Ejecutar una cancelación de evento y consultar el procesamiento de sus notificaciones.
+
+### 9.3. Pruebas de error
+
+Las colecciones permiten comprobar respuestas HTTP ante operaciones inválidas, entre ellas:
+
+| Escenario | Resultado esperado |
+|---|---|
+| Datos de solicitud incompletos. | `400 Bad Request` |
+| Consulta de un recurso inexistente. | `404 Not Found` |
+| Publicación de un evento con configuración incompleta. | `409 Conflict` |
+| Intento de reservar un asiento ocupado. | `409 Conflict` |
+| Intento de confirmar una reserva vencida. | `409 Conflict` |
+| Solicitud de devolución fuera del plazo permitido. | Rechazo de la operación. |
+| Intento de publicar un evento cancelado. | `409 Conflict` |
+| Dependencia externa no disponible. | Respuesta de error según el contrato del servicio. |
+
+Las respuestas obtenidas permiten verificar que las reglas de negocio se apliquen correctamente y que los errores sean comunicados mediante los códigos HTTP correspondientes.
+
+## 10. Registro de resultados
+
+Los resultados de las pruebas pueden documentarse utilizando los reportes y registros generados por las herramientas de ejecución.
+
+### 10.1. Pruebas automatizadas
+
+Maven genera reportes de ejecución que permiten consultar:
+
+- Cantidad de pruebas ejecutadas.
+- Pruebas aprobadas.
+- Pruebas fallidas.
+- Errores de ejecución.
+- Tiempo utilizado durante las pruebas.
+
+Los reportes se encuentran en los directorios correspondientes de `target/` según la configuración de cada proyecto.
+
+### 10.2. Pruebas manuales
+
+Las verificaciones mediante Postman y PowerShell permiten registrar:
+
+- Método y ruta utilizados.
+- Datos enviados en la solicitud.
+- Código HTTP obtenido.
+- Cuerpo de respuesta.
+- Estado de los recursos antes y después de la operación.
+
+### 10.3. Concurrencia
+
+Las pruebas con MySQL permiten comprobar el resultado de las solicitudes simultáneas y la consistencia de los registros persistidos.
+
+La documentación específica de Reservas y Compras contiene la configuración y los comandos necesarios para ejecutar estos escenarios.
+
+## 11. Conclusión
+
+La estrategia de testing de TicketYa contempla las principales reglas de negocio de sus cuatro microservicios funcionales.
+
+Eventos y Lugares dispone de pruebas para publicación, búsqueda, configuración y cancelación de eventos.
+
+Reservas incorpora validaciones de disponibilidad, vencimiento lógico, confirmación, liberación e idempotencia, además de una prueba de concurrencia con MySQL.
+
+Compras y Pagos incluye pruebas relacionadas con importes, confirmaciones, idempotencia de pagos, concurrencia y reintegros.
+
+Entradas cuenta con pruebas para emisión, consulta, invalidación, solicitudes de devolución y generación de códigos QR.
+
+Las pruebas automatizadas de cada servicio y los procedimientos de validación funcional permiten evaluar tanto las operaciones individuales como los principales circuitos que componen el proceso de venta y gestión de entradas.
+
+La documentación de testing de cada microservicio complementa este plan con sus clases de prueba, escenarios y procedimientos de ejecución.

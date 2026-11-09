@@ -1,14 +1,21 @@
-# Maven
-target/
+# Archivos generados por Maven
+**/target/
 
-# Derby
-derby.log
+# Configuraciones locales de IDE
+**/.idea/
+**/.vscode/
 
-# VS Code
-.vscode/
+# Archivos de registro
+*.log
 
-# Windows
-Thumbs.db
+# Variables de entorno y credenciales
+.env
+**/.env
 
-# macOS
+# Bases de datos locales H2
+*.mv.db
+*.trace.db
+
+# Archivos temporales del sistema
 .DS_Store
+Thumbs.db

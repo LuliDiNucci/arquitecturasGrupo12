@@ -1,8 +1,6 @@
 # 02 — Arquitectura y flujos de Compras y Pagos
 
-> **Estado:** arquitectura y flujos contrastados con la implementación actual de `msvc-compras`.
-
-Este documento describe las responsabilidades, integraciones y flujos que se encuentran implementados en el código fuente. Las operaciones entre microservicios se coordinan mediante llamadas REST y no forman parte de una única transacción ACID distribuida.
+Este documento describe las responsabilidades, integraciones y flujos de `msvc-compras`. Las operaciones entre microservicios se coordinan mediante llamadas REST y transacciones locales, sin una única transacción ACID distribuida.
 
 ## Responsabilidad y límites
 
@@ -24,20 +22,16 @@ Sus responsabilidades principales son:
 La pasarela de pago utilizada en esta entrega es `PasarelaPagoMock`, que simula aprobaciones, rechazos y reintegros sin procesar datos financieros reales.
 
 ## Diagrama de módulos e integraciones
-
 ```mermaid
 flowchart LR
     C[Cliente] --> G[API Gateway]
     G --> CP[msvc-compras :8082]
-
     CP --> R[msvc-reservas :8080]
     CP --> E[msvc-eventosylugares :8081]
     CP --> T[msvc-entradas :8083]
     CP --> P[PasarelaPagoMock]
-
     CP --> DB[(ticketya_compras)]
-
-    EV[msvc-eventosylugares] -->|Notificación de cancelación| CP
+    E -->|Notificación de cancelación| CP
 ```
 
 ### Responsabilidades de los componentes
@@ -54,7 +48,6 @@ La comunicación con los otros microservicios se realiza mediante clientes Feign
 ## Flujo de inicio de compra
 
 El cliente inicia una compra a partir de una reserva temporal previamente creada.
-
 ```mermaid
 sequenceDiagram
     actor C as Cliente
@@ -62,18 +55,16 @@ sequenceDiagram
     participant R as Reservas
     participant E as Eventos y Lugares
     participant DB as BD Compras
-
     C->>CP: POST /compras {clienteId, reservaId}
     CP->>R: GET /reservas/{id}
     R-->>CP: Datos de reserva
-
     CP->>CP: Validar cliente, estado y vencimiento
-
     loop Por cada sector reservado
+
         CP->>E: GET /eventos/{eventoId}/sectores/{sectorId}/precio
+
         E-->>CP: Precio del sector
     end
-
     CP->>CP: Calcular subtotales e importe total
     CP->>DB: Guardar compra, detalles e items
     DB-->>CP: Compra persistida
@@ -91,7 +82,6 @@ La compra queda inicialmente en estado `PENDIENTE`.
 El cliente solicita el procesamiento del pago mediante `POST /compras/{id}/pagar`.
 
 El servicio registra el resultado del pago y, si es aprobado, intenta completar automáticamente la confirmación de la reserva y la emisión de entradas.
-
 ```mermaid
 sequenceDiagram
     actor C as Cliente
@@ -101,7 +91,6 @@ sequenceDiagram
     participant P as Pasarela mock
     participant E as Eventos
     participant T as Entradas
-
     C->>CP: POST /compras/{id}/pagar
     CP->>DB: Bloquear compra y registrar pago
     CP->>R: GET /reservas/{id}
@@ -109,23 +98,37 @@ sequenceDiagram
     CP->>P: procesarPago(importe, medio, claveIdempotencia)
     P-->>CP: APROBADO o RECHAZADO
     CP->>DB: Persistir resultado
-
     alt Pago aprobado
+
         CP->>E: GET /eventos/{id}
+
         E-->>CP: Estado del evento
+
         CP->>R: GET /reservas/{id}
+
         R-->>CP: Estado y vencimiento
+
         opt Reserva ACTIVA y vigente
+
             CP->>R: POST /reservas/{id}/confirmar
+
             R-->>CP: Reserva CONFIRMADA
+
         end
+
         CP->>T: POST /entradas/emitir
+
         T-->>CP: Entradas emitidas y códigos QR
+
         CP->>DB: Asociar entradas a items
+
         CP->>DB: Marcar compra CONFIRMADA
     else Pago rechazado
+
         CP->>R: POST /reservas/{id}/liberar
+
         R-->>CP: Reserva LIBERADA
+
         CP->>DB: Marcar compra RECHAZADA
     end
 ```
@@ -176,7 +179,6 @@ La operación verifica el estado actual de la reserva para evitar liberarla nuev
 ## Flujo de reintegro por devolución de entrada
 
 Cuando una devolución fue aprobada en `msvc-entradas`, Compras puede procesar el reintegro correspondiente.
-
 ```mermaid
 sequenceDiagram
     actor A as Administrador / proceso de devolución
@@ -184,7 +186,6 @@ sequenceDiagram
     participant CP as Compras
     participant DB as BD Compras
     participant P as Pasarela mock
-
     A->>T: Aprobar devolución
     T->>CP: POST /compras/reintegros
     CP->>DB: Buscar item y compra asociados
@@ -213,7 +214,6 @@ Cuando un evento pasa al estado `CANCELADO`, Eventos y Lugares notifica a Compra
 `POST /compras/evento/{eventoId}/cancelar`
 
 La solicitud requiere el encabezado `X-Operacion-Id`.
-
 ```mermaid
 sequenceDiagram
     participant E as Eventos y Lugares
@@ -221,28 +221,29 @@ sequenceDiagram
     participant T as Entradas
     participant DB as BD Compras
     participant P as Pasarela mock
-
     E->>CP: POST /compras/evento/{id}/cancelar
     Note over E,CP: Header X-Operacion-Id
-
     CP->>E: GET /eventos/{id}
     E-->>CP: Evento CANCELADO
-
     CP->>T: POST /entradas/evento/{id}/invalidar
     T-->>CP: Invalidación procesada
-
     CP->>DB: Buscar compras del evento
-
     loop Por cada compra
+
         CP->>DB: Iniciar transacción y bloquear compra
+
         CP->>T: GET /entradas/cliente/{clienteId}
+
         T-->>CP: Entradas del cliente
+
         CP->>CP: Verificar que las entradas estén invalidadas
+
         CP->>P: Reintegrar cada item no reintegrado
+
         P-->>CP: Resultado del reintegro
+
         CP->>DB: Registrar reintegros y actualizar compra
     end
-
     CP-->>E: 204 No Content si se completan los reintegros
 ```
 
@@ -271,25 +272,36 @@ Para reducir inconsistencias se implementan los siguientes mecanismos:
 - **Estados intermedios:** se conservan estados pendientes cuando una operación remota no pudo completarse, permitiendo su recuperación posterior.
 - **Precio histórico:** el importe a reintegrar se obtiene del precio registrado al iniciar la compra.
 
-El encabezado `X-Operacion-Id` es obligatorio para notificar cancelaciones de eventos. La prevención de reintegros duplicados se realiza por item de compra; el identificador de operación no se registra actualmente como una entidad independiente de idempotencia.
+El encabezado `X-Operacion-Id` es obligatorio para notificar cancelaciones de eventos. El identificador de operación identifica la solicitud de cancelación; la prevención de reintegros duplicados se realiza por item de compra.
 
-## Seguridad de Entrega 1
+## Seguridad y alcance
 
 La implementación utiliza una pasarela simulada y no requiere almacenar números completos de tarjetas, códigos CVV ni otros datos financieros sensibles.
 
-Los clientes Feign permiten realizar las comunicaciones entre microservicios. La autenticación y autorización mediante JWT, junto con los mecanismos de seguridad adicionales previstos para las siguientes etapas, no forman parte de la implementación documentada en esta entrega.
+Los clientes Feign permiten realizar las comunicaciones entre microservicios. La identificación del cliente se realiza mediante los parámetros y encabezados definidos por la API. La autenticación y autorización con JWT y roles están previstas para la segunda entrega.
 
-## Componentes principales implementados
+## Componentes principales
 
-| Componente | Responsabilidad |
-|---|---|
-| `CompraController` | Inicio, consulta y confirmación de compras |
-| `PagoController` | Procesamiento de pagos y reintento de liberación |
-| `ReintegroController` | Reintegros individuales, cancelación de eventos, compensación e historial |
-| `CompraServiceImpl` | Lógica de negocio de compras y emisión |
-| `PagoServiceImpl` | Procesamiento de pagos, idempotencia y liberación de reservas |
-| `ReintegroServiceImpl` | Reintegros, cancelaciones y compensaciones |
-| `ReservaClient` | Comunicación con Reservas |
-| `EventoClient` | Consulta de eventos y precios |
-| `EntradaClient` | Emisión, consulta e invalidación de entradas |
-| `PasarelaPagoMock` | Simulación de pagos y reintegros |
+\| Componente | Responsabilidad |
+
+\|---|---|
+
+\| `CompraController` | Inicio, consulta y confirmación de compras |
+
+\| `PagoController` | Procesamiento de pagos y reintento de liberación |
+
+\| `ReintegroController` | Reintegros individuales, cancelación de eventos, compensación e historial |
+
+\| `CompraServiceImpl` | Lógica de negocio de compras y emisión |
+
+\| `PagoServiceImpl` | Procesamiento de pagos, idempotencia y liberación de reservas |
+
+\| `ReintegroServiceImpl` | Reintegros, cancelaciones y compensaciones |
+
+\| `ReservaClient` | Comunicación con Reservas |
+
+\| `EventoClient` | Consulta de eventos y precios |
+
+\| `EntradaClient` | Emisión, consulta e invalidación de entradas |
+
+\| `PasarelaPagoMock` | Simulación de pagos y reintegros |

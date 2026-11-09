@@ -1,21 +1,19 @@
-# 02 - Arquitectura y Diagramas
+# 02 — Arquitectura y diagramas de Entradas
 
 ## 1. Descripción de la arquitectura
 
-El microservicio **msvc-entradas** forma parte de la arquitectura de microservicios de TicketYa.
+El microservicio `msvc-entradas` forma parte de la arquitectura de TicketYa y es responsable de la emisión, consulta, devolución e invalidación de entradas.
 
-Está desarrollado con **Spring Boot** y utiliza una arquitectura por capas para separar las responsabilidades de recepción de solicitudes, lógica de negocio, acceso a datos y comunicación con otros microservicios.
-
-Sus principales componentes son:
+Su implementación se organiza en los siguientes componentes:
 
 - **Controllers:** reciben las solicitudes HTTP y exponen los endpoints REST.
-- **Services:** implementan la lógica de negocio relacionada con entradas y devoluciones.
-- **Repositories:** permiten acceder y persistir información en la base de datos mediante Spring Data JPA.
-- **Entities:** representan las entidades que se almacenan en la base de datos.
-- **DTOs:** permiten transferir información entre las distintas capas y microservicios.
-- **Clients:** permiten comunicarse con otros microservicios mediante HTTP.
-- **QR Service:** genera las imágenes de los códigos QR de las entradas.
-- **OpenAPI / Swagger:** permite generar y visualizar automáticamente la documentación de los endpoints REST del microservicio.
+- **Services:** implementan las reglas de negocio relacionadas con entradas y devoluciones.
+- **Repositories:** permiten acceder y persistir información mediante Spring Data JPA.
+- **Entities:** representan las entidades persistentes del microservicio.
+- **DTOs:** transfieren información entre las distintas capas y microservicios.
+- **Clients:** permiten la comunicación HTTP con otros microservicios.
+- **QR Service:** genera las imágenes de los códigos QR.
+- **OpenAPI / Swagger:** proporciona la documentación de los endpoints REST.
 
 ## 2. Organización del proyecto
 
@@ -24,22 +22,22 @@ El código fuente se organiza en los siguientes paquetes:
 | Paquete | Responsabilidad |
 |---|---|
 | `controllers` | Exposición de endpoints REST. |
-| `services` | Interfaces y lógica de negocio. |
-| `services.impl` | Implementaciones de los servicios, como `EntradaServiceImpl` y `QrCodeServiceImpl`. |
+| `services` | Interfaces de los servicios. |
+| `services.impl` | Implementaciones como `EntradaServiceImpl` y `QrCodeServiceImpl`. |
 | `repositories` | Acceso a la base de datos. |
 | `entities` | Entidades persistentes `Entrada` y `SolicitudDevolucion`. |
-| `dtos` | Objetos utilizados para transferir información. |
-| `clients` | Comunicación con los microservicios externos. |
+| `dtos` | Objetos de transferencia de información. |
+| `clients` | Comunicación con microservicios externos. |
 
-La clase principal de la aplicación es `EntradasApplication`, que inicia Spring Boot y habilita los clientes OpenFeign mediante `@EnableFeignClients`.
+La clase principal es `EntradasApplication`, que inicia Spring Boot y habilita los clientes OpenFeign mediante `@EnableFeignClients`.
 
 ## 3. Arquitectura general
 
-El microservicio recibe solicitudes HTTP a través de sus controladores. Los controladores delegan las operaciones en los servicios, que ejecutan las validaciones y reglas de negocio.
+Las solicitudes HTTP son recibidas por los controladores, que delegan las operaciones en los servicios correspondientes.
 
-Cuando necesitan consultar o modificar información, los servicios utilizan los repositorios o los clientes de comunicación con otros microservicios.
+Los servicios ejecutan las validaciones y reglas de negocio, acceden a los repositorios para consultar o modificar información persistente y utilizan clientes HTTP para comunicarse con otros microservicios.
 
-Las entidades se almacenan en una base de datos MySQL propia del microservicio.
+Las entidades se almacenan en una base de datos MySQL propia de Entradas.
 
 ### Diagrama de componentes
 
@@ -50,12 +48,12 @@ flowchart TD
     Service["Services"]
     Repository["Repositories"]
     Entity["Entities"]
-    DB[("MySQL<br/>ticketya_entradas")]
+    DB[("MySQL - ticketya_entradas")]
     QR["QrCodeService"]
     Clients["Clients"]
     Compras["msvc-compras"]
     Reservas["msvc-reservas"]
-    Eventos["msvc-eventos-lugares"]
+    Eventos["msvc-eventosylugares"]
 
     Cliente --> Controller
     Controller --> Service
@@ -71,44 +69,44 @@ flowchart TD
 
 ## 4. Comunicación con otros microservicios
 
-El microservicio utiliza dos mecanismos para realizar llamadas HTTP:
+El microservicio utiliza dos mecanismos de comunicación HTTP:
 
-- **RestClient:** utilizado para consultar información de compras y reservas.
-- **OpenFeign:** utilizado para consultar eventos y ejecutar determinadas operaciones sobre compras y reservas.
+- **RestClient:** consulta información de compras y reservas.
+- **OpenFeign:** consulta eventos y ejecuta determinadas operaciones sobre compras y reservas.
 
-Los clientes se configuran mediante las URLs definidas en `application.properties`.
+Los clientes utilizan las URLs configuradas en `application.properties`.
 
-### 4.1. Comunicación con msvc-compras
+### 4.1. Comunicación con Compras
 
-Se utilizan dos clientes:
+Se utilizan dos clientes.
 
 **CompraClient (RestClient)**
 
-Permite consultar la confirmación de una compra mediante:
+Permite consultar el estado de confirmación de una compra:
 
 `GET /compras/{id}/confirmacion`
 
-La información recibida se utiliza para verificar que la compra tenga un pago aprobado y se encuentre habilitada para emitir entradas.
+La respuesta permite verificar que la compra tenga un pago aprobado y se encuentre habilitada para emitir entradas.
 
 **CompraFeignClient (OpenFeign)**
 
-Permite solicitar el reintegro de una entrada mediante:
+Permite solicitar el reintegro correspondiente a una devolución aprobada:
 
 `POST /compras/reintegros`
 
-Recibe un `DevolucionRequestDTO` con el identificador de la entrada y el motivo de devolución.
+La solicitud utiliza `DevolucionRequestDTO`, que contiene el identificador de la entrada y el motivo de devolución.
 
-### 4.2. Comunicación con msvc-reservas
+### 4.2. Comunicación con Reservas
 
-Se utilizan dos clientes:
+Se utilizan dos clientes.
 
 **ReservaClient (RestClient)**
 
-Permite consultar una reserva mediante:
+Permite consultar una reserva:
 
 `GET /reservas/{id}`
 
-La información recibida se utiliza para verificar que la reserva esté confirmada y corresponda a la compra.
+La información recibida permite verificar que la reserva esté confirmada y que corresponda a la compra.
 
 **ReservaFeignClient (OpenFeign)**
 
@@ -117,38 +115,38 @@ Expone las siguientes operaciones:
 - `POST /reservas/{id}/liberar`: solicita liberar una reserva.
 - `POST /reservas/{id}/devolver-entrada`: solicita devolver un lugar específico de una reserva.
 
-La operación de devolución de una entrada recibe un `DevolverEntradaDTO` con el identificador de la entrada, el sector y el asiento.
+La devolución individual utiliza `DevolverEntradaDTO`, con el identificador de la entrada, el sector y el asiento.
 
-### 4.3. Comunicación con msvc-eventos-lugares
+### 4.3. Comunicación con Eventos y Lugares
 
 Se utiliza `EventoFeignClient` mediante OpenFeign.
 
-Permite consultar un evento mediante:
+**Endpoint consultado:**
 
 `GET /eventos/{id}`
 
-La información obtenida incluye su identificador, fecha y hora y estado.
+La respuesta incluye el identificador, la fecha y hora y el estado del evento.
 
-Se utiliza principalmente para:
+Esta información se utiliza para:
 
-- Verificar que un evento esté cancelado antes de invalidar sus entradas.
-- Obtener la fecha del evento para comprobar el plazo mínimo de 72 horas en las solicitudes de devolución.
+- Verificar que un evento se encuentre cancelado antes de invalidar sus entradas.
+- Comprobar que falten al menos 72 horas para el evento cuando se solicita una devolución.
 
 ## 5. Flujos principales de funcionamiento
 
 ### 5.1. Flujo de emisión de entradas
 
-1. El cliente o sistema solicita la emisión enviando el identificador de una compra.
+1. El sistema solicita la emisión de entradas para una compra.
 2. `EntradaController` recibe la solicitud y delega la operación en `EntradaService`.
-3. `EntradaServiceImpl` verifica si ya existen entradas para esa compra.
-4. Si existen, devuelve las entradas anteriores para evitar duplicaciones.
+3. `EntradaServiceImpl` verifica si ya existen entradas emitidas para esa compra.
+4. Si existen, devuelve las entradas registradas para evitar duplicaciones.
 5. Si no existen, consulta el estado de la compra mediante `CompraClient`.
-6. Verifica que el pago esté aprobado y que la compra esté habilitada para emitir.
+6. Verifica que el pago esté aprobado y que la compra se encuentre habilitada para emitir.
 7. Consulta la reserva asociada mediante `ReservaClient`.
-8. Verifica que la reserva esté confirmada y que sus datos coincidan con la compra.
+8. Verifica que la reserva esté confirmada y que sus datos correspondan a la compra.
 9. Recorre los detalles de la reserva y genera una entrada por cada lugar adquirido.
 10. Genera un código QR único para cada entrada.
-11. Guarda las entradas mediante `EntradaRepository`.
+11. Persiste las entradas mediante `EntradaRepository`.
 12. Devuelve las entradas con sus respectivos códigos QR.
 
 ### Diagrama del flujo de emisión
@@ -171,35 +169,35 @@ flowchart TD
     L --> M["Devolver entradas"]
 ```
 
-### 5.2. Flujo de solicitud y aprobación de devolución
+### 5.2. Flujo de solicitud y resolución de devoluciones
 
-**Solicitud:**
+**Solicitud de devolución**
 
-1. El cliente envía una solicitud con el identificador de la entrada y el motivo.
+1. El cliente envía el identificador de la entrada y el motivo de devolución.
 2. `DevolucionController` recibe la solicitud.
-3. `DevolucionServiceImpl` busca la entrada.
-4. Verifica que esté en estado `EMITIDA`.
-5. Consulta el evento mediante `EventoFeignClient`.
-6. Comprueba que falten al menos 72 horas para el evento.
+3. `DevolucionServiceImpl` busca la entrada correspondiente.
+4. Verifica que se encuentre en estado `EMITIDA`.
+5. Consulta los datos del evento mediante `EventoFeignClient`.
+6. Comprueba que falten al menos 72 horas para el inicio del evento.
 7. Verifica que no exista otra solicitud pendiente para esa entrada.
-8. Guarda la solicitud con estado `PENDIENTE`.
+8. Registra la solicitud con estado `PENDIENTE`.
 
-**Aprobación:**
+**Aprobación de devolución**
 
 1. El administrador solicita aprobar una devolución.
-2. Se busca la solicitud correspondiente.
-3. Se verifica que esté pendiente o que ya esté aprobada para permitir reintentar las comunicaciones externas.
-4. Si está pendiente, se cambia a `APROBADA`, se registra el administrador y la fecha de resolución, y se invalida la entrada.
+2. Se obtiene la solicitud correspondiente.
+3. Se verifica que esté pendiente o previamente aprobada, permitiendo reintentar las comunicaciones externas.
+4. Cuando la solicitud está pendiente, cambia a `APROBADA`, se registra el administrador y la fecha de resolución y se invalida la entrada.
 5. Se confirma la transacción local.
-6. Se consulta nuevamente la solicitud y su entrada.
+6. Se consulta la solicitud y su entrada asociada.
 7. Se solicita a Reservas la devolución del lugar.
 8. Se solicita a Compras el reintegro correspondiente.
 
-**Rechazo:**
+**Rechazo de devolución**
 
 1. El administrador solicita rechazar una devolución.
-2. Se verifica que la solicitud esté pendiente.
-3. Se cambia su estado a `RECHAZADA`.
+2. Se verifica que la solicitud se encuentre en estado `PENDIENTE`.
+3. La solicitud cambia a `RECHAZADA`.
 4. Se registra el administrador y la fecha de resolución.
 5. La entrada conserva su estado `EMITIDA`.
 
@@ -229,21 +227,19 @@ flowchart TD
 
 El microservicio utiliza **MySQL** como sistema de gestión de base de datos.
 
-La base de datos configurada es:
-
-`ticketya_entradas`
+**Base de datos:** `ticketya_entradas`
 
 Las entidades persistentes son:
 
 - `Entrada`: almacena las entradas emitidas.
-- `SolicitudDevolucion`: almacena las solicitudes de devolución asociadas a las entradas.
+- `SolicitudDevolucion`: almacena las solicitudes de devolución.
 
 El acceso a los datos se realiza mediante Spring Data JPA y los repositorios:
 
 - `EntradaRepository`
 - `SolicitudDevolucionRepository`
 
-La configuración actual utiliza `spring.jpa.hibernate.ddl-auto=update`, por lo que Hibernate actualiza el esquema de la base de datos según las entidades.
+La configuración utiliza `spring.jpa.hibernate.ddl-auto=update`, por lo que Hibernate actualiza el esquema de la base de datos según las entidades definidas.
 
 ## 7. Configuración del microservicio
 
@@ -252,30 +248,26 @@ La configuración principal se encuentra en `application.properties`.
 | Propiedad | Valor o configuración | Descripción |
 |---|---|---|
 | `spring.application.name` | `msvc-entradas` | Nombre de la aplicación. |
-| `server.port` | `8083` | Puerto en el que se ejecuta el microservicio. |
+| `server.port` | `8083` | Puerto del microservicio. |
 | Base de datos | `ticketya_entradas` | Base de datos MySQL propia. |
-| `msvc.reservas.url` | `http://localhost:8080` | URL del microservicio Reservas. |
-| `msvc.compras.url` | `http://localhost:8082` | URL del microservicio Compras. |
-| `msvc.eventos.url` | `http://localhost:8081` | URL del microservicio Eventos y Lugares. |
+| `msvc.reservas.url` | `http://localhost:8080` | URL de Reservas. |
+| `msvc.compras.url` | `http://localhost:8082` | URL de Compras. |
+| `msvc.eventos.url` | `http://localhost:8081` | URL de Eventos y Lugares. |
 
 Las credenciales de MySQL se obtienen mediante las variables de entorno `DB_USERNAME` y `DB_PASSWORD`, con valores predeterminados configurados para el entorno local.
 
 ## 8. Documentación de la API REST
 
-El microservicio utiliza **Springdoc OpenAPI** para generar automáticamente la documentación de sus endpoints REST.
+El microservicio utiliza **Springdoc OpenAPI** para generar la documentación de los endpoints REST.
 
-La documentación se complementa con anotaciones de OpenAPI que permiten describir las operaciones, sus respuestas y los DTOs utilizados.
-
-Se utilizan las siguientes anotaciones:
+La documentación se complementa con las siguientes anotaciones:
 
 - `@Tag`: agrupa los endpoints por controlador.
-- `@Operation`: describe cada operación REST.
-- `@ApiResponse`: documenta las posibles respuestas HTTP.
-- `@Schema`: describe los DTOs y sus atributos.
+- `@Operation`: describe las operaciones REST.
+- `@ApiResponse`: documenta las respuestas HTTP.
+- `@Schema`: describe los DTO y sus atributos.
 
 ### 8.1. Acceso a la documentación
-
-La documentación puede consultarse de dos maneras:
 
 | Recurso | Dirección |
 |---|---|
@@ -283,22 +275,18 @@ La documentación puede consultarse de dos maneras:
 | OpenAPI JSON directo | `http://localhost:8083/v3/api-docs` |
 | OpenAPI JSON mediante Gateway | `http://localhost:8084/entradas/v3/api-docs` |
 
-Swagger UI permite visualizar los endpoints y consultar sus parámetros, DTOs y respuestas.
+Swagger UI permite consultar las operaciones disponibles, sus parámetros, los DTO utilizados y las posibles respuestas.
 
-El Gateway expone el documento OpenAPI del microservicio mediante una ruta específica, redirigiendo las solicitudes hacia `/v3/api-docs` del servicio original.
-
-### 8.2. Objetivo
-
-La documentación facilita la comprensión y consulta de los contratos REST, permitiendo identificar las operaciones disponibles y los datos necesarios para interactuar con el microservicio.
+El Gateway expone el documento OpenAPI del microservicio mediante una ruta que dirige las solicitudes hacia `/v3/api-docs` del servicio original.
 
 ## 9. Consideraciones arquitectónicas
 
 - Cada microservicio administra su propia información y base de datos.
-- `msvc-entradas` no almacena entidades de Compras, Reservas ni Eventos: utiliza DTOs para recibir la información necesaria.
+- `msvc-entradas` no almacena las entidades de Compras, Reservas ni Eventos; utiliza DTO para intercambiar la información necesaria.
 - La comunicación entre microservicios se realiza mediante HTTP.
 - Las operaciones locales sobre la base de datos utilizan transacciones de Spring.
-- Las llamadas a otros microservicios no forman parte de una transacción distribuida.
-- La emisión de entradas evita duplicaciones al comprobar si ya existen entradas asociadas a la compra.
+- Las llamadas a otros microservicios no forman parte de una única transacción distribuida.
+- La emisión de entradas evita duplicaciones comprobando si ya existen entradas asociadas a la compra.
 - La aprobación de devoluciones permite reintentar las comunicaciones externas cuando la solicitud ya fue aprobada.
-- La invalidación por cancelación de eventos modifica las entradas localmente, pero no coordina actualmente la liberación de reservas ni los reintegros.
-- La documentación de los endpoints REST se genera mediante Springdoc OpenAPI y puede consultarse directamente o a través del Gateway.
+- Ante la cancelación de un evento, Entradas invalida las entradas correspondientes. La coordinación general de la cancelación se realiza desde Eventos y Lugares, con operaciones sobre Reservas, Entradas y Compras para gestionar la liberación de lugares, la invalidación de entradas y los reintegros.
+- La documentación de la API REST se genera mediante Springdoc OpenAPI y puede consultarse directamente o a través del Gateway.

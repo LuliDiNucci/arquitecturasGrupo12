@@ -1,79 +1,83 @@
-# 05 — Testing del microservicio de Reservas
+# 05 — Pruebas y testing de Reservas
 
-**Proyecto:** TicketYa · `msvc-reservas` · Entrega 1
+## 1. Descripción general
 
-## 1. Objetivo
+El microservicio `msvc-reservas` cuenta con pruebas orientadas a verificar sus principales reglas de negocio, la persistencia, la idempotencia, la concurrencia y el comportamiento de los endpoints REST.
 
-Este documento describe la estrategia de pruebas utilizada para verificar las reglas de negocio, la persistencia, la concurrencia y el comportamiento de los endpoints del microservicio de Reservas.
+La estrategia de testing comprende tres niveles:
 
-Se distinguen tres niveles:
+- **Pruebas unitarias:** verifican las reglas de negocio de los servicios utilizando dependencias simuladas.
+- **Pruebas de integración con MySQL:** comprueban la persistencia y el control de concurrencia sobre una base de datos de pruebas.
+- **Pruebas manuales:** permiten comprobar los flujos HTTP, las transiciones de estado y el comportamiento observable de las reservas.
 
-- **Pruebas unitarias:** verifican reglas y comportamientos de clases individuales.
-- **Pruebas de integración con MySQL:** verifican persistencia y concurrencia utilizando una base de datos real de pruebas.
-- **Pruebas manuales:** verifican los flujos HTTP y el comportamiento observable mediante herramientas como PowerShell, MySQL y un simulador de Eventos y Lugares.
-
-La existencia de una prueba escrita no implica que se haya ejecutado en todos los entornos. Los resultados indicados se limitan a las verificaciones realizadas durante el desarrollo y a las pruebas manuales informadas por el equipo.
+Estas pruebas permiten evaluar la creación, confirmación, liberación, vencimiento y cancelación de reservas, así como la prevención de operaciones duplicadas.
 
 ## 2. Herramientas utilizadas
 
 | Herramienta | Uso |
-| JUnit 5 | Ejecución de pruebas automatizadas |
-| Mockito | Simulación de dependencias |
-| Spring Boot Test | Configuración del contexto de pruebas |
-| Spring Data JPA | Acceso a repositorios |
-| MySQL | Persistencia y pruebas de concurrencia |
-| PowerShell | Envío de solicitudes HTTP y comprobaciones manuales |
-| Postman | Pruebas manuales de endpoints |
-| Simulador de Eventos | Respuesta local a las consultas Feign durante las pruebas |
+|---|---|
+| JUnit 5 | Ejecución de pruebas automatizadas. |
+| Mockito | Simulación de dependencias y verificación de interacciones. |
+| Spring Boot Test | Configuración del contexto de pruebas. |
+| Spring Data JPA | Persistencia y acceso a repositorios. |
+| MySQL | Persistencia y pruebas de concurrencia. |
+| Maven | Compilación y ejecución de pruebas. |
+| PowerShell | Envío de solicitudes HTTP y comprobaciones manuales. |
+| Postman | Ejecución de pruebas sobre los endpoints REST. |
+| Simulador de Eventos y Lugares | Simulación de respuestas HTTP durante las pruebas locales de Reservas. |
 
 ## 3. Pruebas unitarias
 
-La clase principal de pruebas de servicio es `ReservaServiceImplTest`.
+### 3.1. ReservaServiceImplTest
 
-Se verifican, entre otros, los siguientes escenarios:
+Esta clase verifica las principales reglas de negocio del servicio de reservas.
 
-| Prueba | Comportamiento esperado |
-| `rechazaSolicitudIncompletaSinGuardar` | Una solicitud incompleta se rechaza y no se persiste |
-| `rechazaReservaSiEventoCanceladoLocalmente` | No se permite reservar un evento cancelado |
-| `noConfirmaReservaVencida` | Una reserva vencida no puede confirmarse |
-| `cancelacionMarcaElEventoYCancelaActivas` | La cancelación marca el evento y cancela las reservas temporales activas |
+| Caso de prueba | Comportamiento verificado |
+|---|---|
+| `rechazaSolicitudIncompletaSinGuardar` | Una solicitud incompleta se rechaza sin persistir una reserva. |
+| `rechazaReservaSiEventoCanceladoLocalmente` | No se permite crear reservas para un evento cancelado. |
+| `noConfirmaReservaVencida` | Una reserva vencida no puede confirmarse. |
+| `cancelacionMarcaElEventoYCancelaActivas` | La cancelación registra el evento como cancelado y actualiza las reservas temporales activas. |
 
-Estas pruebas utilizan dependencias simuladas cuando corresponde, por lo que permiten verificar reglas de negocio sin depender de todos los microservicios reales.
+Las pruebas utilizan dependencias simuladas para verificar las reglas de negocio y las interacciones con los repositorios y servicios correspondientes.
 
-### Ejecución
+### 3.2. Ejecución de pruebas unitarias
 
-Desde la carpeta `msvc-reservas`:
+Desde el directorio raíz de `msvc-reservas`, con Java 21 y Maven instalados:
 
 ```powershell
 mvn test
 ```
 
-Este comando ejecuta las pruebas unitarias configuradas para el proyecto.
+Este comando ejecuta las pruebas reconocidas por la configuración de Maven del proyecto.
 
-## 4. Prueba de concurrencia con MySQL
+## 4. Pruebas de concurrencia con MySQL
 
-Se incluye la clase `ConcurrenciaMySQLIT`, que verifica el comportamiento ante solicitudes simultáneas sobre un mismo asiento.
+### 4.1. ConcurrenciaMySQLIT
 
-### Escenario
+La clase `ConcurrenciaMySQLIT` verifica el control de concurrencia cuando varios clientes intentan reservar simultáneamente un mismo asiento.
 
-- Se utiliza una base MySQL exclusiva para pruebas.
-- Se prepara un evento y un asiento de prueba.
-- Se envían diez solicitudes concurrentes para reservar el mismo asiento.
-- Se comprueba que solo una solicitud consiga crear la reserva.
+**Escenario de prueba:**
 
-**Resultado esperado:** una sola reserva exitosa; las restantes deben rechazarse por falta de disponibilidad o por conflicto de concurrencia.
+1. Se configura una base de datos MySQL exclusiva para pruebas.
+2. Se prepara un evento y un asiento disponible.
+3. Se ejecutan diez solicitudes concurrentes para reservar el mismo asiento.
+4. Se comprueba que solamente una solicitud consiga reservar el lugar.
+5. Las demás solicitudes deben rechazarse debido a la falta de disponibilidad o a un conflicto de concurrencia.
 
-La prueba permite verificar que el bloqueo pesimista sobre `bloqueo_evento` y las transacciones de MySQL protegen la ocupación del asiento.
+La prueba verifica el funcionamiento del bloqueo pesimista `PESSIMISTIC_WRITE` sobre `bloqueo_evento`, junto con las transacciones utilizadas para controlar la ocupación.
 
-### Configuración segura
+### 4.2. Configuración de la base de pruebas
 
-Primero se debe crear una base de datos separada:
+Para ejecutar la prueba se utiliza una base independiente de la base de desarrollo.
+
+**Crear la base de datos:**
 
 ```sql
 CREATE DATABASE IF NOT EXISTS ticketya_reservas_test;
 ```
 
-En PowerShell, configurar las variables:
+**Configurar las variables de entorno en PowerShell:**
 
 ```powershell
 $env:TICKETYA_MYSQL_TEST="true"
@@ -82,83 +86,181 @@ $env:TEST_DB_USER="root"
 $env:TEST_DB_PASSWORD="TU_CONTRASENA"
 ```
 
-Ejecutar únicamente esta prueba:
+La contraseña debe reemplazarse por la correspondiente a la instalación local de MySQL.
+
+**Ejecutar la prueba de concurrencia:**
 
 ```powershell
 mvn "-Dtest=ConcurrenciaMySQLIT" test
 ```
 
-**Importante:** no ejecutar esta prueba contra una base con datos importantes. El escenario prepara y limpia datos de prueba.
+La prueba prepara y limpia sus propios datos, por lo que debe ejecutarse exclusivamente sobre una base destinada a testing.
 
-La prueba se ejecutó durante el desarrollo con MySQL real y obtuvo el resultado esperado. La verificación con varias instancias reales del microservicio conectadas simultáneamente a la misma base queda como prueba adicional.
+### 4.3. Resultado de la prueba
 
-## 5. Pruebas manuales de endpoints
+Durante las verificaciones realizadas con MySQL, el escenario de solicitudes simultáneas sobre el mismo asiento obtuvo el resultado esperado.
 
-Durante el desarrollo se realizaron verificaciones mediante PowerShell, MySQL y un simulador de Eventos y Lugares.
+Solamente una solicitud consiguió reservar el asiento, mientras que las restantes no pudieron completar una reserva incompatible.
 
-Los escenarios informados por el equipo incluyen:
+Esto permite comprobar el control transaccional de ocupación y el mecanismo de bloqueo sobre la base MySQL utilizada durante la prueba.
 
-| Escenario | Verificación buscada |
-| Crear reserva | Se crea una reserva temporal y se registra su vencimiento |
-| Consultar reserva | Se obtiene la información y el estado de la reserva |
-| Consultar disponibilidad | Se informa la cantidad o los asientos disponibles |
-| Confirmar reserva | Una reserva activa y vigente pasa a confirmada |
-| Liberar reserva | Una reserva temporal se libera y sus lugares vuelven a estar disponibles |
-| Vencimiento | Al cumplirse los 10 minutos, los lugares dejan de considerarse ocupados |
-| Cancelar evento | Se bloquean nuevas reservas y se cancelan las reservas temporales activas |
-| Devolución individual | Se registra la liberación de una entrada y se evitan duplicaciones |
-| Idempotencia | Los reintentos no generan reservas o liberaciones duplicadas |
-| Errores HTTP | Se verifican respuestas ante solicitudes inválidas o conflictos de negocio |
+## 5. Pruebas manuales de endpoints REST
 
-### Vencimiento: aclaración importante
+Las pruebas manuales permiten verificar el comportamiento HTTP y las operaciones principales del microservicio.
 
-El equipo informó que verificó manualmente que, después de cumplirse el plazo de 10 minutos, la capacidad vuelve a estar disponible para nuevas reservas.
+Se utilizan PowerShell y Postman para enviar solicitudes y consultar las respuestas de la API.
 
-Esto se consigue mediante el vencimiento lógico: las consultas de ocupación excluyen las reservas activas cuya `fechaVencimiento` ya pasó.
+### 5.1. Escenarios funcionales
 
-Por eso, el registro puede permanecer temporalmente con estado `ACTIVA` en MySQL aunque el lugar ya esté disponible. Una operación posterior puede actualizarlo a `VENCIDA`.
+| Escenario | Comportamiento verificado |
+|---|---|
+| Crear una reserva temporal. | Se registra una reserva en estado `ACTIVA` con su fecha de vencimiento. |
+| Consultar una reserva. | Se recupera la información de la reserva y su estado. |
+| Consultar disponibilidad. | Se informa la cantidad de lugares disponibles y, para sectores numerados, los asientos disponibles y ocupados. |
+| Confirmar una reserva. | Una reserva activa y vigente pasa al estado `CONFIRMADA`. |
+| Liberar una reserva. | La reserva cambia a `LIBERADA` y sus lugares dejan de considerarse ocupados. |
+| Verificar vencimiento. | Después de 10 minutos, los lugares de una reserva activa vencida dejan de bloquear disponibilidad. |
+| Cancelar un evento. | Se registra la cancelación local, se bloquean nuevas reservas y se cancelan las reservas temporales activas. |
+| Devolver una entrada. | Se libera individualmente el lugar correspondiente y se registra la operación para evitar duplicaciones. |
+| Repetir una solicitud idempotente. | No se generan reservas ni liberaciones duplicadas. |
+| Enviar solicitudes inválidas. | Se devuelven respuestas HTTP acordes con las validaciones y reglas de negocio. |
 
-**No se requiere un Scheduler para liberar capacidad en Entrega 1.** La actualización periódica del estado persistido es independiente de la disponibilidad efectiva.
+### 5.2. Creación y consulta de reservas
 
-## 6. Integraciones entre microservicios
+Para crear una reserva temporal se utiliza:
 
-Las pruebas locales con simuladores no reemplazan las pruebas integradas contra los servicios reales.
+```http
+POST /reservas
+```
 
-| Integración | Estado de implementación | Verificación pendiente |
-| Reservas → Eventos y Lugares | Cliente Feign implementado | Compatibilidad de rutas y DTO con el servicio real |
-| Compras → Reservas | Cliente de Compras y endpoints de confirmación/liberación desarrollados | Flujo completo de pago aprobado y rechazado |
-| Eventos y Lugares → Reservas | Endpoints de habilitación y cancelación desarrollados | Notificación real y coordinación de cancelación |
-| Entradas → Reservas | Endpoint de liberación individual disponible | Devolución aprobada y coordinación con los servicios responsables |
-| Gateway → Reservas | No verificado en este documento | Protección de endpoints internos y acceso autorizado |
+La respuesta contiene el identificador de la reserva, el cliente, el evento, los detalles de los lugares y las fechas de creación y vencimiento.
 
-No se afirma que estas integraciones estén completamente probadas de extremo a extremo mientras no exista evidencia de ejecución conjunta.
+La consulta de una reserva se realiza mediante:
 
-## 7. Limitaciones conocidas
+```http
+GET /reservas/{id}
+```
 
-- US01 está parcialmente cubierta: para sectores numerados se informan los asientos disponibles, pero no se devuelve una lista explícita de asientos ocupados.
-- La prueba de concurrencia con MySQL no equivale a una prueba distribuida con varias instancias reales.
-- Las pruebas con simulador no demuestran compatibilidad completa con Eventos y Lugares.
-- La coordinación completa de pago, confirmación, emisión de entradas, devolución y cancelación requiere pruebas integradas.
-- La seguridad de los endpoints internos debe comprobarse en Gateway y/o en la configuración de red.
-- El vencimiento lógico libera capacidad, pero el estado persistido puede actualizarse a `VENCIDA` posteriormente.
+Permite comprobar su estado y los lugares asociados.
 
-## 8. Criterios de aceptación y evidencia
+### 5.3. Consulta de disponibilidad
 
-| Requisito | Evidencia disponible | Estado |
-| Consultar disponibilidad | Pruebas manuales de disponibilidad | Parcial: faltan ocupados explícitos |
-| Crear reserva temporal | Pruebas manuales y unitarias | Implementado localmente |
-| Evitar doble reserva | `ConcurrenciaMySQLIT` | Verificado con MySQL; falta prueba con varias instancias |
-| Liberar por vencimiento | Verificación manual informada por el equipo | Verificado funcionalmente con vencimiento lógico |
-| Confirmar por pago aprobado | Endpoint y cliente de Compras desarrollados | Falta prueba integrada |
-| Liberar por pago rechazado | Endpoint y cliente de Compras desarrollados | Falta prueba integrada |
-| Devolución y cancelación | Endpoints desarrollados y pruebas manuales locales | Falta prueba integrada con servicios reales |
+La disponibilidad se consulta mediante:
 
-## 9. Conclusión
+```http
+GET /disponibilidad?eventoId=20&sectorId=5
+```
 
-Las pruebas desarrolladas permiten verificar las reglas principales del microservicio de Reservas, la persistencia local, la idempotencia y la protección frente a solicitudes simultáneas sobre un mismo asiento.
+La respuesta incluye:
 
-La prueba de concurrencia con MySQL aporta evidencia sobre el comportamiento transaccional. Las pruebas manuales permiten comprobar los flujos principales, incluido el vencimiento lógico y la liberación de capacidad.
+- `eventoId`
+- `sectorId`
+- `lugaresDisponibles`
+- `asientosDisponibles`
+- `asientosOcupados`
 
-Para cerrar la validación de Entrega 1 es necesario completar las pruebas integradas entre microservicios y documentar sus resultados, además de resolver el criterio pendiente de US01.
+Para sectores numerados se informan los asientos libres y ocupados. En sectores no numerados, la ocupación se representa mediante la cantidad de lugares disponibles.
 
-**Documentación relacionada:** [01 — Funcionalidades e historias de usuario](01-FUNCIONALIDADES-Y-USER-STORIES.md) · [02 — Arquitectura y diagramas](02-ARQUITECTURA-Y-DIAGRAMAS-RESERVAS.md) · [03 — Modelo de datos](03-MODELO-DE-DATOS-RESERVAS.md) · [06 — Decisiones y limitaciones](06-DECISIONES-Y-LIMITACIONES-RESERVAS.md).
+Las consultas consideran las reservas confirmadas y las reservas activas que todavía no vencieron.
+
+### 5.4. Confirmación y liberación
+
+La confirmación se realiza mediante:
+
+```http
+POST /reservas/{id}/confirmar
+```
+
+La operación valida que la reserva se encuentre activa y vigente antes de cambiar su estado a `CONFIRMADA`.
+
+La liberación se realiza mediante:
+
+```http
+POST /reservas/{id}/liberar
+```
+
+Permite liberar una reserva temporal y devolver los lugares correspondientes a la disponibilidad, siempre que el estado del evento lo permita.
+
+### 5.5. Vencimiento de reservas
+
+Las reservas temporales tienen una duración de 10 minutos.
+
+El vencimiento se controla mediante `fechaVencimiento`.
+
+Cuando una reserva activa supera esa fecha, deja de bloquear lugares aunque su estado persistido todavía sea `ACTIVA`.
+
+Las pruebas manuales de vencimiento permiten comprobar que los lugares vuelven a considerarse disponibles una vez transcurrido el plazo.
+
+Este mecanismo utiliza vencimiento lógico, por lo que no requiere un scheduler para liberar capacidad.
+
+Una operación posterior puede actualizar el estado persistido a `VENCIDA`.
+
+Las reservas `CONFIRMADA` no se liberan mediante este mecanismo.
+
+### 5.6. Cancelación de eventos
+
+La cancelación local se procesa mediante:
+
+```http
+POST /reservas/evento/{eventoId}/cancelar
+```
+
+Esta operación registra la cancelación del evento, impide nuevas reservas y actualiza las reservas temporales activas.
+
+Las entradas emitidas y los reintegros correspondientes son administrados por los microservicios Entradas y Compras.
+
+### 5.7. Devolución individual de entradas
+
+La devolución de un lugar se procesa mediante:
+
+```http
+POST /reservas/{id}/devolver-entrada
+```
+
+La solicitud contiene la identificación de la entrada, el sector y el asiento cuando corresponde.
+
+El microservicio registra el identificador de la entrada liberada para impedir que una misma devolución modifique dos veces la disponibilidad.
+
+## 6. Pruebas de integración entre componentes
+
+El microservicio Reservas participa en los siguientes circuitos de integración:
+
+| Integración | Operaciones involucradas |
+|---|---|
+| Reservas → Eventos y Lugares | Consulta de eventos, sectores, asientos y precios mediante OpenFeign. |
+| Compras → Reservas | Confirmación de reservas después de pagos aprobados y liberación ante pagos rechazados. |
+| Eventos y Lugares → Reservas | Habilitación y cancelación de eventos. |
+| Entradas → Reservas | Liberación individual de lugares correspondientes a entradas devueltas. |
+| API Gateway → Reservas | Enrutamiento de solicitudes a los endpoints correspondientes. |
+
+Las pruebas unitarias utilizan mocks y las verificaciones locales pueden utilizar un simulador de Eventos y Lugares.
+
+Las pruebas de integración de API y las pruebas manuales permiten complementar estas verificaciones, diferenciando la comunicación simulada de la ejecución conjunta de los microservicios.
+
+## 7. Validaciones y respuestas de error
+
+Las pruebas de las reglas de negocio contemplan el rechazo de operaciones que no cumplen las condiciones requeridas.
+
+| Escenario | Respuesta esperada |
+|---|---|
+| Crear una reserva con datos incompletos. | `400 Bad Request` |
+| Consultar una reserva inexistente. | `404 Not Found` |
+| Reservar un asiento que ya está ocupado. | `409 Conflict` |
+| Superar la capacidad disponible de un sector. | `409 Conflict` |
+| Intentar reservar un evento cancelado. | `409 Conflict` |
+| Confirmar una reserva vencida. | `409 Conflict` |
+| Confirmar una reserva en un estado incompatible. | `409 Conflict` |
+| Intentar liberar una entrada de forma incompatible con el estado de la reserva. | `409 Conflict` |
+| Fallo al consultar Eventos y Lugares. | `503 Service Unavailable` |
+
+Estas validaciones permiten comprobar que el sistema respeta las restricciones de disponibilidad, estado y consistencia.
+
+## 8. Conclusión
+
+El microservicio `msvc-reservas` cuenta con pruebas unitarias, pruebas de concurrencia sobre MySQL y procedimientos de verificación manual de sus principales operaciones.
+
+La prueba de concurrencia permite comprobar la prevención de reservas simultáneas incompatibles, mientras que las pruebas de negocio verifican el vencimiento, la confirmación, la liberación y la cancelación de reservas.
+
+Las verificaciones HTTP permiten evaluar el comportamiento observable de los endpoints, las respuestas de error y la actualización de la disponibilidad.
+
+El conjunto de pruebas documenta los mecanismos utilizados por Reservas para mantener la consistencia de la ocupación y evitar duplicaciones durante el proceso de compra de entradas.

@@ -1,18 +1,18 @@
-# 01 — Funcionalidades y User Stories de TicketYa
+# 01 — Funcionalidades e historias de usuario de TicketYa
 
 ## 1. Descripción general
 
-TicketYa es un sistema de gestión y venta de entradas para eventos, que permite consultar eventos y lugares, reservar temporalmente ubicaciones, realizar compras y pagos, emitir entradas digitales y gestionar devoluciones.
+TicketYa es un sistema de venta y gestión de entradas para eventos, que permite consultar eventos y lugares, reservar temporalmente ubicaciones, realizar compras y pagos, emitir entradas digitales con códigos QR y gestionar devoluciones y cancelaciones.
 
-La solución está organizada en microservicios, cada uno con responsabilidades específicas:
+La solución está organizada en cuatro microservicios funcionales y un API Gateway:
 
-- **Eventos y Lugares:** administra lugares, sectores, asientos, organizadores, participantes, eventos y precios. También gestiona los estados de los eventos y comunica sus cancelaciones.
-- **Reservas:** administra la disponibilidad y ocupación de los lugares, crea reservas temporales, controla su vencimiento y gestiona su confirmación o liberación.
-- **Compras y Pagos:** registra las compras, calcula importes, procesa pagos mediante una pasarela simulada, coordina la confirmación de compras y gestiona reintegros.
-- **Entradas:** emite entradas digitales, genera códigos QR, permite consultar entradas y gestiona solicitudes de devolución e invalidación.
-- **Gateway:** proporciona un punto de entrada para acceder a los microservicios mediante el enrutamiento correspondiente.
+- **Eventos y Lugares:** administra lugares, sectores, asientos, organizadores, participantes, eventos y precios. También gestiona los estados de los eventos y coordina sus cancelaciones.
+- **Reservas:** administra la disponibilidad y ocupación de lugares, crea reservas temporales, controla su vencimiento y gestiona confirmaciones y liberaciones.
+- **Compras y Pagos:** registra compras, calcula importes, procesa pagos mediante una pasarela simulada, coordina confirmaciones y gestiona reintegros.
+- **Entradas:** emite entradas digitales, genera códigos QR, permite consultar entradas y administra solicitudes de devolución e invalidaciones.
+- **API Gateway:** centraliza el acceso al sistema y enruta las solicitudes a los microservicios correspondientes.
 
-Este documento reúne las funcionalidades e historias de usuario de los distintos microservicios, indicando las responsabilidades de cada uno y las principales limitaciones identificadas en la implementación.
+Este documento presenta las funcionalidades e historias de usuario del sistema completo. Los criterios de aceptación específicos se encuentran desarrollados en la documentación de cada microservicio.
 
 ## 2. Actores involucrados
 
@@ -20,15 +20,16 @@ Este documento reúne las funcionalidades e historias de usuario de los distinto
 |---|---|
 | Cliente | Consulta eventos, selecciona lugares, realiza reservas, compra entradas y solicita devoluciones. |
 | Administrador | Gestiona lugares y eventos, consulta solicitudes de devolución y aprueba o rechaza las solicitudes. |
-| Organizador | Participa en la gestión y organización de eventos según los permisos definidos. |
+| Organizador | Gestiona la información y configuración de los eventos. |
 | Sistema TicketYa | Coordina las operaciones entre microservicios y ejecuta procesos automáticos de gestión. |
-| Microservicios | Intercambian información y ejecutan las operaciones correspondientes a sus responsabilidades. |
+
+Los microservicios también actúan como consumidores de las APIs de otros servicios cuando necesitan consultar información o solicitar operaciones.
 
 ## 3. Funcionalidades por microservicio
 
 ### 3.1. Eventos y Lugares
 
-**Objetivo:** administrar la información de los lugares donde se realizan eventos y la configuración necesaria para su publicación y consulta.
+**Objetivo:** administrar la información de los lugares donde se realizan los eventos y la configuración necesaria para su publicación, consulta y gestión.
 
 **Funcionalidades principales:**
 
@@ -36,29 +37,41 @@ Este documento reúne las funcionalidades e historias de usuario de los distinto
 - Crear sectores numerados y no numerados, estableciendo sus capacidades.
 - Registrar asientos para sectores numerados.
 - Registrar organizadores y participantes.
-- Crear eventos en estado borrador.
+- Crear eventos en estado `BORRADOR`.
 - Configurar precios por sector para cada evento.
-- Publicar, modificar y suspender eventos.
+- Publicar, modificar, suspender, reabrir y cancelar eventos.
 - Consultar eventos mediante filtros de tipo, organizador, participante, ciudad, fechas y texto.
-- Consultar si un evento está habilitado para realizar reservas.
-- Consultar los sectores y precios configurados para un evento.
-- Cancelar eventos y comunicar la cancelación a los microservicios relacionados.
+- Ordenar eventos por fecha, precio o relevancia.
+- Consultar si un evento está habilitado para recibir reservas.
+- Consultar los sectores, asientos y precios configurados para cada evento.
+- Registrar notificaciones de cancelación y coordinar su procesamiento con los demás servicios.
 
-**Historias de usuario principales:**
+**Historias de usuario:**
 
-- **US-EV-01 a US-EV-03:** registrar lugares, sectores y asientos.
-- **US-EV-04:** registrar organizadores y participantes.
-- **US-EV-05 a US-EV-08:** crear, configurar, publicar y modificar eventos.
-- **US-EV-09 y US-EV-10:** consultar eventos, sectores y precios.
-- **US-EV-11:** suspender y volver a publicar eventos.
-- **US-EV-12:** cancelar eventos y notificar a los servicios relacionados.
+| Historia | Funcionalidad |
+|---|---|
+| US01 | Crear un lugar. |
+| US02 | Crear sectores numerados y no numerados. |
+| US03 | Registrar asientos numerados. |
+| US04 | Registrar organizadores y participantes. |
+| US05 | Crear un evento en borrador. |
+| US06 | Configurar precios por sector. |
+| US07 | Publicar un evento. |
+| US08 | Modificar un evento. |
+| US09 | Buscar eventos mediante criterios combinables. |
+| US10 | Consultar información para Reservas y Compras. |
+| US11 | Suspender un evento. |
+| US12 | Cancelar un evento y notificar a otros microservicios. |
 
-**Limitaciones y consideraciones:**
+**Reglas principales:**
 
-- Los eventos no publicados no se muestran en las consultas públicas por defecto.
-- La consulta de sectores y precios no informa la ocupación ni el stock disponible: esa responsabilidad corresponde a Reservas.
-- Eventos y Lugares no ejecuta directamente los reintegros ni invalida los códigos QR; comunica la cancelación para que los otros servicios realicen las operaciones que les corresponden.
-- La integración con los servicios externos cuenta con mecanismos de reintento, pero no todos los receptores procesan actualmente `X-Operacion-Id` de manera idempotente.
+- Los eventos no publicados no aparecen en las búsquedas públicas por defecto.
+- La publicación requiere que el evento tenga una configuración completa y una fecha futura.
+- Los precios se establecen por combinación de evento y sector.
+- La consulta de sectores y precios no informa la ocupación real ni la disponibilidad restante.
+- La cancelación de un evento se registra junto con una notificación persistente.
+- Las notificaciones a Reservas, Entradas y Compras se procesan mediante operaciones reintentables.
+- Eventos y Lugares coordina las cancelaciones, mientras que los demás servicios ejecutan las operaciones correspondientes a sus responsabilidades.
 
 ### 3.2. Reservas
 
@@ -67,88 +80,90 @@ Este documento reúne las funcionalidades e historias de usuario de los distinto
 **Funcionalidades principales:**
 
 - Consultar disponibilidad de sectores numerados y no numerados.
-- Crear reservas temporales con vencimiento de 10 minutos.
-- Validar que el evento esté habilitado y que los sectores y asientos pertenezcan al evento seleccionado.
-- Evitar reservas simultáneas sobre un mismo lugar.
-- Controlar la capacidad máxima de los sectores no numerados.
+- Informar asientos disponibles y ocupados en sectores numerados.
+- Crear reservas temporales con una vigencia de 10 minutos.
+- Validar que el evento esté habilitado y que los sectores y asientos correspondan al evento seleccionado.
+- Evitar reservas simultáneas incompatibles sobre un mismo lugar.
+- Controlar la capacidad máxima de sectores no numerados.
 - Evitar reservas duplicadas mediante claves de idempotencia.
-- Liberar automáticamente la capacidad de reservas vencidas mediante vencimiento lógico.
-- Confirmar reservas cuando se aprueba el pago.
+- Liberar capacidad de reservas vencidas mediante vencimiento lógico.
+- Confirmar reservas después de la aprobación del pago.
 - Liberar reservas cuando el pago es rechazado.
 - Liberar lugares correspondientes a entradas devueltas.
-- Invalidar reservas temporales cuando se cancela un evento.
+- Cancelar reservas temporales cuando se cancela un evento.
+- Impedir nuevas reservas para eventos cancelados.
 
-**Historias de usuario principales:**
+**Historias de usuario:**
 
-- **US01:** consultar disponibilidad.
-- **US02:** realizar una reserva temporal.
-- **US03:** evitar reservas simultáneas del mismo lugar.
-- **US04:** liberar reservas vencidas.
-- **US05:** confirmar una reserva después del pago.
-- **US06:** liberar una reserva por pago rechazado.
-- **US07:** liberar lugares por devolución o cancelación de eventos.
+| Historia | Funcionalidad |
+|---|---|
+| US01 | Consultar disponibilidad de entradas. |
+| US02 | Realizar una reserva temporal. |
+| US03 | Evitar reservas simultáneas del mismo lugar. |
+| US04 | Liberar lugares de reservas vencidas. |
+| US05 | Confirmar una reserva después del pago. |
+| US06 | Liberar una reserva por pago rechazado. |
+| US07 | Liberar lugares por devolución o cancelación del evento. |
 
-**Limitaciones y consideraciones:**
+**Reglas principales:**
 
-- La consulta de disponibilidad todavía no devuelve explícitamente la lista de asientos ocupados en sectores numerados; únicamente excluye esos asientos de los disponibles.
-- El vencimiento se resuelve mediante un filtro temporal, sin incorporar un scheduler en Entrega 1.
-- La concurrencia fue probada en MySQL con diez solicitudes sobre el mismo asiento, pero todavía falta verificar el comportamiento con varias instancias reales del microservicio.
-- La coordinación completa con Compras, Entradas y Eventos requiere pruebas integradas adicionales.
+- Las reservas temporales tienen una duración de 10 minutos.
+- Las reservas activas y vigentes bloquean los lugares seleccionados.
+- Las reservas confirmadas continúan ocupando los lugares adquiridos.
+- Las reservas activas vencidas dejan de bloquear lugares, aunque su estado persistido todavía sea `ACTIVA`.
+- El control de concurrencia utiliza transacciones y bloqueo pesimista en MySQL.
+- Las claves de idempotencia evitan crear reservas duplicadas ante reintentos.
+- La devolución individual registra el identificador de la entrada procesada para evitar una segunda liberación.
 
 ### 3.3. Compras y Pagos
 
-**Objetivo:** gestionar las compras de entradas, procesar los pagos y coordinar la confirmación de las reservas, emisión de entradas y reintegros.
+**Objetivo:** gestionar las compras de entradas, procesar pagos y coordinar la confirmación de reservas, la emisión de entradas y los reintegros.
 
 **Funcionalidades principales:**
 
-- Iniciar una compra a partir de una reserva temporal vigente.
-- Consultar la información de la reserva y los precios correspondientes.
-- Calcular el importe total y registrar el detalle de cada compra.
+- Iniciar compras a partir de reservas temporales vigentes.
+- Consultar la reserva y los precios de los sectores correspondientes.
+- Calcular el importe total y registrar los detalles de cada compra.
 - Conservar el precio histórico de cada entrada adquirida.
 - Procesar pagos mediante una pasarela simulada.
 - Registrar el medio de pago, importe, fecha, resultado y referencia externa.
 - Confirmar compras cuando el pago es aprobado.
 - Solicitar la confirmación de la reserva y la emisión de entradas.
 - Liberar reservas cuando el pago es rechazado.
-- Evitar cobros duplicados mediante claves de idempotencia y bloqueos.
-- Gestionar reintegros individuales por devolución aprobada.
-- Gestionar reintegros por cancelación de eventos.
-- Permitir reintegros parciales cuando una compra contiene varias entradas.
+- Evitar cobros duplicados mediante mecanismos de idempotencia y concurrencia.
+- Gestionar reintegros individuales por devoluciones aprobadas.
+- Gestionar reintegros derivados de cancelaciones de eventos.
+- Procesar reintegros parciales cuando una compra contiene varias entradas.
 
-**Historias de usuario principales:**
+**Historias de usuario:**
 
-- **US01:** iniciar una compra.
-- **US02:** registrar el detalle de una compra.
-- **US03:** procesar el pago.
-- **US04:** confirmar una compra aprobada.
-- **US05:** gestionar un pago rechazado.
-- **US06:** evitar cobros duplicados.
-- **US07:** procesar el reintegro de una entrada devuelta.
-- **US08:** gestionar reintegros por cancelación de eventos.
+| Historia | Funcionalidad |
+|---|---|
+| US01 | Iniciar una compra. |
+| US02 | Registrar los detalles de una compra. |
+| US03 | Procesar un pago. |
+| US04 | Confirmar una compra aprobada. |
+| US05 | Gestionar un pago rechazado. |
+| US06 | Evitar cobros duplicados. |
+| US07 | Procesar el reintegro de una entrada devuelta. |
+| US08 | Gestionar reintegros por cancelación de eventos. |
 
-**Consideraciones importantes:**
+**Estados principales de compra:**
 
-El proceso de compra utiliza estados intermedios para representar operaciones que todavía deben completarse o compensarse:
-
-- `PENDIENTE`: compra iniciada, pendiente de pago.
-- `CONFIRMACION_PENDIENTE`: pago aprobado, pendiente de completar la confirmación.
-- `LIBERACION_PENDIENTE`: pago rechazado, pendiente de liberar la reserva.
-- `COMPENSACION_PENDIENTE`: no se pudo completar correctamente la confirmación de la compra.
+- `PENDIENTE`: compra iniciada, a la espera del pago.
+- `CONFIRMACION_PENDIENTE`: pago aprobado con operaciones de confirmación por completar.
+- `LIBERACION_PENDIENTE`: pago rechazado con liberación de reserva por completar.
+- `COMPENSACION_PENDIENTE`: operación que requiere completar acciones de compensación.
 - `CONFIRMADA`: compra completada correctamente.
-- `RECHAZADA`: pago rechazado y liberación completada.
+- `RECHAZADA`: compra rechazada después del procesamiento correspondiente.
 
-Los estados de reintegro también permiten reflejar operaciones parciales o pendientes.
+El proceso de compra contempla operaciones intermedias para administrar las comunicaciones con Reservas y Entradas.
 
-**Limitaciones y consideraciones:**
-
-- La pasarela de pagos es simulada y no corresponde a una integración con una entidad financiera real.
-- Se identificaron pruebas unitarias y de concurrencia para diferentes escenarios de pago e idempotencia.
-- No se identificó una prueba integral específica que cubra el rechazo del pago y la liberación de la reserva.
-- La coordinación completa entre pago, confirmación de reserva y emisión de entradas requiere pruebas integradas.
+Los reintegros se calculan utilizando los importes históricos registrados en la compra. Las operaciones ya aprobadas no se procesan nuevamente, evitando duplicaciones.
 
 ### 3.4. Entradas
 
-**Objetivo:** gestionar las entradas digitales adquiridas por los clientes y sus correspondientes solicitudes de devolución.
+**Objetivo:** administrar las entradas digitales adquiridas por los clientes y sus correspondientes solicitudes de devolución.
 
 **Funcionalidades principales:**
 
@@ -156,134 +171,115 @@ Los estados de reintegro también permiten reflejar operaciones parciales o pend
 - Verificar que la compra tenga un pago aprobado y que la reserva esté confirmada.
 - Generar un código QR único por entrada.
 - Evitar la emisión duplicada de entradas para una misma compra.
-- Consultar una entrada individual y verificar su pertenencia al cliente.
-- Consultar el listado de entradas de un cliente.
-- Generar imágenes QR en formato PNG y devolverlas codificadas en Base64.
+- Consultar entradas individuales y verificar su pertenencia al cliente indicado.
+- Consultar las entradas asociadas a un cliente.
+- Generar imágenes QR en formato PNG y entregarlas codificadas en Base64.
 - Registrar solicitudes de devolución.
 - Consultar solicitudes pendientes.
 - Aprobar o rechazar solicitudes de devolución.
 - Invalidar entradas correspondientes a eventos cancelados.
 
-**Historias de usuario principales:**
+**Historias de usuario:**
 
-- **US-01:** emitir entradas para una compra.
-- **US-02:** consultar una entrada individual.
-- **US-03:** consultar las entradas de un cliente.
-- **US-04:** solicitar la devolución de una entrada.
-- **US-05:** consultar solicitudes pendientes.
-- **US-06:** aprobar una devolución.
-- **US-07:** rechazar una devolución.
-- **US-08:** invalidar entradas por cancelación de un evento.
+| Historia | Funcionalidad |
+|---|---|
+| US01 | Emitir entradas para una compra. |
+| US02 | Consultar una entrada individual. |
+| US03 | Consultar las entradas de un cliente. |
+| US04 | Solicitar la devolución de una entrada. |
+| US05 | Consultar solicitudes pendientes. |
+| US06 | Aprobar una devolución. |
+| US07 | Rechazar una devolución. |
+| US08 | Invalidar entradas por cancelación de un evento. |
 
-**Consideraciones importantes:**
+**Reglas principales:**
 
-Una solicitud de devolución requiere que la entrada esté emitida y que falten al menos 72 horas para la fecha del evento.
+Una solicitud de devolución requiere que la entrada se encuentre en estado `EMITIDA` y que falten al menos 72 horas para la realización del evento.
 
-Cuando se aprueba una devolución:
+Cuando una devolución se aprueba:
 
-1. La solicitud pasa a estado `APROBADA`.
-2. La entrada pasa a estado `INVALIDADA`.
-3. Se solicita a Reservas la liberación del lugar.
-4. Se solicita a Compras el reintegro correspondiente.
+1. La solicitud cambia a estado `APROBADA`.
+2. La entrada cambia a estado `INVALIDADA`.
+3. Entradas solicita a Reservas la liberación del lugar correspondiente.
+4. Entradas solicita a Compras el reintegro correspondiente.
 
-Cuando se rechaza:
+Cuando una devolución se rechaza:
 
-1. La solicitud pasa a estado `RECHAZADA`.
-2. La entrada conserva su estado `EMITIDA`.
-3. No se solicitan liberaciones ni reintegros.
+1. La solicitud cambia a estado `RECHAZADA`.
+2. La entrada conserva el estado `EMITIDA`.
+3. No se solicita la liberación del lugar ni el reintegro.
 
-**Limitaciones y consideraciones:**
-
-- La invalidación de entradas por cancelación de eventos no libera actualmente las reservas ni coordina los reintegros.
-- La consulta individual verifica la pertenencia de la entrada al cliente, mientras que el listado recibe el identificador del cliente directamente en la URL.
-- Se implementó la generación y consulta de códigos QR, pero no la funcionalidad de registrar el uso de una entrada para validar el ingreso al evento.
-- Las operaciones de devolución dependen de la disponibilidad de Reservas y Compras para completar las acciones externas.
+Ante una cancelación de evento, Entradas invalida las entradas emitidas. La coordinación general de cancelaciones corresponde a Eventos y Lugares, que también comunica la operación a Reservas y Compras.
 
 ## 4. Circuito general de compra
 
-El circuito principal de TicketYa involucra a los cuatro microservicios funcionales:
+El circuito principal de TicketYa involucra a los cuatro microservicios funcionales.
 
-1. El cliente consulta eventos y selecciona un evento, un sector y, cuando corresponde, sus asientos.
-2. Eventos y Lugares proporciona la información del evento, los sectores y los precios.
-3. Reservas consulta la disponibilidad y crea una reserva temporal de los lugares seleccionados.
-4. Compras recibe la reserva, verifica su vigencia y registra una compra pendiente.
+1. El cliente consulta eventos y selecciona un evento, sector y, cuando corresponde, sus asientos.
+2. Eventos y Lugares proporciona la información del evento, sectores y precios.
+3. Reservas consulta la disponibilidad y crea una reserva temporal para los lugares seleccionados.
+4. Compras recibe la reserva, verifica su vigencia y registra una compra en estado `PENDIENTE`.
 5. Compras procesa el pago mediante la pasarela simulada.
 6. Si el pago es rechazado, Compras solicita a Reservas liberar la reserva.
-7. Si el pago es aprobado, Compras solicita confirmar la reserva.
-8. Una vez confirmada, Compras solicita a Entradas emitir los tickets.
+7. Si el pago es aprobado y la reserva continúa vigente, Compras solicita su confirmación.
+8. Una vez confirmada la reserva, Compras solicita a Entradas emitir los tickets.
 9. Entradas genera una entrada por cada lugar adquirido y asigna un código QR único.
-10. Compras asocia las entradas emitidas a los detalles de la compra y la marca como confirmada.
+10. Compras asocia las entradas emitidas a los detalles de la compra y completa la confirmación.
 
-La compra se considera completada cuando se confirma la reserva y se reciben todas las entradas esperadas.
+La compra se considera completada cuando se confirma la reserva y se reciben las entradas correspondientes.
+
+Cuando una operación no puede completarse, Compras utiliza estados intermedios para administrar los reintentos o compensaciones necesarias.
 
 ## 5. Circuito general de devoluciones y cancelaciones
 
-### 5.1. Devolución individual
+### 5.1. Devolución individual de una entrada
 
 1. El cliente solicita la devolución de una entrada.
-2. Entradas verifica que la entrada esté emitida y que se cumpla el plazo mínimo de 72 horas.
-3. Se registra una solicitud pendiente.
+2. Entradas verifica que la entrada esté emitida y que se cumpla la anticipación mínima de 72 horas.
+3. Se registra una solicitud con estado `PENDIENTE`.
 4. El administrador aprueba o rechaza la solicitud.
 5. Si se aprueba, Entradas invalida la entrada y solicita a Reservas liberar el lugar.
-6. Entradas solicita a Compras procesar el reintegro correspondiente.
-7. Compras verifica la devolución aprobada y calcula el importe utilizando el precio histórico de la entrada.
-8. Se registra el reintegro en la pasarela simulada.
+6. Entradas solicita a Compras procesar el reintegro.
+7. Compras determina el importe utilizando el precio histórico de la entrada.
+8. Se procesa y registra el reintegro mediante la pasarela simulada.
 
 ### 5.2. Cancelación de un evento
 
 1. El administrador cancela el evento desde Eventos y Lugares.
-2. Se registra la cancelación y una notificación pendiente.
+2. El evento cambia a estado `CANCELADO` y se registra una notificación persistente.
 3. Eventos y Lugares comunica la cancelación a Reservas y Entradas.
-4. Reservas invalida las reservas temporales pendientes.
-5. Entradas invalida las entradas emitidas correspondientes al evento.
-6. Eventos y Lugares comunica la cancelación a Compras.
-7. Compras identifica las compras pagadas y procesa los reintegros correspondientes, evitando duplicar los ya realizados.
+4. Reservas cancela las reservas temporales correspondientes e impide nuevas reservas para ese evento.
+5. Entradas invalida las entradas emitidas asociadas al evento.
+6. Una vez procesadas las notificaciones correspondientes, Eventos y Lugares comunica la cancelación a Compras.
+7. Compras identifica las compras con pagos aprobados y procesa los reintegros correspondientes.
+8. Los reintegros ya aprobados se reconocen para impedir devoluciones duplicadas.
 
-La cancelación y las notificaciones se gestionan mediante operaciones separadas entre microservicios. Por lo tanto, la cancelación del evento no implica que todas las operaciones externas se completen dentro de una única transacción.
+El procesamiento de las notificaciones utiliza reintentos y registros persistentes para controlar las comunicaciones entre microservicios.
+
+Cada servicio administra sus propias transacciones y datos. La cancelación no constituye una única transacción distribuida entre todas las bases de datos.
 
 ## 6. Estados principales del sistema
 
 | Elemento | Estados principales |
 |---|---|
 | Evento | `BORRADOR`, `PUBLICADO`, `AGOTADO`, `SUSPENDIDO`, `CANCELADO`, `FINALIZADO` |
-| Reserva | `ACTIVA`, `VENCIDA`, `CONFIRMADA`, `LIBERADA` |
-| Compra | `PENDIENTE`, `CONFIRMACION_PENDIENTE`, `LIBERACION_PENDIENTE`, `COMPENSACION_PENDIENTE`, `CONFIRMADA`, `RECHAZADA` |
+| Reserva | `ACTIVA`, `VENCIDA`, `CONFIRMADA`, `LIBERADA`, `CANCELADA` |
+| Compra | `PENDIENTE`, `CONFIRMACION_PENDIENTE`, `LIBERACION_PENDIENTE`, `COMPENSACION_PENDIENTE`, `CONFIRMADA`, `RECHAZADA`, `REINTEGRADA`, `REINTEGRO_PARCIAL` |
 | Pago | `APROBADO`, `RECHAZADO` |
 | Entrada | `EMITIDA`, `INVALIDADA` |
 | Solicitud de devolución | `PENDIENTE`, `APROBADA`, `RECHAZADA` |
 
-Los estados representan situaciones propias de cada microservicio. La coordinación entre ellos se realiza mediante comunicaciones REST y no mediante una única transacción de base de datos compartida.
+Los estados representan las distintas situaciones administradas por cada microservicio.
 
-## 7. Consideraciones generales sobre implementación y pruebas
+Las transiciones se realizan mediante operaciones REST y reglas de negocio específicas.
 
-Las funcionalidades descriptas corresponden a las historias de usuario y a la implementación identificada en los respectivos microservicios.
+## 7. Documentación específica de cada microservicio
 
-Se identifican distintos niveles de cobertura:
-
-- **Implementación local:** la funcionalidad está desarrollada dentro del microservicio.
-- **Pruebas unitarias:** existen pruebas para verificar comportamientos específicos.
-- **Pruebas de integración:** se verifican interacciones con bases de datos u otros componentes.
-- **Pruebas de extremo a extremo pendientes:** todavía debe comprobarse el circuito completo con todos los microservicios funcionando conjuntamente.
-
-Entre los aspectos relevantes que requieren seguimiento se encuentran:
-
-- Completar la respuesta de disponibilidad de sectores numerados incluyendo los asientos ocupados.
-- Verificar la concurrencia de reservas con varias instancias del servicio.
-- Ejecutar pruebas integradas de aprobación y rechazo de pagos, confirmación de reservas y emisión de entradas.
-- Verificar la coordinación completa de devoluciones individuales.
-- Verificar los reintegros y la invalidación de entradas ante cancelaciones.
-- Reforzar la seguridad de los endpoints internos para que solamente puedan invocarlos los servicios autorizados.
-- Completar las validaciones e integraciones que correspondan a las siguientes entregas.
-
-La existencia de métodos de prueba en el código no implica por sí sola que todas las pruebas hayan sido ejecutadas exitosamente en el entorno de entrega.
-
-## 8. Documentación específica de cada microservicio
-
-Para consultar el detalle de las historias, criterios de aceptación, arquitectura, modelo de datos, contratos y pruebas de cada servicio:
+Los documentos de cada microservicio desarrollan las historias de usuario, criterios de aceptación, arquitectura, modelo de datos, contratos REST y pruebas correspondientes.
 
 - [Eventos y Lugares](../msvc-eventosylugares/docs/01-FEATURES-Y-USER-STORIES.md)
 - [Reservas](../msvc-reservas/docs/01-FUNCIONALIDADES-Y-USER-STORIES.md)
 - [Compras y Pagos](../msvc-compras/docs/01-FUNCIONALIDADES-Y-USER-STORIES.md)
 - [Entradas](../msvc-entradas/docs/01-FUNCIONALIDADES-Y-USER-STORIES.md)
 
-Este documento constituye una visión funcional unificada del sistema TicketYa para la Entrega 1. Las documentaciones individuales mantienen el detalle específico de cada microservicio.
+La arquitectura general, el diagrama de secuencia de compra, los contratos de integración y el plan de testing se encuentran en los demás documentos de la carpeta `docs/`.

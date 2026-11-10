@@ -1,0 +1,347 @@
+# OpenAPI 3.0.3 - TicketYa
+openapi: 3.0.3
+info:
+  title: TicketYa - API de Entradas
+  version: 1.0.0
+  description: Contrato REST de msvc-entradas. Emisión de QR, consultas, invalidaciones y devoluciones. Contrato
+    basado en los controladores y DTO del proyecto.
+servers:
+- url: http://localhost:8083
+  description: Servicio local
+- url: http://localhost:8084
+  description: Acceso por Gateway 
+tags:
+- name: Entradas
+- name: Devoluciones
+paths:
+  /entradas/emitir:
+    post:
+      tags:
+      - Entradas
+      summary: Emitir entradas para una compra aprobada
+      description: Si las entradas ya fueron emitidas, devuelve las existentes con HTTP 200; si son nuevas, HTTP
+        201.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmitirEntradasRequestDTO'
+            example:
+              compraId: 1
+      responses:
+        '201':
+          description: Recurso creado
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EntradaDTO'
+        '200':
+          description: Entradas ya existentes (operación idempotente)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EntradaDTO'
+        '400':
+          description: Solicitud inválida
+        '409':
+          description: Conflicto o regla de negocio
+  /entradas/{id}:
+    get:
+      tags:
+      - Entradas
+      summary: Consultar una entrada del cliente
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      - name: X-Cliente-Id
+        in: header
+        required: true
+        description: ID del cliente titular
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntradaDTO'
+        '403':
+          description: Acceso denegado
+        '404':
+          description: Recurso inexistente
+  /entradas/cliente/{clienteId}:
+    get:
+      tags:
+      - Entradas
+      summary: Listar entradas asociadas a un cliente
+      description: La ruta utiliza el ID provisto; no aplica autenticación JWT en la Entrega 1.
+      parameters:
+      - name: clienteId
+        in: path
+        required: true
+        description: Identificador de clienteId
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EntradaDTO'
+  /entradas/evento/{id}/invalidar:
+    post:
+      tags:
+      - Entradas
+      summary: Invalidar las entradas emitidas de un evento cancelado
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+        '500':
+          description: Error interno del servidor
+  /devoluciones:
+    post:
+      tags:
+      - Devoluciones
+      summary: Solicitar devolución de una entrada
+      description: La solicitud debe realizarse con al menos 72 horas de anticipación y sobre una entrada EMITIDA.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevolucionRequestDTO'
+            example:
+              entradaId: 1
+              motivo: No puedo asistir
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevolucionResponseDTO'
+        '400':
+          description: Solicitud inválida
+        '409':
+          description: Conflicto o regla de negocio
+  /devoluciones/pendientes:
+    get:
+      tags:
+      - Devoluciones
+      summary: Consultar solicitudes de devolución pendientes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DevolucionResponseDTO'
+  /devoluciones/{id}/aprobar:
+    patch:
+      tags:
+      - Devoluciones
+      summary: Aprobar una devolución y coordinar liberación y reintegro
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      - name: administradorId
+        in: query
+        required: true
+        description: Identificador del administrador que aprueba
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevolucionResponseDTO'
+        '400':
+          description: Solicitud inválida
+        '404':
+          description: Recurso inexistente
+  /devoluciones/{id}/rechazar:
+    patch:
+      tags:
+      - Devoluciones
+      summary: Rechazar una solicitud de devolución
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      - name: administradorId
+        in: query
+        required: true
+        description: Identificador del administrador que rechaza
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevolucionResponseDTO'
+        '400':
+          description: Solicitud inválida
+        '404':
+          description: Recurso inexistente
+components:
+  schemas:
+    EmitirEntradasRequestDTO:
+      type: object
+      properties:
+        compraId:
+          type: integer
+          format: int64
+          description: Identificador de la compra confirmada
+          example: 125
+    EntradaDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador de la entrada
+          example: 10
+        compraId:
+          type: integer
+          format: int64
+          description: Identificador de la compra
+          example: 125
+        reservaId:
+          type: integer
+          format: int64
+          description: Identificador de la reserva
+          example: 50
+        detalleReservaId:
+          type: integer
+          format: int64
+          description: Identificador del detalle de reserva
+          example: 8
+        indiceLugar:
+          type: integer
+          format: int32
+          description: Índice del lugar dentro del detalle
+          example: 1
+        clienteId:
+          type: integer
+          format: int64
+          description: Identificador del cliente titular
+          example: 20
+        eventoId:
+          type: integer
+          format: int64
+          description: Identificador del evento
+          example: 15
+        sectorId:
+          type: integer
+          format: int64
+          description: Identificador del sector
+          example: 3
+        asientoId:
+          type: integer
+          format: int64
+          description: Identificador del asiento. Puede ser nulo si no es numerado
+          example: 45
+          nullable: true
+        codigoQr:
+          type: string
+          description: Código QR único de la entrada
+          example: a8f3c2d1
+        estado:
+          type: string
+          description: Estado actual de la entrada
+          example: EMITIDA
+        fechaEmision:
+          type: string
+          format: date-time
+          description: Fecha y hora de emisión
+          example: '2026-11-08T15:30:00'
+        qrImagenBase64:
+          type: string
+          description: Imagen del código QR codificada en Base64
+    DevolucionRequestDTO:
+      type: object
+      properties:
+        entradaId:
+          type: integer
+          format: int64
+        motivo:
+          type: string
+    DevolucionResponseDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador de la solicitud
+          example: 5
+        entradaId:
+          type: integer
+          format: int64
+          description: Identificador de la entrada
+          example: 10
+        fechaSolicitud:
+          type: string
+          format: date-time
+          description: Fecha y hora de la solicitud
+          example: '2026-11-08T15:30:00'
+        motivo:
+          type: string
+          description: Motivo de la devolución
+          example: No puedo asistir
+        estado:
+          type: string
+          description: Estado de la solicitud
+          example: PENDIENTE
+        fechaResolucion:
+          type: string
+          format: date-time
+          description: Fecha y hora de resolución
+          example: '2026-11-09T10:00:00'
+          nullable: true
+        administradorId:
+          type: integer
+          format: int64
+          description: Identificador del administrador que resolvió la solicitud
+          example: 2
+          nullable: true

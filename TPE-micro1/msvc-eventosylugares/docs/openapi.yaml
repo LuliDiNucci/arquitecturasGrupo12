@@ -1,0 +1,1740 @@
+# OpenAPI 3.0.3 - TicketYa
+openapi: 3.0.3
+info:
+  title: TicketYa - API de Eventos y Lugares
+  version: 1.0.0
+  description: Contrato REST de msvc-eventosylugares, elaborado a partir de los controladores, DTO y validaciones
+    del proyecto.
+servers:
+- url: http://localhost:8081
+  description: Servicio local
+- url: http://localhost:8084
+  description: Acceso por Gateway 
+tags:
+- name: Eventos
+- name: Lugares
+- name: Sectores
+- name: Asientos
+- name: Organizadores
+- name: Participantes
+paths:
+  /lugares:
+    post:
+      tags:
+      - Lugares
+      summary: Crear lugar con ciudad y coordenadas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LugarRequestDTO'
+            example:
+              nombre: Estadio Municipal
+              direccion: Av. Central 150
+              ciudad: Tandil
+              latitud: -37.321
+              longitud: -59.137
+      responses:
+        '201':
+          description: Recurso creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LugarResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+    get:
+      tags:
+      - Lugares
+      summary: Listar lugares
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LugarResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /lugares/{id}:
+    get:
+      tags:
+      - Lugares
+      summary: Obtener lugar por ID
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LugarResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /lugares/{id}/sectores:
+    post:
+      tags:
+      - Sectores
+      summary: Crear un sector de un lugar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SectorRequestDTO'
+            example:
+              nombre: Platea
+              numerado: true
+              capacidad: 3
+      responses:
+        '201':
+          description: Recurso creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectorResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+    get:
+      tags:
+      - Sectores
+      summary: Listar sectores de un lugar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SectorResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /sectores/{id}:
+    get:
+      tags:
+      - Sectores
+      summary: Consultar sector por ID
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectorResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /sectores/{id}/asientos:
+    post:
+      tags:
+      - Asientos
+      summary: Cargar asientos de un sector numerado
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AsientosRequestDTO'
+            example:
+              asientos:
+              - fila: A
+                numero: 1
+              - fila: A
+                numero: 2
+      responses:
+        '201':
+          description: Recurso creado
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AsientoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+    get:
+      tags:
+      - Asientos
+      summary: Listar asientos de un sector
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AsientoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /asientos/{id}:
+    get:
+      tags:
+      - Asientos
+      summary: Consultar asiento por ID
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsientoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /organizadores:
+    post:
+      tags:
+      - Organizadores
+      summary: Registrar organizador
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizadorRequestDTO'
+            example:
+              nombre: Producciones Sierra
+              email: contacto@ejemplo.com
+      responses:
+        '201':
+          description: Recurso creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizadorResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+    get:
+      tags:
+      - Organizadores
+      summary: Listar organizadores
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrganizadorResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /participantes:
+    post:
+      tags:
+      - Participantes
+      summary: Registrar participante
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipanteRequestDTO'
+            example:
+              nombre: Banda Ejemplo
+              tipo: ARTISTA
+      responses:
+        '201':
+          description: Recurso creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipanteResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+    get:
+      tags:
+      - Participantes
+      summary: Listar participantes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ParticipanteResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos:
+    post:
+      tags:
+      - Eventos
+      summary: Crear evento en estado BORRADOR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoRequestDTO'
+            example:
+              nombre: Recital de prueba
+              descripcion: Evento para probar TicketYa
+              tipo: RECITAL
+              organizadorId: 1
+              lugarId: 1
+              fechaHora: '2027-12-20T21:00:00'
+              participantesIds:
+              - 1
+              altaDemanda: false
+      responses:
+        '201':
+          description: Recurso creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+    get:
+      tags:
+      - Eventos
+      summary: Listar todos los eventos (uso operativo)
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventoResumenResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/publicados:
+    get:
+      tags:
+      - Eventos
+      summary: Listar eventos publicados o agotados
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventoResumenResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/buscar:
+    get:
+      tags:
+      - Eventos
+      summary: Buscar eventos combinando filtros
+      description: Por defecto incluye eventos PUBLICADO y AGOTADO. Si desde es posterior a hasta devuelve HTTP
+        400.
+      parameters:
+      - name: tipo
+        in: query
+        required: false
+        description: Tipo de evento
+        schema:
+          type: string
+          enum:
+          - RECITAL
+          - FESTIVAL
+          - TEATRO
+          - DEPORTE
+          - CONFERENCIA
+          - OTRO
+      - name: organizadorId
+        in: query
+        required: false
+        description: ID del organizador
+        schema:
+          type: integer
+          format: int64
+      - name: participanteId
+        in: query
+        required: false
+        description: ID del participante
+        schema:
+          type: integer
+          format: int64
+      - name: ciudad
+        in: query
+        required: false
+        description: Ciudad del lugar
+        schema:
+          type: string
+      - name: desde
+        in: query
+        required: false
+        description: Límite inferior de fecha/hora ISO
+        schema:
+          type: string
+          format: date-time
+      - name: hasta
+        in: query
+        required: false
+        description: Límite superior de fecha/hora ISO
+        schema:
+          type: string
+          format: date-time
+      - name: q
+        in: query
+        required: false
+        description: Texto en nombre, descripción, organizador o participante
+        schema:
+          type: string
+      - name: ordenar
+        in: query
+        required: false
+        description: Criterio de ordenamiento
+        schema:
+          type: string
+          enum:
+          - FECHA_ASC
+          - FECHA_DESC
+          - PRECIO_ASC
+          - PRECIO_DESC
+          - RELEVANCIA
+          default: FECHA_ASC
+      - name: incluirNoPublicados
+        in: query
+        required: false
+        description: Incluir eventos no publicados (uso administrativo)
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventoResumenResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}:
+    get:
+      tags:
+      - Eventos
+      summary: Obtener detalle de un evento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+    put:
+      tags:
+      - Eventos
+      summary: Actualizar evento según su estado
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoRequestDTO'
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}/precios:
+    put:
+      tags:
+      - Eventos
+      summary: Configurar precios por sector
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreciosEventoRequestDTO'
+            example:
+              precios:
+              - sectorId: 1
+                precio: 35000.0
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}/publicar:
+    patch:
+      tags:
+      - Eventos
+      summary: Publicar evento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}/suspender:
+    patch:
+      tags:
+      - Eventos
+      summary: Suspender evento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}/cancelar:
+    patch:
+      tags:
+      - Eventos
+      summary: Cancelar evento y registrar notificaciones
+      description: La cancelación registra una notificación persistente para otros servicios.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}/agotar:
+    patch:
+      tags:
+      - Eventos
+      summary: Marcar evento como agotado
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}/reabrir:
+    patch:
+      tags:
+      - Eventos
+      summary: Reabrir la venta del evento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}/finalizar:
+    patch:
+      tags:
+      - Eventos
+      summary: Finalizar evento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}/sectores:
+    get:
+      tags:
+      - Eventos
+      summary: Consultar sectores, precios y asientos de evento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PrecioSectorResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}/habilitado:
+    get:
+      tags:
+      - Eventos
+      summary: Consultar habilitación de reservas para el evento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HabilitacionEventoResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{id}/notificaciones-cancelacion:
+    get:
+      tags:
+      - Eventos
+      summary: Consultar estado de notificaciones de cancelación
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador de id
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstadoNotificacionesResponseDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+  /eventos/{eventoId}/sectores/{sectorId}/precio:
+    get:
+      tags:
+      - Eventos
+      summary: Consultar precio de un sector para un evento
+      parameters:
+      - name: eventoId
+        in: path
+        required: true
+        description: Identificador de eventoId
+        schema:
+          type: integer
+          format: int64
+      - name: sectorId
+        in: path
+        required: true
+        description: Identificador de sectorId
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecioSectorIndividualDTO'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '404':
+          description: Recurso inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+        '409':
+          description: Conflicto o regla de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponseDTO'
+components:
+  schemas:
+    ApiErrorResponseDTO:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          format: int32
+          example: 409
+        error:
+          type: string
+          example: Conflict
+        mensaje:
+          type: string
+          example: Faltan precios de uno o mas sectores del evento
+        path:
+          type: string
+          example: /eventos/1/publicar
+        detalles:
+          type: array
+          items:
+            type: string
+    LugarRequestDTO:
+      type: object
+      properties:
+        nombre:
+          type: string
+          example: Estadio Municipal
+          minLength: 1
+        direccion:
+          type: string
+          example: Av. Central 150
+          minLength: 1
+        ciudad:
+          type: string
+          example: Tandil
+          minLength: 1
+        latitud:
+          type: number
+          example: -37.321
+        longitud:
+          type: number
+          example: -59.137
+      required:
+      - nombre
+      - direccion
+      - ciudad
+      - latitud
+      - longitud
+    LugarResponseDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Estadio Municipal
+        direccion:
+          type: string
+          example: Av. Central 150
+        ciudad:
+          type: string
+          example: Tandil
+        latitud:
+          type: number
+          example: -37.321
+        longitud:
+          type: number
+          example: -59.137
+    SectorRequestDTO:
+      type: object
+      properties:
+        nombre:
+          type: string
+          example: Platea
+          minLength: 1
+        numerado:
+          type: boolean
+          example: true
+        capacidad:
+          type: integer
+          format: int32
+          example: 2
+          minimum: 1
+      required:
+      - nombre
+    SectorResponseDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        lugarId:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Platea
+        numerado:
+          type: boolean
+          example: true
+        capacidad:
+          type: integer
+          format: int32
+          example: 2
+        asientosCargados:
+          type: integer
+          format: int64
+          example: 2
+    AsientoRequestDTO:
+      type: object
+      properties:
+        fila:
+          type: string
+          example: A
+          minLength: 1
+        numero:
+          type: integer
+          format: int32
+          example: 1
+          minimum: 1
+      required:
+      - fila
+    AsientosRequestDTO:
+      type: object
+      properties:
+        asientos:
+          type: array
+          items:
+            $ref: '#/components/schemas/AsientoRequestDTO'
+      required:
+      - asientos
+    AsientoResponseDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        fila:
+          type: string
+          example: A
+        numero:
+          type: integer
+          format: int32
+          example: 1
+        sectorId:
+          type: integer
+          format: int64
+          example: 1
+    OrganizadorRequestDTO:
+      type: object
+      properties:
+        nombre:
+          type: string
+          example: Producciones Sierra
+          minLength: 1
+        email:
+          type: string
+          example: contacto@ejemplo.com
+          minLength: 1
+      required:
+      - nombre
+      - email
+    OrganizadorResponseDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Producciones Sierra
+        email:
+          type: string
+          example: contacto@ejemplo.com
+    ParticipanteRequestDTO:
+      type: object
+      properties:
+        nombre:
+          type: string
+          example: Banda Ejemplo
+          minLength: 1
+        tipo:
+          type: string
+          enum:
+          - ARTISTA
+          - EQUIPO
+          - DISERTANTE
+          - OTRO
+          example: ARTISTA
+      required:
+      - nombre
+      - tipo
+    ParticipanteResponseDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Banda Ejemplo
+        tipo:
+          type: string
+          enum:
+          - ARTISTA
+          - EQUIPO
+          - DISERTANTE
+          - OTRO
+          example: ARTISTA
+    EventoRequestDTO:
+      type: object
+      properties:
+        nombre:
+          type: string
+          example: Recital de prueba
+          minLength: 1
+        descripcion:
+          type: string
+          example: Evento para probar TicketYa
+          minLength: 1
+        tipo:
+          type: string
+          enum:
+          - RECITAL
+          - FESTIVAL
+          - TEATRO
+          - DEPORTE
+          - CONFERENCIA
+          - OTRO
+          example: RECITAL
+        organizadorId:
+          type: integer
+          format: int64
+          example: 1
+        lugarId:
+          type: integer
+          format: int64
+          example: 1
+        fechaHora:
+          type: string
+          format: date-time
+          example: '2027-12-20T21:00:00'
+        participantesIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        altaDemanda:
+          type: boolean
+          example: false
+      required:
+      - nombre
+      - descripcion
+      - tipo
+      - organizadorId
+      - lugarId
+      - fechaHora
+      - participantesIds
+    EventoResponseDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Recital de prueba
+        descripcion:
+          type: string
+          example: Presentacion en vivo
+        tipo:
+          type: string
+          enum:
+          - RECITAL
+          - FESTIVAL
+          - TEATRO
+          - DEPORTE
+          - CONFERENCIA
+          - OTRO
+          example: RECITAL
+        estado:
+          type: string
+          enum:
+          - BORRADOR
+          - PUBLICADO
+          - AGOTADO
+          - SUSPENDIDO
+          - CANCELADO
+          - FINALIZADO
+          example: PUBLICADO
+        organizador:
+          $ref: '#/components/schemas/OrganizadorResponseDTO'
+        participantes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParticipanteResponseDTO'
+        fechaHora:
+          type: string
+          format: date-time
+          example: '2027-12-20T21:00:00'
+        lugar:
+          $ref: '#/components/schemas/LugarResponseDTO'
+        altaDemanda:
+          type: boolean
+          example: false
+        sectores:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrecioSectorResponseDTO'
+        version:
+          type: integer
+          format: int64
+          example: 0
+    EventoResumenResponseDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Recital de prueba
+        tipo:
+          type: string
+          enum:
+          - RECITAL
+          - FESTIVAL
+          - TEATRO
+          - DEPORTE
+          - CONFERENCIA
+          - OTRO
+          example: RECITAL
+        estado:
+          type: string
+          enum:
+          - BORRADOR
+          - PUBLICADO
+          - AGOTADO
+          - SUSPENDIDO
+          - CANCELADO
+          - FINALIZADO
+          example: PUBLICADO
+        fechaHora:
+          type: string
+          format: date-time
+          example: '2027-12-20T21:00:00'
+        ciudad:
+          type: string
+          example: Tandil
+        lugar:
+          type: string
+          example: Estadio Municipal
+        organizador:
+          type: string
+          example: Producciones Sierra
+        precioDesde:
+          type: number
+          example: 35000.0
+          nullable: true
+        altaDemanda:
+          type: boolean
+          example: false
+    PrecioSectorRequestDTO:
+      type: object
+      properties:
+        sectorId:
+          type: integer
+          format: int64
+          example: 1
+        precio:
+          type: number
+          example: 35000.0
+      required:
+      - sectorId
+      - precio
+    PreciosEventoRequestDTO:
+      type: object
+      properties:
+        precios:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrecioSectorRequestDTO'
+      required:
+      - precios
+    PrecioSectorResponseDTO:
+      type: object
+      properties:
+        sectorId:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Platea
+        numerado:
+          type: boolean
+          example: true
+        capacidad:
+          type: integer
+          format: int32
+          example: 2
+        precio:
+          type: number
+          example: 35000.0
+        asientos:
+          type: array
+          items:
+            $ref: '#/components/schemas/AsientoResponseDTO'
+    PrecioSectorIndividualDTO:
+      type: object
+      properties:
+        eventoId:
+          type: integer
+          format: int64
+        sectorId:
+          type: integer
+          format: int64
+        precio:
+          type: number
+    HabilitacionEventoResponseDTO:
+      type: object
+      properties:
+        eventoId:
+          type: integer
+          format: int64
+          example: 1
+        estado:
+          type: string
+          enum:
+          - BORRADOR
+          - PUBLICADO
+          - AGOTADO
+          - SUSPENDIDO
+          - CANCELADO
+          - FINALIZADO
+          example: PUBLICADO
+        habilitadoParaReservar:
+          type: boolean
+          example: true
+        fechaHora:
+          type: string
+          format: date-time
+          example: '2027-12-20T21:00:00'
+    EstadoNotificacionesResponseDTO:
+      type: object
+      properties:
+        eventoId:
+          type: integer
+          format: int64
+          example: 1
+        reservasNotificadas:
+          type: boolean
+          example: false
+        entradasNotificadas:
+          type: boolean
+          example: false
+        comprasNotificadas:
+          type: boolean
+          example: false
+        intentos:
+          type: integer
+          format: int32
+          example: 0
+        ultimoError:
+          type: string
+          nullable: true

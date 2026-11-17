@@ -1,4 +1,3 @@
-
 package com.ticketya.entradas.dtos;
 
 import java.time.LocalDateTime;
@@ -44,9 +43,11 @@ public class EntradaDTO {
     @Schema(description = "Fecha y hora de emisión", example = "2026-11-08T15:30:00")
     private LocalDateTime fechaEmision;
 
+    @Schema(description = "Fecha y hora en que se utilizó la entrada", example = "2026-11-08T20:45:00")
+    private LocalDateTime fechaUso;
+
     @Schema(description = "Imagen del código QR codificada en Base64")
     private String qrImagenBase64;
-
 
     public EntradaDTO() {
     }
@@ -175,6 +176,14 @@ public class EntradaDTO {
 
     public void setFechaEmision(LocalDateTime fechaEmision) {
         this.fechaEmision = fechaEmision;
+    }
+
+    public LocalDateTime getFechaUso() {
+        return fechaUso;
+    }
+
+    public void setFechaUso(LocalDateTime fechaUso) {
+        this.fechaUso = fechaUso;
     }
 
     public String getQrImagenBase64() {

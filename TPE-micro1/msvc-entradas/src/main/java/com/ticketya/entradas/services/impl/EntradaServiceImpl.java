@@ -1,4 +1,3 @@
-
 package com.ticketya.entradas.services.impl;
 
 import java.time.LocalDateTime;
@@ -227,6 +226,73 @@ public class EntradaServiceImpl implements EntradaService {
         }
     }
 
+     /*
+     * Valida un código QR para permitir el ingreso al evento.
+     *
+     * Comprueba que la entrada exista, corresponda al evento
+     * y se encuentre emitida.
+     *
+     * Si la validación es correcta, registra su utilización.
+     */
+    @Override
+    @Transactional
+    public EntradaDTO validarQr(String codigoQr, Long eventoId) {
+
+        if (codigoQr == null || codigoQr.isBlank()
+                || eventoId == null || eventoId <= 0) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Código QR o evento inválido");
+        }
+
+        // Buscar la entrada y bloquearla para evitar dos usos simultáneos.
+        Entrada entrada = entradaRepository.findByCodigoQrForUpdate(codigoQr)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No existe una entrada con ese código QR"));
+
+        // Comprobar que la entrada corresponda al evento indicado.
+        if (!eventoId.equals(entrada.getEventoId())) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La entrada no corresponde a este evento");
+        }
+
+        // Rechazar entradas invalidadas.
+        if ("INVALIDADA".equals(entrada.getEstado())) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La entrada está invalidada");
+        }
+
+        // Rechazar entradas que ya fueron utilizadas.
+        if ("UTILIZADA".equals(entrada.getEstado())) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La entrada ya fue utilizada");
+        }
+
+        // Solo se permite utilizar entradas emitidas.
+        if (!"EMITIDA".equals(entrada.getEstado())) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La entrada no está disponible para su utilización");
+        }
+
+        // Registrar el ingreso.
+        entrada.setEstado("UTILIZADA");
+        entrada.setFechaUso(LocalDateTime.now());
+
+        Entrada guardada = entradaRepository.saveAndFlush(entrada);
+
+        return convertir(guardada);
+    }
+
     /*
      * Busca una entrada por su ID.
      *
@@ -287,20 +353,23 @@ public class EntradaServiceImpl implements EntradaService {
      */
     private EntradaDTO convertir(Entrada e) {
 
-        return new EntradaDTO(
-                e.getId(),
-                e.getCompraId(),
-                e.getReservaId(),
-                e.getDetalleReservaId(),
-                e.getIndiceLugar(),
-                e.getClienteId(),
-                e.getEventoId(),
-                e.getSectorId(),
-                e.getAsientoId(),
-                e.getCodigoQr(),
-                e.getEstado(),
-                e.getFechaEmision(),
-                qrCodeService.generarImagenBase64(e.getCodigoQr()));
+        EntradaDTO dto = new EntradaDTO(
+            e.getId(),
+            e.getCompraId(),
+            e.getReservaId(),
+            e.getDetalleReservaId(),
+            e.getIndiceLugar(),
+            e.getClienteId(),
+            e.getEventoId(),
+            e.getSectorId(),
+            e.getAsientoId(),
+            e.getCodigoQr(),
+            e.getEstado(),
+            e.getFechaEmision(),
+            qrCodeService.generarImagenBase64(e.getCodigoQr()));
+
+        dto.setFechaUso(e.getFechaUso());
+        return dto;
     }
 
     @Override

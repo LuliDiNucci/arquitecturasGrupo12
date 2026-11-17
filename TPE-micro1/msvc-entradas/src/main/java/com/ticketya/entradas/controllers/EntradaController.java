@@ -1,4 +1,3 @@
-
 package com.ticketya.entradas.controllers;
 
 import java.util.List;
@@ -17,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ticketya.entradas.dtos.EmitirEntradasRequestDTO;
 import com.ticketya.entradas.dtos.EntradaDTO;
 import com.ticketya.entradas.dtos.ResultadoEmisionDTO;
+import com.ticketya.entradas.dtos.ValidarQrRequestDTO;
 import com.ticketya.entradas.services.EntradaService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,10 +40,30 @@ public class EntradaController {
         this.entradaService = entradaService;
     }
 
+    @Operation(summary = "Validar entrada mediante QR", description = "Valida que la entrada exista, corresponda al evento y no haya sido utilizada ni invalidada. Si es válida, registra su utilización.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Entrada validada correctamente"),
+        @ApiResponse(responseCode = "400", description = "Código QR o evento inválido"),
+        @ApiResponse(responseCode = "403", description = "El usuario no tiene permisos para validar entradas"),
+        @ApiResponse(responseCode = "404", description = "No existe una entrada con ese código QR"),
+        @ApiResponse(responseCode = "409", description = "La entrada no corresponde al evento, está invalidada o ya fue utilizada")
+    })
+    @PostMapping("/validar")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('PERSONAL_ACCESO')")
+    public ResponseEntity<EntradaDTO> validarQr(
+            @Valid @RequestBody ValidarQrRequestDTO request) {
+
+        EntradaDTO entrada = entradaService.validarQr(
+                request.getCodigoQr(),
+                request.getEventoId()
+        );
+
+        return ResponseEntity.ok(entrada);
+    }
 
 
-   @Operation(summary = "Emitir entradas",description = "Emite las entradas correspondientes a una compra aprobada y con reserva confirmada. Si ya fueron emitidas, devuelve las existentes.")
-   @ApiResponses(value = {
+    @Operation(summary = "Emitir entradas",description = "Emite las entradas correspondientes a una compra aprobada y con reserva confirmada. Si ya fueron emitidas, devuelve las existentes.")
+    @ApiResponses(value = {
         @ApiResponse(
             responseCode = "201",
             description = "Entradas creadas correctamente",
@@ -72,8 +92,6 @@ public class EntradaController {
     }
 
 
-
-    
     @Operation(summary = "Obtener una entrada",description = "Obtiene los datos de una entrada y su código QR. Verifica que pertenezca al cliente indicado.")
     @ApiResponses(value = {
         @ApiResponse(
@@ -97,8 +115,6 @@ public class EntradaController {
     }
 
 
-
-
     @Operation(summary = "Obtener entradas de un cliente",description = "Devuelve todas las entradas asociadas al identificador del cliente." )
     @ApiResponses(value = {
         @ApiResponse(
@@ -119,8 +135,6 @@ public class EntradaController {
 
         return ResponseEntity.ok(entradas);
     }
-
-
 
 
     @Operation(summary = "Invalidar entradas de un evento",description = "Invalida las entradas emitidas cuando el evento se encuentra cancelado.")

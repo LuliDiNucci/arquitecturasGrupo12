@@ -1,11 +1,14 @@
-
 package com.ticketya.entradas.repositories;
 
 import java.util.List;
-
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import com.ticketya.entradas.entities.Entrada;
+
+import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface EntradaRepository extends JpaRepository<Entrada, Long> {
 
@@ -20,4 +23,10 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
     List<Entrada> findByEventoId(Long eventoId);
 
     List<Entrada> findByEventoIdAndEstado(Long eventoId, String estado);
+
+    // Busca una entrada por su QR y bloquea el registro para evitar validaciones simultáneas.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM Entrada e WHERE e.codigoQr = :codigoQr")
+    Optional<Entrada> findByCodigoQrForUpdate(
+        @Param("codigoQr") String codigoQr);
 }

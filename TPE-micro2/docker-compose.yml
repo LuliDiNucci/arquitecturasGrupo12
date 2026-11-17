@@ -1,0 +1,237 @@
+name: ticketya
+x-jwt: &jwt
+  JWT_PUBLIC_KEY: file:/run/secrets/jwt-public.pem
+  JWT_ISSUER: ticketya-usuarios
+  JWT_AUDIENCE: ticketya-api
+services:
+  db-usuarios:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure .env}
+      MYSQL_DATABASE: ticketya_usuarios
+      MYSQL_USER: ticketya
+      MYSQL_PASSWORD: ${USUARIOS_DB_PASSWORD:?Configure .env}
+    ports: ["127.0.0.1:3307:3306"]
+    volumes: ["db-usuarios:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  db-eventos:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure .env}
+      MYSQL_DATABASE: ticketya_eventos
+      MYSQL_USER: ticketya
+      MYSQL_PASSWORD: ${EVENTOS_DB_PASSWORD:?Configure .env}
+    ports: ["127.0.0.1:3308:3306"]
+    volumes: ["db-eventos:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  db-reservas:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure .env}
+      MYSQL_DATABASE: ticketya_reservas
+      MYSQL_USER: ticketya
+      MYSQL_PASSWORD: ${RESERVAS_DB_PASSWORD:?Configure .env}
+    ports: ["127.0.0.1:3309:3306"]
+    volumes: ["db-reservas:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  db-compras:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure .env}
+      MYSQL_DATABASE: ticketya_compras
+      MYSQL_USER: ticketya
+      MYSQL_PASSWORD: ${COMPRAS_DB_PASSWORD:?Configure .env}
+    ports: ["127.0.0.1:3310:3306"]
+    volumes: ["db-compras:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  db-entradas:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure .env}
+      MYSQL_DATABASE: ticketya_entradas
+      MYSQL_USER: ticketya
+      MYSQL_PASSWORD: ${ENTRADAS_DB_PASSWORD:?Configure .env}
+    ports: ["127.0.0.1:3311:3306"]
+    volumes: ["db-entradas:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  db-recomendaciones:
+    image: mongo:8.0
+    container_name: ticketya-db-recomendaciones
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - db-recomendaciones:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  usuarios:
+    build: ./msvc-usuarios
+    environment:
+      <<: *jwt
+      PORT: 8085
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:mysql://db-usuarios:3306/ticketya_usuarios?allowPublicKeyRetrieval=true&useSSL=false
+      DB_USER: ticketya
+      DB_USERNAME: ticketya
+      DB_PASSWORD: ${USUARIOS_DB_PASSWORD:?Configure .env}
+      JWT_PRIVATE_KEY: file:/run/secrets/jwt-private.pem
+      SERVICE_EVENTOS_SECRET: ${SERVICE_EVENTOS_SECRET:?Configure .env}
+      SERVICE_RESERVAS_SECRET: ${SERVICE_RESERVAS_SECRET:?Configure .env}
+      SERVICE_COMPRAS_SECRET: ${SERVICE_COMPRAS_SECRET:?Configure .env}
+      SERVICE_ENTRADAS_SECRET: ${SERVICE_ENTRADAS_SECRET:?Configure .env}
+      BOOTSTRAP_ADMIN_ENABLED: ${BOOTSTRAP_ADMIN_ENABLED:-false}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      EVENTOS_URL: http://eventos:8081
+      RESERVAS_URL: http://reservas:8080
+      COMPRAS_URL: http://compras:8082
+      ENTRADAS_URL: http://entradas:8083
+    ports: ["8085:8085"]
+    volumes:
+      - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+      - ./.secrets/jwt-private.pem:/run/secrets/jwt-private.pem:ro
+    depends_on:
+      db-usuarios:
+        condition: service_healthy
+  eventos:
+    build: ./msvc-eventosylugares
+    environment:
+      <<: *jwt
+      PORT: 8081
+      SPRING_PROFILES_ACTIVE: mysql
+      DB_URL: jdbc:mysql://db-eventos:3306/ticketya_eventos?allowPublicKeyRetrieval=true&useSSL=false
+      DB_USER: ticketya
+      DB_USERNAME: ticketya
+      DB_PASSWORD: ${EVENTOS_DB_PASSWORD:?Configure .env}
+      SERVICE_CLIENT_SECRET: ${SERVICE_EVENTOS_SECRET:?Configure .env}
+      SERVICE_TOKEN_URL: http://usuarios:8085/auth/service-token
+      USUARIOS_URL: http://usuarios:8085
+      RESERVAS_URL: http://reservas:8080
+      COMPRAS_URL: http://compras:8082
+      ENTRADAS_URL: http://entradas:8083
+    ports: ["8081:8081"]
+    volumes:
+      - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+    depends_on:
+      db-eventos:
+        condition: service_healthy
+      usuarios:
+        condition: service_started
+  reservas:
+    build: ./msvc-reservas
+    environment:
+      <<: *jwt
+      PORT: 8080
+      SPRING_PROFILES_ACTIVE: default
+      DB_URL: jdbc:mysql://db-reservas:3306/ticketya_reservas?allowPublicKeyRetrieval=true&useSSL=false
+      DB_USER: ticketya
+      DB_USERNAME: ticketya
+      DB_PASSWORD: ${RESERVAS_DB_PASSWORD:?Configure .env}
+      SERVICE_CLIENT_SECRET: ${SERVICE_RESERVAS_SECRET:?Configure .env}
+      SERVICE_TOKEN_URL: http://usuarios:8085/auth/service-token
+      USUARIOS_URL: http://usuarios:8085
+      EVENTOS_URL: http://eventos:8081
+      COMPRAS_URL: http://compras:8082
+      ENTRADAS_URL: http://entradas:8083
+    ports: ["8080:8080"]
+    volumes:
+      - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+    depends_on:
+      db-reservas:
+        condition: service_healthy
+      usuarios:
+        condition: service_started
+  compras:
+    build: ./msvc-compras
+    environment:
+      <<: *jwt
+      PORT: 8082
+      SPRING_PROFILES_ACTIVE: default
+      DB_URL: jdbc:mysql://db-compras:3306/ticketya_compras?allowPublicKeyRetrieval=true&useSSL=false
+      DB_USER: ticketya
+      DB_USERNAME: ticketya
+      DB_PASSWORD: ${COMPRAS_DB_PASSWORD:?Configure .env}
+      SERVICE_CLIENT_SECRET: ${SERVICE_COMPRAS_SECRET:?Configure .env}
+      SERVICE_TOKEN_URL: http://usuarios:8085/auth/service-token
+      USUARIOS_URL: http://usuarios:8085
+      EVENTOS_URL: http://eventos:8081
+      RESERVAS_URL: http://reservas:8080
+      ENTRADAS_URL: http://entradas:8083
+    ports: ["8082:8082"]
+    volumes:
+      - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+    depends_on:
+      db-compras:
+        condition: service_healthy
+      usuarios:
+        condition: service_started
+  entradas:
+    build: ./msvc-entradas
+    environment:
+      <<: *jwt
+      PORT: 8083
+      SPRING_PROFILES_ACTIVE: default
+      DB_URL: jdbc:mysql://db-entradas:3306/ticketya_entradas?allowPublicKeyRetrieval=true&useSSL=false
+      DB_USER: ticketya
+      DB_USERNAME: ticketya
+      DB_PASSWORD: ${ENTRADAS_DB_PASSWORD:?Configure .env}
+      SERVICE_CLIENT_SECRET: ${SERVICE_ENTRADAS_SECRET:?Configure .env}
+      SERVICE_TOKEN_URL: http://usuarios:8085/auth/service-token
+      USUARIOS_URL: http://usuarios:8085
+      EVENTOS_URL: http://eventos:8081
+      RESERVAS_URL: http://reservas:8080
+      COMPRAS_URL: http://compras:8082
+    ports: ["8083:8083"]
+    volumes:
+      - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+    depends_on:
+      db-entradas:
+        condition: service_healthy
+      usuarios:
+        condition: service_started
+  gateway:
+    build: ./msvc-gateway
+    environment:
+      <<: *jwt
+      PORT: 8084
+      USUARIOS_URL: http://usuarios:8085
+      EVENTOS_URL: http://eventos:8081
+      RESERVAS_URL: http://reservas:8080
+      COMPRAS_URL: http://compras:8082
+      ENTRADAS_URL: http://entradas:8083
+    ports: ["8084:8084"]
+    volumes:
+      - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+    depends_on:
+      usuarios:
+        condition: service_started
+volumes:
+  db-usuarios:
+  db-eventos:
+  db-reservas:
+  db-compras:
+  db-entradas:
+  db-recomendaciones:

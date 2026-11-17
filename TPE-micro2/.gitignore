@@ -1,0 +1,10 @@
+# Artefactos locales y secretos
+**/target/
+**/*.log
+.secrets/
+.env
+.env.*
+!.env.example
+.local-security-smoke/
+.m2-repository/
+verification-*.json

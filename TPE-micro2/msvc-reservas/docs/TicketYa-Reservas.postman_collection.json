@@ -1,0 +1,234 @@
+{
+  "info": {
+    "name": "TicketYa - msvc-reservas (Entrega 1)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Crear/reservar requiere msvc-eventos-lugares real o mock. Confirmar, liberar y devolver son operaciones internas."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "reservaId",
+      "value": "1"
+    },
+    {
+      "key": "eventoId",
+      "value": "20"
+    }
+  ],
+  "item": [
+    {
+      "name": "Habilitar evento (interno)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/reservas/evento/{{eventoId}}/habilitar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reservas",
+            "evento",
+            "{{eventoId}}",
+            "habilitar"
+          ]
+        },
+        "description": "Habilita reservas para un evento PUBLICADO. Operación interna e idempotente. Respuesta exitosa: 204 No Content."
+      }
+    },
+    {
+      "name": "Crear reserva",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reservas",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reservas"
+          ],
+          "query": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clienteId\": 1,\n  \"eventoId\": 20,\n  \"claveIdempotencia\": \"REQ-001\",\n  \"detalles\": [\n    {\n      \"sectorId\": 5,\n      \"cantidad\": 1,\n      \"asientoIds\": [\n        25\n      ]\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Consultar reserva",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reservas/{{reservaId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reservas",
+            "{{reservaId}}"
+          ],
+          "query": []
+        }
+      }
+    },
+    {
+      "name": "Disponibilidad",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/disponibilidad?eventoId={{eventoId}}&sectorId=5",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "disponibilidad"
+          ],
+          "query": [
+            {
+              "key": "eventoId",
+              "value": "{{eventoId}}"
+            },
+            {
+              "key": "sectorId",
+              "value": "5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Confirmar (interno)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reservas/{{reservaId}}/confirmar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reservas",
+            "{{reservaId}}",
+            "confirmar"
+          ],
+          "query": []
+        }
+      }
+    },
+    {
+      "name": "Liberar temporal (interno)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reservas/{{reservaId}}/liberar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reservas",
+            "{{reservaId}}",
+            "liberar"
+          ],
+          "query": []
+        }
+      }
+    },
+    {
+      "name": "Devolver entrada (interno)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reservas/{{reservaId}}/devolver-entrada",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reservas",
+            "{{reservaId}}",
+            "devolver-entrada"
+          ],
+          "query": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"entradaId\": 102,\n  \"sectorId\": 5,\n  \"asientoId\": 25\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Cancelar evento (interno)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reservas/evento/{{eventoId}}/cancelar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reservas",
+            "evento",
+            "{{eventoId}}",
+            "cancelar"
+          ],
+          "query": []
+        }
+      }
+    }
+  ]
+}

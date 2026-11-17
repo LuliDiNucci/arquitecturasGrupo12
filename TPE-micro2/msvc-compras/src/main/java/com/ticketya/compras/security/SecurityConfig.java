@@ -30,6 +30,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/compras/*", "/compras/*/reintegros").hasAnyRole("CLIENTE", "ADMINISTRADOR")
                 .requestMatchers(HttpMethod.POST, "/compras/*/pagar", "/compras/*/confirmar", "/compras/*/reintentar-liberacion").hasRole("CLIENTE")
                 .requestMatchers(HttpMethod.POST, "/compras/reintegros").hasAuthority("SERVICE_entradas")
+                .requestMatchers(HttpMethod.GET, "/compras/evento/*/compradores").hasAuthority("SERVICE_eventos")
                 .requestMatchers(HttpMethod.POST, "/compras/evento/*/cancelar").hasAuthority("SERVICE_eventos")
                 .requestMatchers(HttpMethod.POST, "/compras/*/compensar").hasRole("ADMINISTRADOR")
                 .anyRequest().denyAll())

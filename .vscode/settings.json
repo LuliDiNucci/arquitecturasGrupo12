@@ -1,4 +1,6 @@
 {
     "java.configuration.updateBuildConfiguration": "automatic",
-    "java.project.sourcePaths": {}
+    "java.project.sourcePaths": [
+        "TPE-micro2/msvc-usuarios/src/main/java"
+    ]
 }

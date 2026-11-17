@@ -12,6 +12,8 @@ public class EventoDTO {
     @Schema(description = "Estado actual del evento", example = "CANCELADO")
     private String estado;
 
+    private String nombre;
+
     public EventoDTO() {
     }
 
@@ -29,5 +31,13 @@ public class EventoDTO {
 
     public void setEstado(String estado) {
         this.estado = estado;
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
     }
 }

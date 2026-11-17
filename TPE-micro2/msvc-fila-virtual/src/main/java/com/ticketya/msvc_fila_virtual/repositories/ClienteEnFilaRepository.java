@@ -19,48 +19,61 @@ import jakarta.persistence.LockModeType;
 
 @Repository
 public interface ClienteEnFilaRepository
-        extends JpaRepository<ClienteEnFila, Long> {
+                extends JpaRepository<ClienteEnFila, Long> {
 
-    Optional<ClienteEnFila> findByEventoIdAndClienteId(
-            Long eventoId,
-            Long clienteId);
+        Optional<ClienteEnFila> findByEventoIdAndClienteId(
+                        Long eventoId,
+                        Long clienteId);
 
-    long countByEventoIdAndEstado(
-            Long eventoId,
-            EstadoFila estado);
+        long countByEventoIdAndEstado(
+                        Long eventoId,
+                        EstadoFila estado);
 
-    long countByEventoIdAndEstadoAndIdLessThan(
-            Long eventoId,
-            EstadoFila estado,
-            Long id);
+        long countByEventoIdAndEstadoAndIdLessThan(
+                        Long eventoId,
+                        EstadoFila estado,
+                        Long id);
 
-    List<ClienteEnFila> findByEventoIdAndEstadoOrderByIdAsc(
-            Long eventoId,
-            EstadoFila estado);
+        List<ClienteEnFila> findByEventoIdAndEstadoOrderByIdAsc(
+                        Long eventoId,
+                        EstadoFila estado);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<ClienteEnFila> findFirstByEventoIdOrderByIdAsc(
-            Long eventoId);
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        Optional<ClienteEnFila> findFirstByEventoIdOrderByIdAsc(
+                        Long eventoId);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-            SELECT c FROM ClienteEnFila c
-            WHERE c.eventoId = :eventoId
-            AND c.clienteId = :clienteId
-            """)
-    Optional<ClienteEnFila> bloquearPorEventoYCliente(
-            @Param("eventoId") Long eventoId,
-            @Param("clienteId") Long clienteId);
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("""
+                        SELECT c FROM ClienteEnFila c
+                        WHERE c.eventoId = :eventoId
+                        AND c.clienteId = :clienteId
+                        """)
+        Optional<ClienteEnFila> bloquearPorEventoYCliente(
+                        @Param("eventoId") Long eventoId,
+                        @Param("clienteId") Long clienteId);
 
-    @Modifying
-    @Query("""
-            UPDATE ClienteEnFila c
-            SET c.estado = :vencido
-            WHERE c.estado = :habilitado
-            AND c.fechaVencimiento <= :ahora
-            """)
-    int vencerTurnosExpirados(
-            @Param("habilitado") EstadoFila habilitado,
-            @Param("vencido") EstadoFila vencido,
-            @Param("ahora") LocalDateTime ahora);
+        @Modifying
+        @Query("""
+                        UPDATE ClienteEnFila c
+                        SET c.estado = :vencido
+                        WHERE c.estado = :habilitado
+                        AND c.fechaVencimiento <= :ahora
+                        """)
+        int vencerTurnosExpirados(
+                        @Param("habilitado") EstadoFila habilitado,
+                        @Param("vencido") EstadoFila vencido,
+                        @Param("ahora") LocalDateTime ahora);
+
+        @Modifying
+        @Query(value = """
+                        INSERT INTO clientes_en_fila
+                            (evento_id, cliente_id, fecha_ingreso, estado)
+                        VALUES
+                            (:eventoId, :clienteId, :fechaIngreso, 'EN_ESPERA')
+                        ON DUPLICATE KEY UPDATE id = id
+                        """, nativeQuery = true)
+        int ingresarSiNoExiste(
+                        @Param("eventoId") Long eventoId,
+                        @Param("clienteId") Long clienteId,
+                        @Param("fechaIngreso") LocalDateTime fechaIngreso);
 }

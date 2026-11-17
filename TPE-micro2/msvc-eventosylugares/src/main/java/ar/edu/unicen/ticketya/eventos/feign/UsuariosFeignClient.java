@@ -1,5 +1,6 @@
 package ar.edu.unicen.ticketya.eventos.feign;
 
+import ar.edu.unicen.ticketya.eventos.dto.UsuarioContactoDTO;
 import ar.edu.unicen.ticketya.eventos.dto.UsuarioValidacionResponseDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,4 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface UsuariosFeignClient {
     @GetMapping("/usuarios/{id}")
     UsuarioValidacionResponseDTO obtenerUsuario(@PathVariable("id") Long usuarioId);
+
+    @GetMapping("/usuarios/{id}/contacto")
+    UsuarioContactoDTO obtenerContacto(@PathVariable("id") Long usuarioId);
 }

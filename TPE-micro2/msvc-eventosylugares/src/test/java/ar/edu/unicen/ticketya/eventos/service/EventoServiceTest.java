@@ -32,6 +32,8 @@ import static org.mockito.Mockito.*;
 class EventoServiceTest {
 
     @Mock private EventoRepository eventoRepository;
+    @Mock private ar.edu.unicen.ticketya.eventos.repository.AvisoEventoPendienteRepository avisosClientes;
+    @Mock private jakarta.persistence.EntityManager entityManager;
     @Mock private SectorRepository sectorRepository;
     @Mock private AsientoRepository asientoRepository;
     @Mock private PrecioSectorRepository precioSectorRepository;
@@ -54,7 +56,7 @@ class EventoServiceTest {
                 eventoRepository, sectorRepository, asientoRepository,
                 precioSectorRepository, eventoParticipanteRepository,
                 notificacionRepository, lugarService, organizadorService,
-                participanteService, asientoService, clock
+                participanteService, asientoService, clock, avisosClientes, entityManager
         );
     }
 

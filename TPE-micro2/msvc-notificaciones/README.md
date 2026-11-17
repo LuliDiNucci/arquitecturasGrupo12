@@ -1,13 +1,13 @@
 # TicketYa · Microservicio de notificaciones
 
-El servicio recibe pedidos internos de correo, los guarda en su propia base y responde antes del envío. Compras, Eventos o el servicio responsable de las preferencias podrán llamar a los endpoints cuando integren sus flujos. Cada solicitud representa a un destinatario e incluye su ID y su correo. Para una cancelación o un cambio, el servicio de origen identifica a los compradores y hace una solicitud por cliente.
+El servicio recibe pedidos internos de correo, los guarda en su propia base y responde antes del envío. Compras ya entrega los avisos de compra confirmada mediante una cola local; Eventos o el servicio responsable de las preferencias podrán llamar a los restantes endpoints al integrar sus flujos. Cada solicitud representa a un destinatario e incluye su ID y su correo. Para una cancelación o un cambio, el servicio de origen identifica a los compradores y hace una solicitud por cliente.
 
 ## Ejecutar desde VS Code
 
-Abrí el repositorio del grupo, agregá esta carpeta en `TPE-micro1/msvc-notificaciones` y usá Java 21. En la terminal de PowerShell:
+Abrí el repositorio del grupo, agregá esta carpeta en `TPE-micro2/msvc-notificaciones` y usá Java 21. En la terminal de PowerShell:
 
 ```powershell
-cd TPE-micro1/msvc-notificaciones
+cd TPE-micro2/msvc-notificaciones
 .\mvnw.cmd test
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
@@ -20,8 +20,8 @@ Si tenés Docker, podés levantar Mailpit para recibir correos de prueba:
 docker run --rm --name ticketya-mailpit -p 127.0.0.1:1025:1025 -p 127.0.0.1:8025:8025 axllent/mailpit
 ```
 
-- [Swagger UI](http://localhost:8085/swagger-ui.html)
-- [Especificación OpenAPI](http://localhost:8085/v3/api-docs)
+- [Swagger UI](http://localhost:8087/swagger-ui.html)
+- [Especificación OpenAPI](http://localhost:8087/v3/api-docs)
 - [Bandeja de Mailpit](http://localhost:8025)
 
 Los valores SMTP predeterminados son `localhost:1025` y `notificaciones@ticketya.test`. Para otro servidor se pueden definir `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_AUTH`, `SMTP_STARTTLS` y `MAIL_FROM`.
@@ -120,7 +120,7 @@ Por defecto se revisa la cola cada segundo y se hacen hasta tres intentos en tot
 
 La restricción única `(tipo, referencia_id, version_evento, cliente_id)` evita filas duplicadas incluso ante solicitudes simultáneas. El bloqueo evita dos envíos simultáneos de una misma fila. Si SMTP acepta el mensaje y el proceso se interrumpe antes de confirmar la transacción, puede haber una segunda entrega en el siguiente intento.
 
-La API es interna. El cableado de los llamados desde los servicios de origen y la autenticación en la arquitectura del grupo se coordinan al integrar los módulos.
+La API es interna. En el flujo de compra, Compras confirma y guarda primero un aviso en `avisos_compra_pendientes`; un scheduler consulta el email en Usuarios y recién entonces hace el POST. Así, una caída de Usuarios o Notificaciones no revierte la compra y el mismo `compraId` no genera duplicados.
 
 ## Pruebas
 

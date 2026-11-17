@@ -35,8 +35,17 @@ Las pruebas verifican las reglas de negocio relacionadas con la emisión e inval
 | Invalidar entradas de un evento cancelado. | Las entradas emitidas pasan al estado `INVALIDADA`. |
 | Repetir la invalidación de un evento. | No se generan modificaciones adicionales sobre las entradas ya invalidadas. |
 | Intentar invalidar entradas de un evento que no está cancelado. | Se rechaza la operación y no se modifican las entradas. |
+| Validar una entrada con un código QR existente y correspondiente al evento. | La entrada cambia a UTILIZADA y se registra la fecha y hora de uso.
+| Validar un código QR inexistente.	| Se rechaza la operación con error HTTP 404. |
+| Validar una entrada perteneciente a otro evento. | Se rechaza la operación con error HTTP 409. |
+| Validar una entrada en estado INVALIDADA. | Se rechaza la operación con error HTTP 409. |
+| Validar una entrada que ya fue utilizada. | Se rechaza la operación con error HTTP 409. |
+| Validar una entrada que no se encuentra en estado EMITIDA. | Se rechaza la operación con error HTTP 409. |
+| Validar con datos inválidos. | Se rechaza la operación con error HTTP 400. |
 
 La invalidación por cancelación se verifica como una operación propia de Entradas. La coordinación general del proceso de cancelación corresponde a Eventos y Lugares, que se comunica con Reservas, Entradas y Compras.
+
+Las pruebas de validación QR se realizan mediante pruebas unitarias con dependencias simuladas. La implementación utiliza un bloqueo pesimista (`PESSIMISTIC_WRITE`) dentro de una transacción para evitar validaciones simultáneas de una misma entrada. El comportamiento de este mecanismo frente a solicitudes concurrentes todavía no fue verificado mediante una prueba de integración con una base de datos real.
 
 ## 3. Pruebas de solicitudes de devolución
 
@@ -84,7 +93,25 @@ Las pruebas unitarias pueden ejecutarse desde el directorio raíz de `msvc-entra
 mvn test
 ```
 
-Este comando ejecuta las pruebas detectadas por la configuración del proyecto y permite consultar sus resultados en los reportes generados por Maven.
+Este comando ejecuta las pruebas detectadas por la configuración del proyecto y permite consultar sus resultados en los reportes generados por Maven. 
+
+**Ejecución de las pruebas de validación QR:**
+
+Se ejecutó la clase `EntradaServiceImplTest` mediante el siguiente comando desde el directorio del microservicio:
+
+```bash
+.\mvnw.cmd -Dtest=EntradaServiceImplTest test
+```
+
+**Resultado obtenido:**
+
+- Pruebas ejecutadas: 14.
+- Fallas: 0.
+- Errores: 0.
+- Pruebas omitidas: 0.
+- Resultado: `BUILD SUCCESS`.
+
+La ejecución confirmó el correcto funcionamiento de los escenarios unitarios incluidos en esta clase.
 
 ### 6.2. Pruebas de API REST
 
@@ -108,3 +135,5 @@ Estas pruebas permiten verificar el comportamiento HTTP y las interacciones del 
 El microservicio `msvc-entradas` dispone de pruebas automatizadas para sus principales operaciones de negocio, incluyendo la emisión idempotente de entradas, las validaciones de compras y reservas, la generación de códigos QR, la gestión de devoluciones y la invalidación por cancelación de eventos.
 
 Las pruebas unitarias verifican el comportamiento de los servicios mediante dependencias simuladas, mientras que la colección Postman permite comprobar los principales flujos REST durante la ejecución local del sistema.
+
+También se incorporaron pruebas unitarias para la validación de entradas mediante códigos QR, verificando el cambio de estado a UTILIZADA, el registro de la fecha de uso y el rechazo de validaciones no permitidas.

@@ -130,6 +130,60 @@ El servicio consulta el estado del evento mediante `EventoFeignClient`. Si el ev
 
 La invalidación de entradas constituye una de las operaciones del proceso de cancelación de eventos. El microservicio Eventos y Lugares coordina las comunicaciones con Reservas, Entradas y Compras para gestionar la liberación de lugares, la invalidación de entradas y los reintegros correspondientes.
 
+### 2.5. Validar entrada mediante código QR
+
+**Método:** `POST`
+
+**Ruta:** `/entradas/validar`
+
+**Descripción:**
+
+Permite validar el código QR de una entrada al momento de ingresar al evento. Esta operación está destinada al personal de acceso.
+
+**Request Body:**
+
+```json
+{
+  "codigoQr": "TICKET-ABC123",
+  "eventoId": 15
+}
+```
+
+El cuerpo utiliza el DTO `ValidarQrRequestDTO`.
+
+**Permisos requeridos:**
+
+El endpoint requiere el rol `PERSONAL_ACCESO`.
+
+**Validaciones realizadas:**
+
+Antes de permitir el ingreso, el servicio verifica:
+
+- Que se haya informado un código QR y un identificador de evento válidos.
+- Que exista una entrada asociada al código QR.
+- Que la entrada pertenezca al evento indicado.
+- Que la entrada se encuentre en estado `EMITIDA`.
+- Que la entrada no haya sido utilizada ni invalidada anteriormente.
+
+Si todas las verificaciones son satisfactorias, la entrada cambia su estado a `UTILIZADA` y se registra la fecha y hora de uso en el campo `fechaUso`.
+
+Para evitar que una misma entrada sea validada simultáneamente más de una vez, se utiliza un bloqueo pesimista sobre el registro durante la transacción.
+
+**Respuesta:**
+
+Devuelve un objeto `EntradaDTO` con los datos de la entrada actualizados, incluyendo:
+
+- `estado`: `UTILIZADA`.
+- `fechaUso`: fecha y hora en que se validó el ingreso.
+
+**Códigos HTTP:**
+
+- `200 OK`: entrada validada correctamente.
+- `400 Bad Request`: datos de validación inválidos.
+- `403 Forbidden`: el usuario no posee el rol `PERSONAL_ACCESO`.
+- `404 Not Found`: no existe una entrada asociada al código QR informado.
+- `409 Conflict`: la entrada pertenece a otro evento, está invalidada o ya fue utilizada.
+
 ## 3. Endpoints de devoluciones
 
 ### 3.1. Solicitar devolución

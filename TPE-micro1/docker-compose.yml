@@ -74,6 +74,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
+  db-recomendaciones:
+    image: mongo:8.0
+    container_name: ticketya-db-recomendaciones
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - db-recomendaciones:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   usuarios:
     build: ./msvc-usuarios
     environment:
@@ -221,3 +234,4 @@ volumes:
   db-reservas:
   db-compras:
   db-entradas:
+  db-recomendaciones:

@@ -16,6 +16,13 @@ import feign.FeignException;
 @RestControllerAdvice
 public class CompraExceptionHandler {
 
+    @ExceptionHandler({FeignException.Unauthorized.class, FeignException.Forbidden.class})
+    public ResponseEntity<ErrorDTO> manejarAutorizacionRemota(FeignException error) {
+        int status = error.status();
+        return ResponseEntity.status(status).body(new ErrorDTO(status,
+                status == 401 ? "Autenticación requerida por el servicio destino" : "Sin permiso sobre el recurso solicitado"));
+    }
+
     // Datos inválidos
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorDTO> manejarDatosInvalidos(

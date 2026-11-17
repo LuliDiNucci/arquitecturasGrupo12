@@ -13,6 +13,11 @@ public class Organizador {
     @Column(nullable = false, length = 200)
     private String email;
 
+    @Column(name = "usuario_id", unique = true)
+    private Long usuarioId;
+    public Long getUsuarioId() { return usuarioId; }
+    public void setUsuarioId(Long usuarioId) { this.usuarioId = usuarioId; }
+
     protected Organizador() {}
     public Organizador(String nombre, String email) {
         this.nombre = nombre;

@@ -1,0 +1,7 @@
+**/target
+**/.git
+**/*.log
+.secrets
+.env
+.env.*
+.local-security-smoke

@@ -10,6 +10,16 @@ spring:
             response-timeout: 5s
           routes:
             # Las rutas de documentación deben evaluarse antes que las rutas generales.
+            - id: usuarios-api-docs
+              uri: ${USUARIOS_URL:http://localhost:8085}
+              predicates:
+                - Path=/usuarios/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
+            - id: usuarios
+              uri: ${USUARIOS_URL:http://localhost:8085}
+              predicates:
+                - Path=/auth/**,/usuarios/**
             - id: eventos-api-docs
               uri: ${EVENTOS_URL:http://localhost:8081}
               predicates:
@@ -63,3 +73,22 @@ management:
   endpoint:
     health:
       show-details: never
+
+ticketya:
+  jwt:
+    public-key: ${JWT_PUBLIC_KEY:file:../.secrets/jwt-public.pem}
+    issuer: ${JWT_ISSUER:ticketya-usuarios}
+    audience: ${JWT_AUDIENCE:ticketya-api}
+springdoc:
+  swagger-ui:
+    urls:
+      - name: Usuarios
+        url: /usuarios/v3/api-docs
+      - name: Eventos
+        url: /eventos/v3/api-docs
+      - name: Reservas
+        url: /reservas/v3/api-docs
+      - name: Compras
+        url: /compras/v3/api-docs
+      - name: Entradas
+        url: /entradas/v3/api-docs

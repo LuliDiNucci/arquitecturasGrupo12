@@ -1,0 +1,5 @@
+# Desarrollo usa MySQL propio; nunca se inicia H2 ni una clave efímera por defecto.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update

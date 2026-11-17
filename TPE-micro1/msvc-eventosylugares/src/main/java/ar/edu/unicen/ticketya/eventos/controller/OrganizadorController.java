@@ -43,6 +43,14 @@ public class OrganizadorController {
         return ResponseEntity.created(URI.create("/organizadores/" + creado.getId())).body(creado);
     }
 
+    @PatchMapping("/{id}/usuario")
+    @Operation(summary = "Vincular organizador a un usuario", description = "Requiere ADMINISTRADOR. Valida por REST que usuarioId exista, este activo y tenga rol ORGANIZADOR en msvc-usuarios.")
+    @ApiResponse(responseCode = "503", description = "No se pudo validar el usuario con msvc-usuarios", content = @Content(schema = @Schema(implementation = ApiErrorResponseDTO.class)))
+    public OrganizadorResponseDTO vincularUsuario(@PathVariable Long id,
+            @Valid @RequestBody ar.edu.unicen.ticketya.eventos.dto.UsuarioOrganizadorRequestDTO request) {
+        return organizadorService.vincularUsuario(id, request.getUsuarioId());
+    }
+
     @Operation(summary = "Listar organizadores")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @GetMapping

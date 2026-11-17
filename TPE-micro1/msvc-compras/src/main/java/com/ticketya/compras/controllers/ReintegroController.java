@@ -53,6 +53,7 @@ public class ReintegroController {
             @ApiResponse(responseCode = "404", description = "Compra inexistente")
     })
     @GetMapping("/{id}/reintegros")
+    @org.springframework.security.access.prepost.PreAuthorize("@purchaseAccess.purchase(#id)")
     public ResponseEntity<List<ReintegroDTO>> obtenerReintegros(@PathVariable Long id) {
         return ResponseEntity.ok(reintegroService.obtenerReintegros(id));
     }

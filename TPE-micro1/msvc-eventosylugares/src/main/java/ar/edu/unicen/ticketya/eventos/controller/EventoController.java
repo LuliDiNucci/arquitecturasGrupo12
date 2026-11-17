@@ -68,6 +68,7 @@ public class EventoController {
     @Operation(summary = "Crear un evento en estado BORRADOR")
     @ApiResponse(responseCode = "201", description = "Recurso creado")
     @PostMapping
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.organizer(#request.organizadorId)")
     public ResponseEntity<EventoResponseDTO> crear(@Valid @RequestBody EventoRequestDTO request) {
         EventoResponseDTO creado = eventoService.crear(request);
         return ResponseEntity.created(URI.create("/eventos/" + creado.getId())).body(creado);
@@ -91,6 +92,7 @@ public class EventoController {
     @Operation(summary = "Buscar eventos por tipo, organizador, participante, ciudad o fechas")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @GetMapping("/buscar")
+    @org.springframework.security.access.prepost.PreAuthorize("!#incluirNoPublicados or hasRole('ADMINISTRADOR')")
     public List<EventoResumenResponseDTO> buscar(
             @Parameter(description = "Tipo de evento", example = "RECITAL") @RequestParam(required = false) TipoEvento tipo,
             @Parameter(description = "ID del organizador", example = "1") @RequestParam(required = false) Long organizadorId,
@@ -110,6 +112,7 @@ public class EventoController {
     @Operation(summary = "Obtener detalle de evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @GetMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.read(#id)")
     public EventoResponseDTO obtener(@PathVariable Long id) {
         return eventoService.obtener(id);
     }
@@ -117,6 +120,7 @@ public class EventoController {
     @Operation(summary = "Modificar un evento segun su estado")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @PutMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.event(#id) and @eventAccess.organizer(#request.organizadorId)")
     public EventoResponseDTO actualizar(
             @PathVariable Long id,
             @Valid @RequestBody EventoRequestDTO request) {
@@ -127,6 +131,7 @@ public class EventoController {
     @Operation(summary = "Definir los precios de los sectores para un evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @PutMapping("/{id}/precios")
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.event(#id)")
     public EventoResponseDTO configurarPrecios(
             @PathVariable Long id,
             @Valid @RequestBody PreciosEventoRequestDTO request) {
@@ -137,6 +142,7 @@ public class EventoController {
     @Operation(summary = "Publicar un evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @PatchMapping("/{id}/publicar")
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.event(#id)")
     public EventoResponseDTO publicar(@PathVariable Long id) {
         EventoResponseDTO publicado = eventoService.publicar(id);
 
@@ -167,6 +173,7 @@ public class EventoController {
     @Operation(summary = "Marcar agotado")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @PatchMapping("/{id}/agotar")
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.event(#id)")
     public EventoResponseDTO agotar(@PathVariable Long id) {
         return eventoService.marcarAgotado(id);
     }
@@ -174,6 +181,7 @@ public class EventoController {
     @Operation(summary = "Reabrir ventas")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @PatchMapping("/{id}/reabrir")
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.event(#id)")
     public EventoResponseDTO reabrir(@PathVariable Long id) {
         return eventoService.reabrirVentas(id);
     }
@@ -181,6 +189,7 @@ public class EventoController {
     @Operation(summary = "Finalizar evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @PatchMapping("/{id}/finalizar")
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.event(#id)")
     public EventoResponseDTO finalizar(@PathVariable Long id) {
         return eventoService.finalizar(id);
     }
@@ -188,6 +197,7 @@ public class EventoController {
     @Operation(summary = "Consultar sectores, precios y asientos de un evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @GetMapping("/{id}/sectores")
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.read(#id)")
     public List<PrecioSectorResponseDTO> obtenerSectores(@PathVariable Long id) {
         return eventoService.ofertas(id);
     }
@@ -195,6 +205,7 @@ public class EventoController {
     @Operation(summary = "Consultar si el evento permite recibir reservas")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @GetMapping("/{id}/habilitado")
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.read(#id)")
     public HabilitacionEventoResponseDTO habilitado(@PathVariable Long id) {
         return eventoService.habilitacion(id);
     }
@@ -209,6 +220,7 @@ public class EventoController {
     @Operation(summary = "Consultar precio de un sector para un evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @GetMapping("/{eventoId}/sectores/{sectorId}/precio")
+    @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.read(#eventoId)")
     public PrecioSectorIndividualDTO obtenerPrecioSector(
             @PathVariable Long eventoId,
             @PathVariable Long sectorId) {

@@ -47,6 +47,7 @@ public class CompraController {
             @ApiResponse(responseCode = "503", description = "Microservicio externo no disponible")
     })
     @PostMapping
+    @org.springframework.security.access.prepost.PreAuthorize("@purchaseAccess.client(#solicitud.clienteId)")
     public ResponseEntity<CompraDTO> iniciarCompra(
             @RequestBody IniciarCompraDTO solicitud) {
 
@@ -67,6 +68,7 @@ public class CompraController {
             @ApiResponse(responseCode = "404", description = "Compra inexistente")
     })
     @GetMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("@purchaseAccess.purchase(#id)")
     public ResponseEntity<CompraDTO> obtenerCompra(
             @PathVariable Long id) {
 
@@ -89,6 +91,7 @@ public class CompraController {
         @ApiResponse(responseCode = "503", description = "Reservas o Entradas no disponible")
     })
     @PostMapping("/{id}/confirmar")
+    @org.springframework.security.access.prepost.PreAuthorize("@purchaseAccess.ownedPurchase(#id)")
     public ResponseEntity<CompraDTO> confirmarCompra(@PathVariable Long id) {
         return ResponseEntity.ok(compraService.confirmarCompra(id));
     }
@@ -101,6 +104,7 @@ public class CompraController {
         @ApiResponse(responseCode = "404", description = "Compra no encontrada")
     })
     @GetMapping("/{id}/confirmacion")
+    @org.springframework.security.access.prepost.PreAuthorize("@purchaseAccess.purchase(#id)")
     public ResponseEntity<ConfirmacionCompraDTO> consultarConfirmacion(@PathVariable Long id) {
         return ResponseEntity.ok(compraService.consultarConfirmacion(id));
     }

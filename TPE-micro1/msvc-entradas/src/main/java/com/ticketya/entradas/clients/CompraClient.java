@@ -17,9 +17,10 @@ public class CompraClient {
 
     public CompraClient(
             RestClient.Builder builder,
-            @Value("${msvc.compras.url}") String baseUrl) {
+            @Value("${msvc.compras.url}") String baseUrl,
+            com.ticketya.entradas.security.InternalRestSecurity security) {
 
-        this.restClient = builder.baseUrl(baseUrl).build();
+        this.restClient = builder.baseUrl(baseUrl).requestInterceptor(security).build();
     }
 
     // Consulta el estado real de la compra y su pago.

@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
+import com.ticketya.gateway.security.TestTokens;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -30,6 +31,7 @@ class MsvcGatewayApplicationTests {
     private static final StubService reservas = new StubService("reservas");
     private static final StubService compras = new StubService("compras");
     private static final StubService entradas = new StubService("entradas");
+    private static final StubService usuarios = new StubService("usuarios");
 
     @Autowired
     private WebTestClient webClient;
@@ -39,6 +41,8 @@ class MsvcGatewayApplicationTests {
 
     @DynamicPropertySource
     static void serviceUrls(DynamicPropertyRegistry registry) {
+        registry.add("ticketya.jwt.public-key", () -> TestTokens.PUBLIC);
+        registry.add("USUARIOS_URL", usuarios::url);
         registry.add("EVENTOS_URL", eventos::url);
         registry.add("RESERVAS_URL", reservas::url);
         registry.add("COMPRAS_URL", compras::url);
@@ -55,6 +59,7 @@ class MsvcGatewayApplicationTests {
         reservas.reset();
         compras.reset();
         entradas.reset();
+        usuarios.reset();
     }
 
     @Test
@@ -82,6 +87,7 @@ class MsvcGatewayApplicationTests {
         String body = "{\"clienteId\":10,\"eventoId\":20}";
 
         webClient.post().uri("/reservas?origen=postman")
+                .header("Authorization", "Bearer " + TestTokens.user(10, "CLIENTE"))
                 .bodyValue(body)
                 .exchange()
                 .expectStatus().isOk()
@@ -90,13 +96,16 @@ class MsvcGatewayApplicationTests {
         assertEquals("POST", reservas.method());
         assertEquals("/reservas?origen=postman", reservas.path());
         assertEquals(body, reservas.body());
+        assertTrue(reservas.authorization().startsWith("Bearer "));
+        assertEquals("10", signedSubject(reservas.authorization()));
     }
 
     @Test
     void enrutaComprasYPropagaErroresDelServicio() {
         compras.status = 409;
 
-        webClient.post().uri("/compras/error")
+        webClient.post().uri("/compras")
+                .header("Authorization", "Bearer " + TestTokens.user(10, "CLIENTE"))
                 .exchange()
                 .expectStatus().isEqualTo(409)
                 .expectBody(String.class).isEqualTo("compras");
@@ -106,22 +115,23 @@ class MsvcGatewayApplicationTests {
     void enrutaEntradasConMetodoYBody() {
         String body = "{\"compraId\":30}";
 
-        webClient.patch().uri("/entradas/1")
+        webClient.post().uri("/entradas/emitir")
+                .header("Authorization", "Bearer " + TestTokens.service("compras"))
                 .bodyValue(body)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class).isEqualTo("entradas");
 
-        assertEquals("PATCH", entradas.method());
-        assertEquals("/entradas/1", entradas.path());
+        assertEquals("POST", entradas.method());
+        assertEquals("/entradas/emitir", entradas.path());
         assertEquals(body, entradas.body());
     }
 
     @Test
-    void rutaNoConfiguradaResponde404() {
+    void rutaNoConfiguradaSeDeniega() {
         webClient.get().uri("/ruta-inexistente")
                 .exchange()
-                .expectStatus().isNotFound();
+                .expectStatus().isUnauthorized();
     }
 
     @Test
@@ -130,6 +140,7 @@ class MsvcGatewayApplicationTests {
 
         long start = System.currentTimeMillis();
         webClient.get().uri("/entradas/1")
+                .header("Authorization", "Bearer " + TestTokens.user(10, "CLIENTE"))
                 .exchange()
                 .expectStatus().is5xxServerError();
         long elapsed = System.currentTimeMillis() - start;
@@ -138,11 +149,70 @@ class MsvcGatewayApplicationTests {
                 "La solicitud no debería quedar bloqueada indefinidamente");
     }
 
+    private String signedSubject(String authorization) {
+        try {
+            return com.nimbusds.jwt.SignedJWT.parse(authorization.substring(7)).getJWTClaimsSet().getSubject();
+        } catch (java.text.ParseException ex) { throw new AssertionError(ex); }
+    }
+
+    @Test
+    void swaggerAgregadoCargaSuPaginaYConfig() {
+        String location = webClient.get().uri("/swagger-ui.html").exchange()
+            .expectStatus().is3xxRedirection().returnResult(Void.class).getResponseHeaders().getFirst("Location");
+        org.junit.jupiter.api.Assertions.assertNotNull(location);
+        webClient.get().uri(location).exchange().expectStatus().isOk();
+        webClient.get().uri("/v3/api-docs/swagger-config").exchange().expectStatus().isOk()
+            .expectBody().jsonPath("$.urls[*].name").value(org.hamcrest.Matchers.hasItem("Usuarios"));
+    }
+
+    @Test
+    void usuariosYDocumentacionSeEnrutanYConservanBearer() {
+        webClient.post().uri("/auth/register").bodyValue("{}").exchange().expectStatus().isOk();
+        assertEquals("/auth/register", usuarios.path());
+        webClient.post().uri("/auth/login").bodyValue("{}").exchange().expectStatus().isOk();
+        String token = TestTokens.user(10, "CLIENTE");
+        webClient.get().uri("/usuarios/me").header("Authorization", "Bearer " + token).exchange().expectStatus().isOk();
+        assertEquals("Bearer " + token, usuarios.authorization());
+        webClient.get().uri("/usuarios/v3/api-docs").exchange().expectStatus().isOk();
+        assertEquals("/v3/api-docs", usuarios.path());
+    }
+
+    @Test
+    void rechazaTokensInvalidosYExpirados() {
+        webClient.get().uri("/usuarios/me").exchange().expectStatus().isUnauthorized();
+        webClient.get().uri("/usuarios/me").header("Authorization", "Bearer invalid").exchange().expectStatus().isUnauthorized();
+        var claims = TestTokens.claims("10", java.util.List.of("CLIENTE"), "user");
+        claims.put("iat", java.time.Instant.now().minusSeconds(100));
+        claims.put("exp", java.time.Instant.now().minusSeconds(1));
+        webClient.get().uri("/usuarios/me").header("Authorization", "Bearer " + TestTokens.sign(claims, TestTokens.KEYS))
+                .exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
+    void aplicaRolesAntesDeEnviarAlServicio() {
+        for (String role : java.util.List.of("CLIENTE", "ORGANIZADOR", "PERSONAL_ACCESO")) {
+            webClient.patch().uri("/devoluciones/1/aprobar")
+                .header("Authorization", "Bearer " + TestTokens.user(10, role)).exchange().expectStatus().isForbidden();
+            webClient.patch().uri("/usuarios/1/roles")
+                .header("Authorization", "Bearer " + TestTokens.user(10, role)).bodyValue("{\"roles\":[\"ADMINISTRADOR\"]}")
+                .exchange().expectStatus().isForbidden();
+        }
+        webClient.patch().uri("/devoluciones/1/aprobar")
+            .header("Authorization", "Bearer " + TestTokens.user(10, "ADMINISTRADOR")).exchange().expectStatus().isOk();
+        webClient.post().uri("/eventos").header("Authorization", "Bearer " + TestTokens.user(10, "CLIENTE"))
+            .bodyValue("{}").exchange().expectStatus().isForbidden();
+        webClient.post().uri("/reservas/1/confirmar").header("Authorization", "Bearer " + TestTokens.user(10, "CLIENTE"))
+            .exchange().expectStatus().isForbidden();
+        webClient.post().uri("/reservas/1/confirmar").header("Authorization", "Bearer " + TestTokens.service("compras"))
+            .exchange().expectStatus().isOk();
+    }
+
     private static final class StubService {
         private final String response;
         private final AtomicReference<String> method = new AtomicReference<>();
         private final AtomicReference<String> path = new AtomicReference<>();
         private final AtomicReference<String> body = new AtomicReference<>();
+        private final AtomicReference<String> authorization = new AtomicReference<>();
         private final int port;
         private volatile HttpServer server;
         private volatile int status = 200;
@@ -204,10 +274,13 @@ class MsvcGatewayApplicationTests {
             status = 200;
         }
 
+        private String authorization() { return authorization.get(); }
+
         private final class RecordingHandler implements HttpHandler {
             @Override
             public void handle(HttpExchange exchange) throws IOException {
                 method.set(exchange.getRequestMethod());
+                authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
                 path.set(exchange.getRequestURI().toString());
                 try (InputStream input = exchange.getRequestBody()) {
                     body.set(new String(input.readAllBytes(), StandardCharsets.UTF_8));

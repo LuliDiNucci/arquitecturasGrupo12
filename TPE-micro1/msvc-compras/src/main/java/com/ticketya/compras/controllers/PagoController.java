@@ -48,6 +48,7 @@ public class PagoController {
             @ApiResponse(responseCode = "503", description = "Microservicio Reservas no disponible")
     })
     @PostMapping("/{id}/pagar")
+    @org.springframework.security.access.prepost.PreAuthorize("@purchaseAccess.ownedPurchase(#id)")
     public ResponseEntity<PagoDTO> procesarPago(
 
             @Parameter(description = "ID de la compra que se desea pagar", example = "1", required = true) @PathVariable Long id,
@@ -73,6 +74,7 @@ public class PagoController {
             @ApiResponse(responseCode = "503", description = "Microservicio Reservas no disponible")
     })
     @PostMapping("/{id}/reintentar-liberacion")
+    @org.springframework.security.access.prepost.PreAuthorize("@purchaseAccess.ownedPurchase(#id)")
     public ResponseEntity<Void> reintentarLiberacion(
             @Parameter(description = "ID de la compra", example = "1", required = true) @PathVariable Long id) {
 

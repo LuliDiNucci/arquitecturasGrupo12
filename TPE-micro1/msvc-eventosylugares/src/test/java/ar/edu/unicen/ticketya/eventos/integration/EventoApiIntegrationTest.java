@@ -22,7 +22,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
+@org.springframework.security.test.context.support.WithMockUser(roles = "ADMINISTRADOR")
 class EventoApiIntegrationTest {
+
+    @org.springframework.test.context.DynamicPropertySource
+    static void securityKeys(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        registry.add("ticketya.jwt.public-key", () -> ar.edu.unicen.ticketya.eventos.security.TestTokens.PUBLIC);
+    }
 
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper mapper;

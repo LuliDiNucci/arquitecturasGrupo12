@@ -85,6 +85,7 @@ public class EntradaController {
         @ApiResponse(responseCode = "404", description = "La entrada no existe")
     })
     @GetMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("@entryAccess.client(#clienteId) and @entryAccess.entry(#id)")
     public ResponseEntity<EntradaDTO> obtener(
             @PathVariable Long id,
             @RequestHeader("X-Cliente-Id") Long clienteId) {
@@ -109,6 +110,7 @@ public class EntradaController {
         )
     })
     @GetMapping("/cliente/{clienteId}")
+    @org.springframework.security.access.prepost.PreAuthorize("@entryAccess.client(#clienteId)")
     public ResponseEntity<List<EntradaDTO>> obtenerPorCliente(
             @PathVariable Long clienteId) {
 

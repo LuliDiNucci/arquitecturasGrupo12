@@ -1,8 +1,23 @@
 # msvc-gateway
 
-API Gateway de TicketYa para la Entrega 1. Es el único punto de entrada
+API Gateway de TicketYa para las Entregas 1 y 2. Es el único punto de entrada
 externo y reenvía las solicitudes HTTP a los microservicios responsables,
 sin conocer su lógica de negocio ni acceder a sus bases de datos.
+
+Valida JWT RS256 con Spring Security reactivo y aplica permisos por método/ruta.
+Las rutas privadas requieren Bearer; los servicios vuelven a validarlo y verifican
+titularidad. La [matriz](../msvc-usuarios/docs/03-PERMISOS.md) indica roles y
+credenciales internas. /auth/** y /usuarios/** se enrutan a Usuarios (8085).
+Authorization se conserva hacia los destinos. Sin token/inválido/vencido: 401;
+sin permisos: 403. No se utilizan filtros servlet en este proceso.
+
+Generar primero las claves desde la raíz con java scripts/GenerateDevSecrets.java.
+Configurar JWT_PUBLIC_KEY (recurso file:), JWT_ISSUER y JWT_AUDIENCE iguales a
+Usuarios, y USUARIOS_URL=http://localhost:8085. Se puede iniciar desde la raíz con
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Start-TicketYaService.ps1 -Service gateway.
+
+Swagger agregado: http://localhost:8084/swagger-ui.html.
+OpenAPI Usuarios: http://localhost:8084/usuarios/v3/api-docs.
 
 ## Tecnología
 
@@ -15,10 +30,11 @@ sin conocer su lógica de negocio ni acceder a sus bases de datos.
 El Gateway es reactivo y no mezcla WebMVC. No contiene controladores,
 entidades, repositorios ni base de datos.
 
-## Microservicios y rutas públicas
+## Microservicios y rutas
 
-| Servicio | Puerto local | Prefijos públicos |
+| Servicio | Puerto local | Prefijos enrutados |
 |---|---:|---|
+| Usuarios | 8085 | `/auth/**`, `/usuarios/**` |
 | Eventos y Lugares | 8081 | `/eventos/**`, `/lugares/**`, `/sectores/**`, `/asientos/**`, `/organizadores/**`, `/participantes/**` |
 | Reservas | 8080 | `/reservas/**`, `/disponibilidad/**` |
 | Compras y Pagos | 8082 | `/compras/**` |

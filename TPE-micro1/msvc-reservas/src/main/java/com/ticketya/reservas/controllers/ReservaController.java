@@ -43,6 +43,7 @@ public class ReservaController {
             @ApiResponse(responseCode = "503", description = "Servicio de Eventos no disponible")
     })
     @PostMapping
+    @org.springframework.security.access.prepost.PreAuthorize("@reservationAccess.client(#solicitud.clienteId)")
     public ResponseEntity<ReservaDTO> crearReserva(
             @RequestBody CrearReservaDTO solicitud) {
 
@@ -60,6 +61,7 @@ public class ReservaController {
             @ApiResponse(responseCode = "404", description = "Reserva inexistente")
     })
     @GetMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("@reservationAccess.reservation(#id)")
     public ResponseEntity<ReservaDTO> obtenerReserva(
             @PathVariable Long id) {
 

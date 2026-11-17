@@ -1,5 +1,7 @@
 package ar.edu.unicen.ticketya.eventos.integration;
 
+import ar.edu.unicen.ticketya.eventos.model.AvisoEventoPendiente;
+import ar.edu.unicen.ticketya.eventos.repository.AvisoEventoPendienteRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -7,14 +9,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -32,6 +38,7 @@ class EventoApiIntegrationTest {
 
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper mapper;
+    @Autowired private AvisoEventoPendienteRepository avisosClientes;
 
     private JsonNode enviar(String ruta, String json) throws Exception {
         String respuesta = mvc.perform(post(ruta).contentType(MediaType.APPLICATION_JSON).content(json))
@@ -157,6 +164,45 @@ class EventoApiIntegrationTest {
         // Repetir la cancelacion no debe generar un segundo aviso.
         mvc.perform(patch("/eventos/{id}/cancelar", registro.eventoId))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    void guardaAvisosDistintosAlCambiarSoloParticipantesYCancelaUnaVez() throws Exception {
+        Registro registro = crearBase(false);
+        cargarPrecios(registro);
+        String cuerpo = mvc.perform(patch("/eventos/{id}/publicar", registro.eventoId))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        JsonNode publicado = mapper.readTree(cuerpo);
+        long versionAnterior = publicado.path("version").asLong();
+
+        for (String nombre : new String[]{"Banda Dos", "Banda Tres"}) {
+            long participante = enviar("/participantes",
+                    "{\"nombre\":\"" + nombre + "\",\"tipo\":\"ARTISTA\"}").get("id").asLong();
+            String cambio = """
+                    {"nombre":"Recital","descripcion":"Banda en vivo","tipo":"RECITAL",
+                     "organizadorId":%d,"lugarId":%d,"fechaHora":"%s","participantesIds":[%d],"altaDemanda":false}
+                    """.formatted(publicado.path("organizador").path("id").asLong(),
+                    publicado.path("lugar").path("id").asLong(), publicado.path("fechaHora").asText(), participante);
+            var actualizacion = put("/eventos/{id}", registro.eventoId)
+                    .contentType(MediaType.APPLICATION_JSON).content(cambio);
+            String editado = mvc.perform(actualizacion).andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            long versionNueva = mapper.readTree(editado).path("version").asLong();
+            assertTrue(versionNueva > versionAnterior);
+            versionAnterior = versionNueva;
+            mvc.perform(actualizacion).andExpect(status().isOk());
+        }
+
+        mvc.perform(patch("/eventos/{id}/cancelar", registro.eventoId)).andExpect(status().isOk());
+        mvc.perform(patch("/eventos/{id}/cancelar", registro.eventoId)).andExpect(status().isOk());
+        var avisos = avisosClientes.findAll().stream()
+                .filter(aviso -> aviso.getEventoId().equals(registro.eventoId))
+                .toList();
+        assertEquals(1, avisos.stream().filter(AvisoEventoPendiente::isCancelacion).count());
+        assertEquals(2, avisos.stream().filter(aviso -> !aviso.isCancelacion())
+                .map(AvisoEventoPendiente::getVersionEvento).distinct().count());
     }
 
     @Test

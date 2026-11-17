@@ -60,6 +60,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
+  db-notificaciones:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure .env}
+      MYSQL_DATABASE: ticketya_notificaciones
+      MYSQL_USER: ticketya
+      MYSQL_PASSWORD: ${NOTIFICACIONES_DB_PASSWORD:?Configure .env}
+    ports: ["127.0.0.1:3313:3306"]
+    volumes: ["db-notificaciones:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports: ["1025:1025", "8025:8025"]
   db-fila-virtual:
     image: mysql:8.4
     environment:
@@ -148,6 +165,7 @@ services:
       RESERVAS_URL: http://reservas:8080
       COMPRAS_URL: http://compras:8082
       ENTRADAS_URL: http://entradas:8083
+      NOTIFICACIONES_URL: http://notificaciones:8087
     ports: ["8081:8081"]
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
@@ -211,6 +229,7 @@ services:
       EVENTOS_URL: http://eventos:8081
       RESERVAS_URL: http://reservas:8080
       ENTRADAS_URL: http://entradas:8083
+      NOTIFICACIONES_URL: http://notificaciones:8087
     ports: ["8082:8082"]
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
@@ -218,6 +237,22 @@ services:
       db-compras:
         condition: service_healthy
       usuarios:
+        condition: service_started
+  notificaciones:
+    build: ./msvc-notificaciones
+    environment:
+      PORT: 8087
+      DB_URL: jdbc:mysql://db-notificaciones:3306/ticketya_notificaciones?allowPublicKeyRetrieval=true&useSSL=false
+      DB_USER: ticketya
+      DB_PASSWORD: ${NOTIFICACIONES_DB_PASSWORD:?Configure .env}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: notificaciones@ticketya.test
+    ports: ["8087:8087"]
+    depends_on:
+      db-notificaciones:
+        condition: service_healthy
+      mailpit:
         condition: service_started
   entradas:
     build: ./msvc-entradas
@@ -267,3 +302,4 @@ volumes:
   db-entradas:
   db-recomendaciones:
   db-fila-virtual:
+  db-notificaciones:

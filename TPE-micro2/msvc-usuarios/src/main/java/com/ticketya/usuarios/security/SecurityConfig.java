@@ -1,7 +1,8 @@
 package com.ticketya.usuarios.security;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -20,20 +21,29 @@ public class SecurityConfig {
             @Value("${ticketya.jwt.issuer}") String issuer, @Value("${ticketya.jwt.audience}") String audience) {
         return JwtSupport.decoder(key, issuer, audience);
     }
-    @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
+
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
+    }
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ApiSecurityErrors errors) throws Exception {
         return http.csrf(csrf -> csrf.disable())
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(a -> a
-                .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
-                .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/service-token").permitAll()
-                .requestMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/usuarios/**").hasAuthority("USER")
-                .anyRequest().denyAll())
-            .exceptionHandling(e -> e.authenticationEntryPoint(errors).accessDeniedHandler(errors))
-            .oauth2ResourceServer(o -> o.authenticationEntryPoint(errors).accessDeniedHandler(errors)
-                .jwt(j -> j.jwtAuthenticationConverter(JwtSupport.authenticationConverter())))
-            .build();
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(a -> a
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/service-token")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/usuarios/*/contacto")
+                        .hasAnyAuthority("SERVICE_compras", "SERVICE_eventos")
+                        .requestMatchers("/usuarios/**").hasAuthority("USER")
+                        .anyRequest().denyAll())
+                .exceptionHandling(e -> e.authenticationEntryPoint(errors).accessDeniedHandler(errors))
+                .oauth2ResourceServer(o -> o.authenticationEntryPoint(errors).accessDeniedHandler(errors)
+                        .jwt(j -> j.jwtAuthenticationConverter(JwtSupport.authenticationConverter())))
+                .build();
     }
 }

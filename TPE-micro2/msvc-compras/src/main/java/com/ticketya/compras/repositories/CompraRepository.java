@@ -21,6 +21,13 @@ public interface CompraRepository extends JpaRepository<Compra, Long> {
     // Buscar compras de un evento
     List<Compra> findByEventoId(Long eventoId);
 
+    @Query("""
+            select distinct c.clienteId from Compra c
+            where c.eventoId = :eventoId and c.estado in :estados
+            order by c.clienteId
+            """)
+    List<Long> buscarCompradores(@Param("eventoId") Long eventoId, @Param("estados") List<String> estados);
+
     // Bloquear una compra para evitar operaciones simultáneas
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Compra c WHERE c.id = :compraId")

@@ -32,6 +32,7 @@ import com.ticketya.compras.dtos.SolicitudEmisionDTO;
 import com.ticketya.compras.entities.Compra;
 import com.ticketya.compras.entities.DetalleCompra;
 import com.ticketya.compras.entities.ItemCompra;
+import com.ticketya.compras.entities.AvisoCompraPendiente;
 import com.ticketya.compras.enums.EstadoCompra;
 import com.ticketya.compras.enums.EstadoPago;
 import com.ticketya.compras.exceptions.CompraNoEncontradaException;
@@ -39,6 +40,9 @@ import com.ticketya.compras.repositories.CompraRepository;
 import com.ticketya.compras.repositories.DetalleCompraRepository;
 import com.ticketya.compras.repositories.ItemCompraRepository;
 import com.ticketya.compras.repositories.PagoRepository;
+import com.ticketya.compras.repositories.AvisoCompraPendienteRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.time.Instant;
 
 @Service
 public class CompraServiceImpl implements CompraService {
@@ -50,6 +54,7 @@ public class CompraServiceImpl implements CompraService {
     private final EventoClient eventoClient;
     private final EntradaClient entradaClient;
     private final PagoRepository pagoRepo;
+    private final AvisoCompraPendienteRepository avisosCompra;
 
     public CompraServiceImpl(
             CompraRepository compraRepo,
@@ -60,6 +65,20 @@ public class CompraServiceImpl implements CompraService {
             EntradaClient entradaClient,
             PagoRepository pagoRepo) {
 
+        this(compraRepo, detalleRepo, itemRepo, reservaClient, eventoClient, entradaClient, pagoRepo, null);
+    }
+
+    @Autowired
+    public CompraServiceImpl(
+            CompraRepository compraRepo,
+            DetalleCompraRepository detalleRepo,
+            ItemCompraRepository itemRepo,
+            ReservaClient reservaClient,
+            EventoClient eventoClient,
+            EntradaClient entradaClient,
+            PagoRepository pagoRepo,
+            AvisoCompraPendienteRepository avisosCompra) {
+
         this.compraRepo = compraRepo;
         this.detalleRepo = detalleRepo;
         this.itemRepo = itemRepo;
@@ -67,6 +86,7 @@ public class CompraServiceImpl implements CompraService {
         this.eventoClient = eventoClient;
         this.entradaClient = entradaClient;
         this.pagoRepo = pagoRepo;
+        this.avisosCompra = avisosCompra;
     }
 
     @Override
@@ -397,6 +417,7 @@ public class CompraServiceImpl implements CompraService {
         }
 
         compra.setEstado(EstadoCompra.CONFIRMADA.name());
+        registrarAvisoCompraConfirmada(compra, evento);
         return convertirADTO(compra);
     }
 
@@ -409,6 +430,17 @@ public class CompraServiceImpl implements CompraService {
                 compraId, EstadoPago.APROBADO.name()).isPresent();
         return new ConfirmacionCompraDTO(compra.getId(), compra.getClienteId(),
                 compra.getReservaId(), compra.getEstado(), pagoAprobado);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> buscarCompradores(Long eventoId, boolean incluirReintegrados) {
+        List<String> estados = new ArrayList<>(List.of(
+                EstadoCompra.CONFIRMADA.name(), EstadoCompra.REINTEGRO_PARCIAL.name()));
+        if (incluirReintegrados) {
+            estados.add(EstadoCompra.REINTEGRADA.name());
+        }
+        return compraRepo.buscarCompradores(eventoId, estados);
     }
 
     private ItemCompra localizarItemEmitido(
@@ -424,6 +456,20 @@ public class CompraServiceImpl implements CompraService {
             }
         }
         return null;
+    }
+
+    private void registrarAvisoCompraConfirmada(Compra compra, EventoDTO evento) {
+        // El outbox se guarda en la misma transacción que la confirmación. Su
+        // despacho posterior nunca hace fallar una compra ni pierde el aviso.
+        if (avisosCompra == null || avisosCompra.existsByCompraId(compra.getId())) {
+            return;
+        }
+        String nombreEvento = evento.getNombre();
+        if (nombreEvento == null || nombreEvento.isBlank()) {
+            nombreEvento = "el evento";
+        }
+        avisosCompra.save(new AvisoCompraPendiente(compra.getId(), compra.getClienteId(),
+                nombreEvento, Instant.now()));
     }
 
     private CompraDTO convertirADTO(Compra compra) {

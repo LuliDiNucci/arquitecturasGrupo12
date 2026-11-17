@@ -60,6 +60,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
+  db-fila-virtual:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure .env}
+      MYSQL_DATABASE: ticketya_fila_virtual
+      MYSQL_USER: ticketya
+      MYSQL_PASSWORD: ${FILA_VIRTUAL_DB_PASSWORD:?Configure .env}
+    ports:
+      - "127.0.0.1:3312:3306"
+    volumes:
+      - db-fila-virtual:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
   db-entradas:
     image: mysql:8.4
     environment:
@@ -164,6 +180,21 @@ services:
         condition: service_healthy
       usuarios:
         condition: service_started
+  fila-virtual:
+    build: ./msvc-fila-virtual
+    environment:
+      PORT: 8086
+      DB_URL: jdbc:mysql://db-fila-virtual:3306/ticketya_fila_virtual?allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: ticketya
+      DB_PASSWORD: ${FILA_VIRTUAL_DB_PASSWORD:?Configure .env}
+      EVENTOS_URL: http://eventos:8081
+    ports:
+      - "8086:8086"
+    depends_on:
+      db-fila-virtual:
+        condition: service_healthy
+      eventos:
+        condition: service_started
   compras:
     build: ./msvc-compras
     environment:
@@ -235,3 +266,4 @@ volumes:
   db-compras:
   db-entradas:
   db-recomendaciones:
+  db-fila-virtual:

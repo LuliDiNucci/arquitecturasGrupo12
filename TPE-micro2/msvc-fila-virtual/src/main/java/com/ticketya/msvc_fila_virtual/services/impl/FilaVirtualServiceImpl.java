@@ -46,21 +46,22 @@ public class FilaVirtualServiceImpl implements FilaVirtualService {
     public ClienteEnFilaDTO ingresar(Long eventoId, Long clienteId) {
 
         validarIds(eventoId, clienteId);
+
         validarEventoAltaDemanda(eventoId);
-        var existente = repository.findByEventoIdAndClienteId(
-                eventoId, clienteId);
 
-        if (existente.isPresent()) {
-            ClienteEnFila cliente = existente.get();
-            actualizarVencimiento(cliente);
+        repository.ingresarSiNoExiste(
+                eventoId,
+                clienteId,
+                LocalDateTime.now());
 
-            return convertirADTO(cliente);
-        }
+        ClienteEnFila cliente = repository
+                .findByEventoIdAndClienteId(eventoId, clienteId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No se pudo recuperar el cliente de la fila"));
 
-        ClienteEnFila cliente = new ClienteEnFila(eventoId, clienteId);
-        ClienteEnFila guardado = repository.saveAndFlush(cliente);
+        actualizarVencimiento(cliente);
 
-        return convertirADTO(guardado);
+        return convertirADTO(cliente);
     }
 
     @Override

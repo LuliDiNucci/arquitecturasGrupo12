@@ -122,41 +122,6 @@ paths:
           description: Operación exitosa
         '500':
           description: Error interno del servidor
-  /entradas/validar:
-    post:
-      tags:
-      - Entradas
-      summary: Validar una entrada mediante su código QR
-      description: >
-        Permite validar el ingreso de una persona a un evento.
-        Requiere el rol PERSONAL_ACCESO. La entrada debe existir,
-        pertenecer al evento indicado y encontrarse en estado EMITIDA.
-        Si la validación es exitosa, cambia a UTILIZADA y registra
-        la fecha y hora de uso. No permite reutilizar entradas.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ValidarQrRequestDTO'
-            example:
-              codigoQr: TICKET-ABC123
-              eventoId: 15
-      responses:
-        '200':
-          description: Entrada validada correctamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EntradaDTO'
-        '400':
-          description: Datos de validación inválidos
-        '403':
-          description: El usuario no posee el rol PERSONAL_ACCESO
-        '404':
-          description: No existe una entrada asociada al código QR
-        '409':
-          description: La entrada pertenece a otro evento, está invalidada o ya fue utilizada
   /devoluciones:
     post:
       tags:
@@ -269,23 +234,6 @@ components:
           format: int64
           description: Identificador de la compra confirmada
           example: 125
-    ValidarQrRequestDTO:
-      type: object
-      required:
-      - codigoQr
-      - eventoId
-      properties:
-        codigoQr:
-          type: string
-          minLength: 1
-          description: Código QR de la entrada que se desea validar
-          example: TICKET-ABC123
-        eventoId:
-          type: integer
-          format: int64
-          minimum: 1
-          description: Identificador del evento al que se intenta ingresar
-          example: 15
     EntradaDTO:
       type: object
       properties:
@@ -348,12 +296,6 @@ components:
           format: date-time
           description: Fecha y hora de emisión
           example: '2026-11-08T15:30:00'
-        fechaUso:
-          type: string
-          format: date-time
-          description: Fecha y hora en que se validó correctamente el ingreso. Es nula mientras la entrada no haya sido utilizada.
-          example: '2026-11-17T11:30:00'
-          nullable: true
         qrImagenBase64:
           type: string
           description: Imagen del código QR codificada en Base64

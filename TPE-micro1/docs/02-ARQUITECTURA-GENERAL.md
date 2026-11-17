@@ -6,9 +6,7 @@ TicketYa es una plataforma de venta y gestión de entradas para eventos, desarro
 
 Cada microservicio tiene responsabilidades funcionales específicas, administra sus propios datos y se comunica con los demás mediante APIs REST y clientes HTTP.
 
-La arquitectura está compuesta por cinco microservicios funcionales y un API Gateway:
-
-- **Usuarios:** identidad, BCrypt, JWT RS256 y administración de roles; base propia.
+La arquitectura está compuesta por cuatro microservicios funcionales y un API Gateway:
 
 - **Eventos y Lugares:** administra eventos, lugares, sectores, asientos, organizadores, participantes, precios y cancelaciones.
 - **Reservas:** administra la disponibilidad, las reservas temporales y confirmadas, la concurrencia y la liberación de lugares.
@@ -24,8 +22,6 @@ Esta separación permite mantener las responsabilidades de cada servicio y desar
 flowchart TB
     Usuario["Cliente / Organizador / Administrador"]
     Gateway["API Gateway :8084"]
-    Identidad["Usuarios :8085 / emisor RS256"]
-    DbUsuarios[("ticketya_usuarios")]
 
     Eventos["Eventos y Lugares :8081"]
     Reservas["Reservas :8080"]
@@ -33,9 +29,6 @@ flowchart TB
     Entradas["Entradas :8083"]
 
     Usuario --> Gateway
-    Gateway -->|"Registro, login y perfiles"| Identidad
-    Identidad --> DbUsuarios
-    Identidad -.->|"Clave pública / contrato JWT"| Gateway
 
     Gateway --> Eventos
     Gateway --> Reservas
@@ -64,7 +57,6 @@ Las notificaciones de cancelación se procesan mediante registros persistentes y
 
 | Componente | Puerto |
 |---|---|
-| `msvc-usuarios` | `8085` |
 | `msvc-eventosylugares` | `8081` |
 | `msvc-reservas` | `8080` |
 | `msvc-compras` | `8082` |
@@ -80,17 +72,6 @@ Cada microservicio administra su propia persistencia y es responsable de mantene
 Los servicios intercambian identificadores y DTO mediante APIs REST. No comparten entidades JPA ni realizan consultas directas sobre las bases de datos de otros microservicios.
 
 Los modelos de datos, relaciones y restricciones se describen en los documentos específicos de cada servicio.
-
-### Seguridad incorporada en Entrega 2
-
-Gateway y cada servicio validan firma JWT, issuer, audience, claims y expiración.
-Los permisos de rol se complementan con titularidad sobre los datos locales.
-Sólo Usuarios conoce la clave privada; los demás montan la clave pública.
-clienteId corresponde a sub; Organizador tiene usuarioId explícito. Feign y
-RestClient propagan identidad humana en lecturas y usan credenciales propias
-en escrituras internas y tareas programadas.
-Ver [diseño](../msvc-usuarios/docs/02-ARQUITECTURA.md) y
-[permisos](../msvc-usuarios/docs/03-PERMISOS.md).
 
 ## 3. Responsabilidades de cada microservicio
 

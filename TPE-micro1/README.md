@@ -8,14 +8,7 @@ El sistema permite consultar eventos publicados, conocer la disponibilidad de se
 
 El proyecto está desarrollado utilizando una arquitectura de microservicios, donde cada servicio tiene responsabilidades específicas y se comunica con los demás mediante contratos REST.
 
-**Trabajo Práctico Especial (TPE) — Entregas 1 y 2 (Usuarios, JWT y seguridad).**
-
-La Entrega 2 se describe en [msvc-usuarios/README.md](msvc-usuarios/README.md):
-registro, BCrypt, JWT RS256 y controles de roles/titularidad en Gateway y servicios.
-Los ejemplos privados de la Entrega 1 ahora requieren Bearer y los endpoints
-internos requieren credenciales de servicio; ver la [matriz completa](msvc-usuarios/docs/03-PERMISOS.md).
-Hay un [Compose de los seis procesos](docker-compose.yml), un generador local de
-claves y una [prueba HTTP completa](scripts/Smoke-Security.ps1).
+**Trabajo Práctico Especial (TPE) — Entrega 1.**
 
 ## 2. Funcionalidades principales
 
@@ -34,11 +27,10 @@ claves y una [prueba HTTP completa](scripts/Smoke-Security.ps1).
 
 ## 3. Arquitectura del sistema
 
-TicketYa se organiza en cinco microservicios funcionales y un API Gateway.
+TicketYa se organiza en cuatro microservicios funcionales y un API Gateway.
 
 | Componente | Responsabilidad |
 |---|---|
-| `msvc-usuarios` | Identidad, contraseñas seguras, login, JWT y administración de roles; puerto 8085. |
 | `msvc-eventosylugares` | Gestiona eventos, lugares, sectores, asientos, organizadores, participantes y precios. |
 | `msvc-reservas` | Administra disponibilidad, reservas temporales, confirmaciones, liberaciones y concurrencia. |
 | `msvc-compras` | Gestiona compras, pagos, confirmaciones y reintegros. |
@@ -203,7 +195,6 @@ Los puertos predeterminados de los microservicios funcionales son:
 | Compras y Pagos | `8082` |
 | Entradas | `8083` |
 | Api Gateway | `8084` |
-| Usuarios | `8085` |
 
 
 ### 8.2. Iniciar los microservicios

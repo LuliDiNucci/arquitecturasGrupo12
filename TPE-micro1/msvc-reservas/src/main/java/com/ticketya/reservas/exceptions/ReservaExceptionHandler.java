@@ -81,11 +81,6 @@ public class ReservaExceptionHandler {
     public ResponseEntity<ErrorDTO> manejarFeign(
             FeignException ex) {
 
-        if (ex.status() == 401 || ex.status() == 403) {
-            return ResponseEntity.status(ex.status()).body(new ErrorDTO(ex.status(),
-                    ex.status() == 401 ? "Autenticación requerida por Eventos" : "Sin permiso sobre el evento solicitado"));
-        }
-
         if (ex.status() == 404) {
 
             ErrorDTO error = new ErrorDTO(

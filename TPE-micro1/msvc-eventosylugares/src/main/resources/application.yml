@@ -42,18 +42,8 @@ app:
     reservas-base-url: ${RESERVAS_URL:http://localhost:8080}
     entradas-base-url: ${ENTRADAS_URL:http://localhost:8083}
     compras-base-url: ${COMPRAS_URL:http://localhost:8082}
-    usuarios-base-url: ${USUARIOS_URL:http://localhost:8085}
 
     entradas-habilitadas: ${ENTRADAS_HABILITADAS:true}
     compras-habilitadas: ${COMPRAS_HABILITADAS:true}
 
     reintento-ms: 30000
-
-ticketya:
-  jwt:
-    public-key: ${JWT_PUBLIC_KEY:file:../.secrets/jwt-public.pem}
-    issuer: ${JWT_ISSUER:ticketya-usuarios}
-    audience: ${JWT_AUDIENCE:ticketya-api}
-  service:
-    secret: ${SERVICE_CLIENT_SECRET:}
-    token-url: ${SERVICE_TOKEN_URL:http://localhost:8085/auth/service-token}

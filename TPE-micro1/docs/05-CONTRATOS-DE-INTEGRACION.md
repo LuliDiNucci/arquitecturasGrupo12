@@ -1,36 +1,5 @@
 # 05 — Contratos de integración de TicketYa
 
-## Seguridad de Entrega 2
-
-Las rutas y DTO de negocio se conservan. Las rutas privadas exigen
-Authorization: Bearer, JWT RS256 válido y permisos. X-Cliente-Id debe coincidir
-con sub y con el ticket; ya no acredita identidad por sí solo. clienteId de
-Reservas/Compras también debe coincidir con sub. administradorId en devoluciones
-es opcional; si llega, debe coincidir con el administrador autenticado y siempre
-se usa el ID del JWT para auditoría.
-
-Usuarios escucha en 8085: POST /auth/register y /auth/login,
-GET /usuarios/me, GET /usuarios/{id}, PATCH /usuarios/{id}/roles y /estado.
-Gateway enruta /auth/** y /usuarios/** sin quitar Authorization;
-/usuarios/v3/api-docs se reescribe a /v3/api-docs de Usuarios.
-
-POST /auth/service-token usa HTTP Basic con secretos independientes configurados.
-Produce tokens de cinco minutos, token_use=service, roles vacíos y
-sub=service:<id>. Feign y RestClient los adquieren automáticamente para operaciones
-internas; los avisos programados tienen autenticación propia. Un JWT CLIENTE
-no habilita /reservas/{id}/confirmar ni /entradas/emitir.
-
-PATCH /organizadores/{id}/usuario (ADMINISTRADOR) agrega el vínculo usuarioId.
-No se deduce por igualdad de IDs ni email comercial. Eventos consulta
-GET /usuarios/{usuarioId} con el JWT del ADMINISTRADOR propagado por Feign
-(USUARIOS_URL) y exige usuario existente, activo y con ORGANIZADOR antes de guardar.
-Devuelve 404 si no existe, 409 si está inactivo/sin rol y 503 si no puede validarlo;
-el vínculo previo se conserva ante un rechazo. Administración debe asignar el rol
-previamente. Los IDs históricos de clientes requieren una migración coordinada.
-
-La [matriz completa](../msvc-usuarios/docs/03-PERMISOS.md) es la referencia de acceso.
-La [API de identidad](../msvc-usuarios/docs/04-API.md) describe DTO y errores.
-
 ## 1. Descripción general
 
 Este documento reúne los principales contratos REST utilizados por los microservicios de TicketYa y describe las comunicaciones necesarias para completar los procesos de reserva, compra, emisión de entradas, devolución y cancelación.

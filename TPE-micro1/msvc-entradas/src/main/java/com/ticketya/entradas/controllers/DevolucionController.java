@@ -49,7 +49,6 @@ public class DevolucionController {
         @ApiResponse(responseCode = "409", description = "La entrada no cumple las condiciones para solicitar una devolución")
     })
     @PostMapping
-    @org.springframework.security.access.prepost.PreAuthorize("@entryAccess.ownedEntry(#dto.entradaId)")
     public DevolucionResponseDTO solicitar(
             @RequestBody DevolucionRequestDTO dto) {
 
@@ -90,9 +89,9 @@ public class DevolucionController {
     @PatchMapping("/{id}/aprobar")
     public DevolucionResponseDTO aprobar(
             @PathVariable Long id,
-            @RequestParam(required = false) Long administradorId) {
+            @RequestParam Long administradorId) {
 
-        return devolucionService.aprobar(id, com.ticketya.entradas.security.EntryAccess.administrator(administradorId));
+        return devolucionService.aprobar(id, administradorId);
     }
 
 
@@ -111,8 +110,8 @@ public class DevolucionController {
     @PatchMapping("/{id}/rechazar")
     public DevolucionResponseDTO rechazar(
             @PathVariable Long id,
-            @RequestParam(required = false) Long administradorId) {
+            @RequestParam Long administradorId) {
 
-        return devolucionService.rechazar(id, com.ticketya.entradas.security.EntryAccess.administrator(administradorId));
+        return devolucionService.rechazar(id, administradorId);
     }
 }

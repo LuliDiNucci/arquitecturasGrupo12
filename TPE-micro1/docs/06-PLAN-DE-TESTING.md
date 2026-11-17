@@ -1,18 +1,5 @@
 # 06 — Plan de testing y validación general
 
-## Entrega 2 — usuarios y seguridad
-
-Se agregan pruebas con firmas RSA reales, validación de claims, registro/login
-con H2, Swagger, matriz de roles por endpoint y titularidad en los servicios.
-Gateway prueba rutas con destinos HTTP controlados, rechazo de JWT y conservación
-del header Authorization. Las llamadas internas prueban obtención y caché de la
-credencial propia, propagación humana en GET y ejecución sin contexto de usuario.
-
-La prueba [Smoke-Security.ps1](../scripts/Smoke-Security.ps1) inicia seis JVM con
-bases H2 y recorre publicación, reserva, pago, emisión, devolución y cancelación.
-Los resultados y límites de infraestructura se registran en
-[pruebas de Entrega 2](../msvc-usuarios/docs/06-PRUEBAS.md).
-
 ## 1. Descripción general
 
 Este documento describe la estrategia de testing utilizada para verificar el funcionamiento de TicketYa y sus principales reglas de negocio.

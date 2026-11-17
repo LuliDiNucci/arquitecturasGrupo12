@@ -17,10 +17,9 @@ public class ReservaClient {
 
     public ReservaClient(
             RestClient.Builder builder,
-            @Value("${msvc.reservas.url}") String baseUrl,
-            com.ticketya.entradas.security.InternalRestSecurity security) {
+            @Value("${msvc.reservas.url}") String baseUrl) {
 
-        this.restClient = builder.baseUrl(baseUrl).requestInterceptor(security).build();
+        this.restClient = builder.baseUrl(baseUrl).build();
     }
 
     // Consulta una reserva utilizando su ID.

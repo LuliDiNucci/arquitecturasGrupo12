@@ -47,12 +47,9 @@ Se encuentra asociada a una compra, una reserva y un detalle específico de esa 
 - **sectorId:** identifica el sector del evento.
 - **asientoId:** identifica el asiento cuando el sector es numerado. Puede ser nulo cuando el sector no tiene asientos numerados.
 - **codigoQr:** código único utilizado para generar la imagen QR.
-- **estado:** indica el estado actual de la entrada. Entre sus estados se encuentran:
-  - `EMITIDA`: entrada disponible para su utilización.
-  - `UTILIZADA`: entrada cuyo código QR ya fue validado correctamente.
-  - `INVALIDADA`: entrada que ya no permite el ingreso, por ejemplo, debido a la cancelación del evento.
+- **estado:** indica el estado actual de la entrada.
 - **fechaEmision:** fecha y hora en que se emitió la entrada.
-- **fechaUso:** registra la fecha y hora en que se validó correctamente el código QR. Permanece nula mientras la entrada no haya sido utilizada.
+- **fechaUso:** campo destinado a registrar la fecha y hora de uso de la entrada.
 
 ### 2.3. Restricciones e índices
 
@@ -78,14 +75,6 @@ Se definen dos índices para mejorar las consultas:
 - `idx_entrada_cliente`: sobre `cliente_id`.
 
 Estos índices permiten optimizar las búsquedas de entradas por compra y por cliente.
-
-**Validación y utilización de entradas**
-
-La validación del código QR permite comprobar que la entrada exista, corresponda al evento indicado y se encuentre en estado `EMITIDA`.
-
-Cuando la validación es correcta, el estado cambia a `UTILIZADA` y se registra la fecha y hora en `fecha_uso`.
-
-Las entradas `UTILIZADA` o `INVALIDADA` no pueden volver a validarse para permitir el ingreso al evento. 
 
 ## 3. Entidad SolicitudDevolucion
 
@@ -184,9 +173,6 @@ Permite realizar operaciones de persistencia y búsqueda sobre las entradas.
 | `findByClienteId(Long clienteId)` | Busca las entradas de un cliente. |
 | `findByEventoId(Long eventoId)` | Busca las entradas de un evento. |
 | `findByEventoIdAndEstado(Long eventoId, String estado)` | Busca las entradas de un evento que tienen un estado determinado. |
-| `findByCodigoQrForUpdate(String codigoQr)` | Busca una entrada por su código QR y bloquea el registro para evitar validaciones simultáneas. |
-
-El método utiliza un bloqueo pesimista (`PESSIMISTIC_WRITE`) para impedir que dos operaciones simultáneas validen y utilicen la misma entrada. La operación se ejecuta dentro de una transacción.
 
 Además, hereda las operaciones habituales de `JpaRepository`, como buscar por ID, guardar, eliminar y listar registros.
 
@@ -211,6 +197,3 @@ El segundo método permite consultar si una entrada tiene una solicitud pendient
 - Las solicitudes de devolución conservan su historial mediante su estado, fecha de resolución y administrador.
 - Los identificadores de entidades pertenecientes a otros microservicios se almacenan como valores simples, sin relaciones JPA.
 - La prevención de solicitudes de devolución pendientes duplicadas se realiza mediante lógica de negocio y no mediante una restricción única en la base de datos.
-- La validación de una entrada mediante QR registra su utilización y actualiza su estado a `UTILIZADA`.
-- Una entrada utilizada no puede volver a validarse.
-- El bloqueo pesimista sobre la entrada evita que dos escaneos simultáneos permitan más de un ingreso.

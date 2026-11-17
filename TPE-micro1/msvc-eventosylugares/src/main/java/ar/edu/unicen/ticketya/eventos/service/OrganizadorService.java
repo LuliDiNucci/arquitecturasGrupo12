@@ -17,7 +17,5 @@ public interface OrganizadorService {
 
     Organizador buscarOrganizador(Long id);
 
-    OrganizadorResponseDTO vincularUsuario(Long id, Long usuarioId);
-
     OrganizadorResponseDTO aOrganizadorResponseDTO(Organizador organizador);
 }

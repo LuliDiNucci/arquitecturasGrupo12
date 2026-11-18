@@ -201,13 +201,13 @@ services:
   fila-virtual:
     build: ./msvc-fila-virtual
     environment:
-      PORT: 8086
+      PORT: 8088
       DB_URL: jdbc:mysql://db-fila-virtual:3306/ticketya_fila_virtual?allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: ticketya
       DB_PASSWORD: ${FILA_VIRTUAL_DB_PASSWORD:?Configure .env}
       EVENTOS_URL: http://eventos:8081
     ports:
-      - "8086:8086"
+      - "8088:8088"
     depends_on:
       db-fila-virtual:
         condition: service_healthy

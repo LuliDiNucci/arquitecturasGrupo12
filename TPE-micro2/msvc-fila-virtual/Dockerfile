@@ -22,6 +22,6 @@ COPY --from=build /build/target/msvc-fila-virtual-0.0.1-SNAPSHOT.jar app.jar
 
 USER ticketya
 
-EXPOSE 8086
+EXPOSE 8088
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

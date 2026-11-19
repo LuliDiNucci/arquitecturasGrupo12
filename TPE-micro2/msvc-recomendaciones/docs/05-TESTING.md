@@ -1,95 +1,35 @@
-# 05 - Testing
+# 05 — Testing
 
-## 1. Objetivo
+## 1. Entorno
 
-El objetivo de las pruebas del microservicio `msvc-recomendaciones` es verificar el funcionamiento de la gestión de preferencias de los clientes y la generación de recomendaciones a partir de los eventos publicados en TicketYa.
+Las comprobaciones de `msvc-recomendaciones` se realizaron con Spring Boot 4.1.2, MongoDB en Docker Compose, Eventos y Lugares, Compras y Pagos y API Gateway. Se utilizaron solicitudes REST desde PowerShell, consultas con `mongosh` y Swagger UI.
 
-## 2. Entorno de pruebas
+## 2. Pruebas funcionales e integración verificadas
 
-| Componente | Configuración |
-|---|---|
-| Microservicio | msvc-recomendaciones |
-| Puerto | 8086 |
-| Base de datos | MongoDB |
-| Base de datos utilizada | ticketya_recomendaciones |
-| Microservicio externo | msvc-eventosylugares |
-| Puerto del servicio externo | 8081 |
-| Herramienta de pruebas | Swagger UI |
-
-## 3. Pruebas realizadas
-
-### 3.1. Verificación de disponibilidad de MongoDB
-
-Se verificó que el contenedor de MongoDB estuviera iniciado y que aceptara conexiones.
-
-**Resultado:** se observó que MongoDB estaba disponible y aceptaba conexiones.
-
-### 3.2. Consulta de eventos publicados
-
-Se intentó consultar el endpoint:
-
-`GET http://localhost:8081/eventos/publicados`
-
-**Resultado:** el servicio respondió correctamente, pero devolvió una lista vacía (`[]`).
-
-Esto impidió disponer de eventos publicados para comprobar la generación de recomendaciones.
-
-### 3.3. Consulta de recomendaciones
-
-Se identificó el endpoint:
-
-`GET http://localhost:8086/api/recomendaciones/{clienteId}`
-
-La prueba de integración completa quedó pendiente porque no se contaba con eventos publicados para utilizar como datos de entrada.
-
-## 4. Pruebas pendientes
-
-| Prueba | Objetivo | Estado |
+| Caso | Acción | Resultado observado |
 |---|---|---|
-| Registro de preferencias | Verificar que las preferencias se almacenen en MongoDB | Pendiente de documentar resultado |
-| Consulta de preferencias | Verificar la recuperación de las preferencias de un cliente | Pendiente de documentar resultado |
-| Consulta de eventos publicados | Obtener eventos desde Eventos y Lugares | Ejecutada: respuesta vacía |
-| Generación de recomendaciones | Verificar que se devuelvan eventos relacionados con las preferencias | Pendiente |
-| Integración completa | Comprobar el recorrido entre preferencias, Feign y recomendaciones | Pendiente |
+| Registro | POST `/api/preferencias/99` | Preferencias registradas |
+| Consulta | GET `/api/preferencias/99` | Devuelve tipos, artistas y ciudad |
+| Modificación | PUT `/api/preferencias/99` y GET posterior | Refleja los valores actualizados |
+| MongoDB | Consultar colección `preferencias` en `ticketya_recomendaciones` | Documento del cliente 99 persistido |
+| Integración con Eventos | GET `/eventos/publicados` | Evento 1 PUBLICADO recuperado |
+| Tipo y ciudad | Preferencias `RECITAL` / `Tandil` | Recomienda el recital publicado |
+| Artista | Solo coincide `Banda de Prueba TicketYa` | Recomienda el recital por participante |
+| Sin coincidencias | `TEATRO` / `Cordoba` sin artistas | HTTP `200`, cuerpo `[]` |
+| Sin preferencias | GET de recomendaciones para cliente inexistente | HTTP `404` |
+| JWT ausente | GET de recomendaciones sin Bearer | HTTP `401` |
+| Cliente ajeno | Cliente 3 consulta recomendaciones del 99 | HTTP `403` |
+| Cliente propietario | Cliente 3 consulta sus preferencias | HTTP `200` |
+| Historial en Compras | GET `/compras/cliente/3/eventos-recomendados` | HTTP `200`, cuerpo `[]` |
+| Recomendaciones + Compras | GET mediante Gateway para cliente 3 | HTTP `200` con recital recomendado por preferencias |
+| Despliegue | Recomendaciones en Docker Compose y `/actuator/health` | Contenedor activo, `UP` |
 
-## 5. Conclusión
+## 3. Testing automatizado
 
-El microservicio cuenta con la implementación de la gestión de preferencias y la integración con el microservicio de Eventos y Lugares.
+El proyecto incluye `RecomendacionesServiceTest`, implementado con JUnit y Mockito. El caso `recomiendaEventoPorHistorialAunqueNoCoincidaConPreferencias` construye un escenario en el que Compras proporciona un identificador de evento recomendado por historial que no coincide con el tipo, artista ni ciudad preferidos. La verificación se realiza sobre la lista combinada que devuelve el servicio, sin depender de bases de datos ni servicios externos reales.
 
-Durante las pruebas se pudo consultar el endpoint de eventos publicados, que respondió con una lista vacía.
+## 4. Regla de recomendación colaborativa
 
-Por este motivo, no fue posible verificar el resultado de la generación de recomendaciones utilizando eventos reales.
+La consulta de historial de Compras devuelve identificadores de eventos a partir de compras confirmadas. Por ejemplo, si un cliente compró entradas para el evento A y otro compró entradas para A y B, el evento B es candidato para el primero, siempre que no lo haya comprado y que B continúe publicado y sea futuro.
 
-Queda pendiente realizar una prueba integral con eventos publicados y preferencias registradas para comprobar que las recomendaciones devueltas correspondan a los intereses de cada cliente.
-## Pruebas de preferencias
-
-Se realizaron pruebas funcionales desde Swagger UI sobre el microservicio `msvc-recomendaciones`.
-
-**1. Registrar preferencias**
-
-- Endpoint: `POST /api/preferencias/{clienteId}`
-- Cliente utilizado: `4`
-- Resultado: `201 Created`.
-- Se registraron correctamente los tipos de eventos, artistas favoritos y ciudad.
-
-**2. Consultar preferencias**
-
-- Endpoint: `GET /api/preferencias/{clienteId}`
-- Cliente utilizado: `4`
-- Resultado: `200 OK`.
-- Se recuperaron correctamente las preferencias registradas.
-
-**3. Modificar preferencias**
-
-- Endpoint: `PUT /api/preferencias/{clienteId}`
-- Cliente utilizado: `4`
-- Resultado: `200 OK`.
-- Se modificaron los datos de preferencias.
-
-**4. Verificar modificación**
-
-- Se realizó nuevamente una consulta mediante `GET /api/preferencias/4`.
-- Resultado: `200 OK`.
-- La respuesta reflejó los valores modificados.
-
-**Conclusión:** Se verificó el funcionamiento de los endpoints de registro, consulta y modificación de preferencias desde Swagger UI. Los resultados confirman que los cambios persisten entre operaciones de la API.
+La selección por historial se combina con las coincidencias por preferencias; el resultado elimina duplicados y conserva las restricciones de publicación y fecha.

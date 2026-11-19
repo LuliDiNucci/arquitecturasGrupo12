@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.ticketya.reservas.clients.EventoClient;
+import com.ticketya.reservas.clients.FilaVirtualClient;
 import com.ticketya.reservas.dtos.AsientoDTO;
 import com.ticketya.reservas.dtos.CrearReservaDTO;
 import com.ticketya.reservas.dtos.DetalleReservaDTO;
@@ -29,10 +30,12 @@ import com.ticketya.reservas.dtos.EventoDTO;
 import com.ticketya.reservas.dtos.PrecioSectorDTO;
 import com.ticketya.reservas.dtos.ReservaDTO;
 import com.ticketya.reservas.dtos.SectorDTO;
+import com.ticketya.reservas.dtos.ValidacionTurnoDTO;
 import com.ticketya.reservas.entities.AsignacionAsiento;
 import com.ticketya.reservas.entities.BloqueoEvento;
 import com.ticketya.reservas.entities.DetalleReserva;
 import com.ticketya.reservas.entities.EntradaLiberada;
+import com.ticketya.reservas.entities.FinalizacionFilaPendiente;
 import com.ticketya.reservas.entities.Reserva;
 import com.ticketya.reservas.enums.EstadoReserva;
 import com.ticketya.reservas.repositories.AsignacionAsientoRepository;
@@ -40,6 +43,7 @@ import com.ticketya.reservas.repositories.BloqueoEventoRepository;
 import com.ticketya.reservas.repositories.ClaveIdempotenciaBloqueoRepository;
 import com.ticketya.reservas.repositories.DetalleReservaRepository;
 import com.ticketya.reservas.repositories.EntradaLiberadaRepository;
+import com.ticketya.reservas.repositories.FinalizacionFilaPendienteRepository;
 import com.ticketya.reservas.repositories.ReservaRepository;
 
 import feign.FeignException;
@@ -53,7 +57,9 @@ public class ReservaServiceImpl implements ReservaService {
     private final BloqueoEventoRepository bloqueoRepo;
     private final EntradaLiberadaRepository entradaLiberadaRepo;
     private final EventoClient eventoClient;
+    private final FilaVirtualClient filaVirtualClient;
     private final ClaveIdempotenciaBloqueoRepository claveBloqueoRepo;
+    private final FinalizacionFilaPendienteRepository finalizacionFilaRepo;
 
     @Value("${reservas.max-entradas-por-cliente:4}")
     private int maxEntradasPorCliente;
@@ -65,7 +71,9 @@ public class ReservaServiceImpl implements ReservaService {
             BloqueoEventoRepository bloqueoRepo,
             EventoClient eventoClient,
             EntradaLiberadaRepository entradaLiberadaRepo,
-            ClaveIdempotenciaBloqueoRepository claveBloqueoRepo) {
+            ClaveIdempotenciaBloqueoRepository claveBloqueoRepo,
+            FilaVirtualClient filaVirtualClient,
+            FinalizacionFilaPendienteRepository finalizacionFilaRepo) {
 
         this.reservaRepo = reservaRepo;
         this.detalleRepo = detalleRepo;
@@ -74,6 +82,8 @@ public class ReservaServiceImpl implements ReservaService {
         this.eventoClient = eventoClient;
         this.entradaLiberadaRepo = entradaLiberadaRepo;
         this.claveBloqueoRepo = claveBloqueoRepo;
+        this.filaVirtualClient = filaVirtualClient;
+        this.finalizacionFilaRepo = finalizacionFilaRepo;
     }
 
     // BLOQUEAR EL EVENTO
@@ -135,7 +145,7 @@ public class ReservaServiceImpl implements ReservaService {
     }
 
     // VALIDAR EVENTO Y SECTORES
-    private void validarEventoYSectores(CrearReservaDTO solicitud) {
+    private EventoDTO validarEventoYSectores(CrearReservaDTO solicitud) {
 
         EventoDTO evento = eventoClient.obtenerEvento(solicitud.getEventoId());
 
@@ -232,6 +242,7 @@ public class ReservaServiceImpl implements ReservaService {
                 }
             }
         }
+        return evento;
     }
 
     // COMPROBAR IDEMPOTENCIA
@@ -409,8 +420,15 @@ public class ReservaServiceImpl implements ReservaService {
         }
 
         exigirEventoNoCancelado(solicitud.getEventoId());
-        // Consultar el estado actual de Eventos después de adquirir el bloqueo local.
-        validarEventoYSectores(solicitud);
+
+        // Validar evento y sectores.
+        EventoDTO evento = validarEventoYSectores(solicitud);
+
+        // Verificar autorización para eventos de alta demanda.
+        validarTurnoFilaVirtual(
+                evento,
+                solicitud.getClienteId());
+
         LocalDateTime ahora = LocalDateTime.now();
 
         long cantidadSolicitada = solicitud.getDetalles()
@@ -466,6 +484,16 @@ public class ReservaServiceImpl implements ReservaService {
         }
 
         Reserva guardada = reservaRepo.saveAndFlush(reserva);
+
+        if (Boolean.TRUE.equals(evento.getAltaDemanda())) {
+
+            FinalizacionFilaPendiente finalizacion = new FinalizacionFilaPendiente(
+                    guardada.getId(),
+                    guardada.getEventoId(),
+                    guardada.getClienteId());
+
+            finalizacionFilaRepo.save(finalizacion);
+        }
 
         return convertirADTO(guardada);
     }
@@ -777,4 +805,47 @@ public class ReservaServiceImpl implements ReservaService {
         }
     }
 
+    private void validarTurnoFilaVirtual(
+            EventoDTO evento,
+            Long clienteId) {
+
+        // Los eventos normales no requieren fila virtual.
+        if (!Boolean.TRUE.equals(evento.getAltaDemanda())) {
+            return;
+        }
+
+        ValidacionTurnoDTO turno;
+
+        try {
+
+            turno = filaVirtualClient.validarTurno(
+                    evento.getId(),
+                    clienteId);
+
+        } catch (FeignException.NotFound ex) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "El cliente no está registrado en la fila virtual");
+
+        } catch (FeignException ex) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "No se pudo verificar la autorización de fila virtual",
+                    ex);
+        }
+        if (turno == null
+                || !turno.autorizado()
+                || !"HABILITADO".equals(turno.estado())
+                || !evento.getId().equals(turno.eventoId())
+                || !clienteId.equals(turno.clienteId())
+                || turno.fechaVencimiento() == null
+                || !turno.fechaVencimiento().isAfter(LocalDateTime.now())) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "El cliente no tiene un turno vigente en la fila virtual");
+        }
+    }
 }

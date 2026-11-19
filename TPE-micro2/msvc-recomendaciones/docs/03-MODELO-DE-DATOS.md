@@ -1,53 +1,48 @@
-# 03 - Modelo de Datos
+# 03 — Modelo de Datos
 
-## 1. Descripción general
+## 1. Persistencia
 
-El microservicio `msvc-recomendaciones` utiliza MongoDB como sistema de persistencia para almacenar las preferencias de los clientes.
+Recomendaciones utiliza MongoDB, con base de datos `ticketya_recomendaciones` y colección `preferencias`. La entidad `Preferencias` se mapea mediante Spring Data MongoDB.
 
-La base de datos utilizada se denomina `ticketya_recomendaciones`.
+Se seleccionó MongoDB por la naturaleza documental de las preferencias. Cada cliente posee un conjunto de atributos simples y listas de tipos de eventos y artistas favoritos que se almacenan juntos en un único documento. Esta representación evita tablas de asociación para las listas y permite ampliar los criterios de personalización manteniendo una estructura flexible. La elección se limita a las preferencias; los procesos transaccionales de compras y pagos continúan en sus respectivos microservicios y bases relacionales.
 
-A diferencia de una base de datos relacional, MongoDB almacena la información mediante documentos, organizados en colecciones.
+## 2. Documento de preferencias
 
-## 2. Persistencia de preferencias
+| Atributo | Tipo Java | Descripción |
+|---|---|---|
+| `id` | `String` | Identificador del documento (`_id` en MongoDB) |
+| `clienteId` | `Long` | Identificador del cliente propietario |
+| `tiposEventos` | `List<String>` | Tipos de eventos preferidos |
+| `artistasFavoritos` | `List<String>` | Nombres de artistas favoritos |
+| `ciudad` | `String` | Ciudad de interés |
 
-El microservicio almacena las preferencias asociadas a los clientes de TicketYa.
+Ejemplo de estructura lógica del documento:
 
-Esta información se utiliza como entrada para el proceso de generación de recomendaciones.
+```json
+{
+  "clienteId": 99,
+  "tiposEventos": ["RECITAL"],
+  "artistasFavoritos": ["Banda de Prueba TicketYa"],
+  "ciudad": "Tandil"
+}
+```
 
-Cada registro de preferencias se encuentra asociado a un cliente mediante su identificador.
+MongoDB también asigna el campo `_id`; el documento persistido incluye metadatos de mapeo de Spring Data.
 
-## 3. Estructura lógica
+## 3. Relaciones con otros servicios
 
-El modelo contempla la siguiente información:
+- `clienteId` es una referencia lógica al usuario gestionado por `msvc-usuarios`.
+- Los eventos recomendados no se guardan en esta colección: se consultan en `msvc-eventosylugares`.
+- Las compras confirmadas tampoco se duplican: `msvc-compras` conserva sus tablas relacionales y expone una consulta REST de identificadores de eventos recomendados.
 
-| Dato | Descripción |
-|---|---|
-| Identificador del documento | Identifica el registro almacenado en MongoDB |
-| Identificador del cliente | Permite asociar las preferencias con un cliente |
-| Preferencias | Contiene los criterios de interés registrados por el cliente |
+No existen claves foráneas entre la base MongoDB de Recomendaciones y las bases de los demás microservicios.
 
-Los nombres y tipos concretos de los atributos corresponden a la definición de la clase de persistencia implementada en el proyecto.
+## 4. Configuración
 
-## 4. Base de datos y colección
+La conexión se configura mediante la propiedad de Spring Boot 4:
 
-- Motor de persistencia: MongoDB.
-- Base de datos: `ticketya_recomendaciones`.
-- Acceso a datos: Spring Data MongoDB.
+```properties
+spring.mongodb.uri=${MONGODB_URI:mongodb://localhost:27017/ticketya_recomendaciones}
+```
 
-La aplicación utiliza la siguiente configuración:
-
-`spring.data.mongodb.uri=mongodb://localhost:27017/ticketya_recomendaciones`
-
-## 5. Utilización de los datos
-
-El proceso de recomendación utiliza las preferencias almacenadas para identificar los eventos que pueden resultar relevantes para cada cliente.
-
-Para ello, combina esta información con los eventos publicados obtenidos desde `msvc-eventosylugares`.
-
-## 6. Consideraciones
-
-Las preferencias se almacenan de manera independiente de la información de eventos.
-
-Los datos de los eventos no se persisten en esta base de datos como parte del modelo de preferencias: se obtienen mediante la comunicación con el microservicio de Eventos y Lugares.
-
-Esta separación permite que cada microservicio administre sus propios datos.
+En Docker Compose, `MONGODB_URI` apunta al nombre de servicio `db-recomendaciones`, no a `localhost`.

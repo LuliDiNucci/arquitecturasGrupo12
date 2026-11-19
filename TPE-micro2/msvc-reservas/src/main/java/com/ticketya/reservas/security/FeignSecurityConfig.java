@@ -1,14 +1,29 @@
 package com.ticketya.reservas.security;
 
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
 import feign.RequestInterceptor;
-import org.springframework.context.annotation.*;
 
 @Configuration
 public class FeignSecurityConfig {
-    @Bean RequestInterceptor bearerForwarding(InternalCredentials credentials) {
+
+    @Bean
+    RequestInterceptor bearerForwarding(InternalCredentials credentials) {
+
         return template -> {
+
             template.removeHeader("Authorization");
-            template.header("Authorization", credentials.authorization(template.method()));
+
+            boolean esFilaVirtual = template.url().startsWith("/filas/");
+
+            String metodoCredencial = esFilaVirtual
+                    ? "POST"
+                    : template.method();
+
+            template.header(
+                    "Authorization",
+                    credentials.authorization(metodoCredencial));
         };
     }
 }

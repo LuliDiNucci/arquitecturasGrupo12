@@ -237,16 +237,12 @@ public class FilaVirtualServiceImpl implements FilaVirtualService {
             return convertirADTO(cliente);
         }
 
-        if (cliente.tieneTurnoVencido(LocalDateTime.now())) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "El turno ya venció");
-        }
+        if (cliente.getEstado() != EstadoFila.HABILITADO
+                && cliente.getEstado() != EstadoFila.VENCIDO) {
 
-        if (cliente.getEstado() != EstadoFila.HABILITADO) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "El cliente no tiene un turno habilitado y vigente");
+                    "El cliente nunca tuvo un turno habilitado");
         }
 
         cliente.finalizar();

@@ -1,85 +1,175 @@
-
 package com.ticketya.recomendaciones.services;
 
-import com.ticketya.recomendaciones.dtos.EventoResumenDTO;
-import com.ticketya.recomendaciones.dtos.EventoRecomendadoDTO;
-import com.ticketya.recomendaciones.models.Preferencias;
-import com.ticketya.recomendaciones.repositories.PreferenciasRepository;
-import com.ticketya.recomendaciones.clients.EventoClient;
-import com.ticketya.recomendaciones.exceptions.RecursoNoEncontradoException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.ArrayList;
+import com.ticketya.recomendaciones.clients.CompraClient;
+import com.ticketya.recomendaciones.clients.EventoClient;
+import com.ticketya.recomendaciones.dtos.EventoDetalleDTO;
+import com.ticketya.recomendaciones.dtos.EventoRecomendadoDTO;
+import com.ticketya.recomendaciones.dtos.EventoResumenDTO;
+import com.ticketya.recomendaciones.dtos.ParticipanteDTO;
+import com.ticketya.recomendaciones.exceptions.RecursoNoEncontradoException;
+import com.ticketya.recomendaciones.models.Preferencias;
+import com.ticketya.recomendaciones.repositories.PreferenciasRepository;
 
 @Service
 public class RecomendacionesService {
 
     private final PreferenciasRepository repository;
     private final EventoClient eventoClient;
+    private final CompraClient compraClient;
 
     public RecomendacionesService(
             PreferenciasRepository repository,
-            EventoClient eventoClient) {
+            EventoClient eventoClient,
+            CompraClient compraClient) {
 
         this.repository = repository;
         this.eventoClient = eventoClient;
+        this.compraClient = compraClient;
     }
 
-    // OBTENER RECOMENDACIONES
     public List<EventoRecomendadoDTO> obtenerRecomendaciones(
             Long clienteId) {
 
-        // Buscar las preferencias del cliente
         Preferencias preferencias = repository.findByClienteId(clienteId)
-            .orElseThrow(() -> new RecursoNoEncontradoException(
-                "No existen preferencias para este cliente"
-            ));
+                .orElseThrow(() -> new RecursoNoEncontradoException(
+                        "No existen preferencias para este cliente"));
 
-        // Obtener eventos publicados mediante Feign
-        List<EventoResumenDTO> eventos =
-            eventoClient.listarEventosPublicados();
+        // Obtener eventos publicados
+        List<EventoResumenDTO> eventos = eventoClient.listarEventosPublicados();
 
-        List<EventoRecomendadoDTO> recomendaciones =
-            new ArrayList<>();
+        // Obtener sugerencias basadas en compras confirmadas
+        List<Long> historial = compraClient.obtenerEventosRecomendados(clienteId);
 
-        // Recorrer los eventos
+        Set<Long> eventosPorHistorial = new HashSet<>();
+
+        if (historial != null) {
+            eventosPorHistorial.addAll(historial);
+        }
+
+        List<EventoRecomendadoDTO> recomendaciones = new ArrayList<>();
+
+        if (eventos == null || eventos.isEmpty()) {
+            return recomendaciones;
+        }
+
         for (EventoResumenDTO evento : eventos) {
 
-            boolean coincideTipo =
-                preferencias.getTiposEventos() != null &&
-                preferencias.getTiposEventos().stream()
-                    .anyMatch(tipo -> tipo.equalsIgnoreCase(
-                        evento.getTipo() == null ? "" : evento.getTipo()
-                    ));
+            if (!esEventoRecomendable(evento)) {
+                continue;
+            }
 
-            boolean coincideCiudad =
-                preferencias.getCiudad() != null &&
-                preferencias.getCiudad().equalsIgnoreCase(
-                    evento.getCiudad() == null ? "" : evento.getCiudad()
-                );
+            // Coincidencia por tipo de evento
+            boolean coincideTipo = coincideEnLista(
+                    preferencias.getTiposEventos(),
+                    evento.getTipo());
 
-            // Recomendar si coincide el tipo o la ciudad
-            if (coincideTipo || coincideCiudad) {
+            // Coincidencia por ciudad
+            boolean coincideCiudad = coincideTexto(
+                    preferencias.getCiudad(),
+                    evento.getCiudad());
 
-                EventoRecomendadoDTO dto =
-                    new EventoRecomendadoDTO(
+            // Coincidencia por historial de compras
+            boolean coincideHistorial = eventosPorHistorial.contains(evento.getId());
+
+            // Obtener participantes del evento
+            EventoDetalleDTO detalle = eventoClient.obtenerEvento(evento.getId());
+
+            boolean coincideArtista = false;
+            String artistaPrincipal = null;
+
+            if (detalle != null && detalle.participantes() != null) {
+
+                for (ParticipanteDTO participante : detalle.participantes()) {
+
+                    if (participante == null
+                            || participante.nombre() == null) {
+                        continue;
+                    }
+
+                    if (artistaPrincipal == null) {
+                        artistaPrincipal = participante.nombre();
+                    }
+
+                    if (coincideEnLista(
+                            preferencias.getArtistasFavoritos(),
+                            participante.nombre())) {
+
+                        coincideArtista = true;
+                    }
+                }
+            }
+
+            // Recomendar cuando coincide al menos un criterio
+            if (coincideTipo
+                    || coincideCiudad
+                    || coincideArtista
+                    || coincideHistorial) {
+
+                EventoRecomendadoDTO recomendado = new EventoRecomendadoDTO(
                         evento.getId(),
                         evento.getNombre(),
                         evento.getTipo(),
-                        null,
+                        artistaPrincipal,
                         evento.getCiudad(),
                         evento.getFechaHora(),
-                        evento.getPrecioDesde() != null
-                            ? evento.getPrecioDesde().doubleValue()
-                            : null
-                    );
+                        evento.getPrecioDesde() == null
+                                ? null
+                                : evento.getPrecioDesde().doubleValue());
 
-                recomendaciones.add(dto);
+                recomendaciones.add(recomendado);
             }
         }
 
         return recomendaciones;
+    }
+
+    private boolean esEventoRecomendable(
+            EventoResumenDTO evento) {
+
+        if (evento == null || evento.getId() == null) {
+            return false;
+        }
+
+        if (!"PUBLICADO".equalsIgnoreCase(evento.getEstado())) {
+            return false;
+        }
+
+        return evento.getFechaHora() != null
+                && evento.getFechaHora().isAfter(LocalDateTime.now());
+    }
+
+    private boolean coincideEnLista(
+            List<String> preferencias,
+            String valor) {
+
+        if (preferencias == null || valor == null) {
+            return false;
+        }
+
+        for (String preferencia : preferencias) {
+
+            if (coincideTexto(preferencia, valor)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean coincideTexto(
+            String primero,
+            String segundo) {
+
+        return primero != null
+                && segundo != null
+                && primero.trim().equalsIgnoreCase(segundo.trim());
     }
 }

@@ -2,55 +2,67 @@
 
 ## 1. Descripción general
 
-El microservicio `msvc-fila-virtual` cuenta con pruebas automatizadas para verificar las reglas de negocio, la gestión de turnos, la concurrencia y la inicialización de la aplicación.
+El microservicio `msvc-fila-virtual` cuenta con pruebas automatizadas para verificar las reglas de negocio, la gestión de turnos, la concurrencia, la seguridad y la inicialización de la aplicación.
 
-Las pruebas permiten comprobar el ingreso de clientes a filas virtuales, la prevención de registros duplicados, el respeto del orden de llegada, la habilitación de tandas y el control de autorizaciones temporales.
+Las pruebas de integración verifican la comunicación entre Fila Virtual, Reservas y los demás componentes involucrados en el control de acceso a eventos de alta demanda.
 
-La implementación utiliza JUnit 5, Mockito, Spring Boot Test y Spring Data JPA.
+Las pruebas permiten verificar:
 
-La suite contiene **13 métodos de prueba automatizados**, distribuidos en:
-
-- 10 pruebas unitarias de lógica de negocio.
-- 2 pruebas de concurrencia con persistencia.
-- 1 prueba de inicialización del contexto de Spring Boot.
+- El ingreso de clientes a filas virtuales.
+- La prevención de registros duplicados.
+- El respeto del orden de llegada.
+- La habilitación de tandas.
+- La vigencia de autorizaciones temporales.
+- El vencimiento de turnos.
+- La finalización idempotente.
+- El control de concurrencia.
+- La autenticación y autorización mediante JWT.
+- La integración con Reservas.
+- La prevención de reutilización de turnos finalizados.
 
 ## 2. Herramientas utilizadas
 
-| Herramienta      | Utilización                                                                 |
-| ---------------- | --------------------------------------------------------------------------- |
-| JUnit 5          | Definición y ejecución de pruebas automatizadas.                            |
-| Mockito          | Simulación de repositorios y dependencias externas.                         |
-| Spring Boot Test | Inicialización del contexto y pruebas con componentes Spring.               |
-| Spring Data JPA  | Persistencia de los registros de fila virtual.                              |
-| MySQL            | Almacenamiento y control transaccional durante las pruebas de concurrencia. |
-| Maven            | Compilación y ejecución de la suite de pruebas.                             |
-| Postman          | Preparación y ejecución de pruebas HTTP de la API REST.                     |
-| Swagger/OpenAPI  | Consulta y documentación interactiva de los endpoints.                      |
+| Herramienta | Utilización |
+|---|---|
+| JUnit 5 | Definición y ejecución de pruebas automatizadas. |
+| Mockito | Simulación de repositorios y dependencias externas. |
+| Spring Boot Test | Pruebas con componentes y contexto de Spring. |
+| Spring Security Test | Verificación de restricciones de autenticación y autorización. |
+| MockMvc | Ejecución de pruebas HTTP de controladores y seguridad. |
+| Spring Data JPA | Persistencia de registros de fila virtual. |
+| MySQL | Almacenamiento y control transaccional. |
+| Maven | Compilación y ejecución de pruebas. |
+| Docker Compose | Ejecución conjunta de microservicios y bases de datos. |
+| PowerShell | Ejecución de solicitudes HTTP y validación de respuestas. |
+| Postman | Ejecución de pruebas de la API REST. |
+| Swagger/OpenAPI | Documentación y consulta de los contratos REST. |
 
 ## 3. Pruebas unitarias
 
-Las pruebas unitarias se implementan en:
+Las pruebas de lógica de negocio se implementan en:
 
 `FilaVirtualServiceImplTest.java`
 
-Esta clase utiliza JUnit 5 y Mockito para verificar las reglas de negocio de `FilaVirtualServiceImpl`.
+Se utiliza JUnit 5 y Mockito para verificar las operaciones de `FilaVirtualServiceImpl`.
 
-Las dependencias externas se simulan mediante mocks, permitiendo comprobar el comportamiento del servicio de manera aislada.
+Las dependencias externas se simulan mediante mocks, permitiendo comprobar las reglas del servicio de forma aislada.
 
 ### 3.1. Casos de prueba
 
-| Método de prueba                              | Comportamiento verificado                                                                                   |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `ingresarNuevamenteConservaRegistroYPosicion` | Comprueba que un ingreso repetido devuelve el mismo registro y conserva la posición del cliente.            |
-| `rechazaEventoSinAltaDemanda`                 | Verifica que no se permita ingresar a la fila de un evento que no está configurado como de alta demanda.    |
-| `habilitaClientesRespetandoOrden`             | Comprueba que la habilitación seleccione a los primeros clientes en espera, respetando el orden de llegada. |
-| `rechazaSegundaTandaSiExisteUnaActiva`        | Verifica que no se habilite una nueva tanda mientras exista otra vigente.                                   |
-| `turnoVigenteAutorizaAlCliente`               | Comprueba que un turno habilitado y vigente autorice al cliente.                                            |
-| `clienteEnEsperaNoEstaAutorizado`             | Verifica que un cliente que continúa esperando no esté autorizado.                                          |
-| `turnoVencidoNoAutorizaAlCliente`             | Comprueba que un turno vencido sea rechazado y actualice su estado a `VENCIDO`.                             |
-| `noPermiteFinalizarTurnoVencido`              | Verifica que no se permita finalizar un turno cuyo período de validez terminó.                              |
-| `finalizarTurnoEsIdempotente`                 | Comprueba que una finalización repetida conserve el estado `FINALIZADO`.                                    |
-| `turnoFinalizadoNoAutorizaNuevamente`         | Verifica que un turno finalizado no pueda utilizarse nuevamente.                                            |
+Entre los escenarios implementados se encuentran:
+
+| Método de prueba | Comportamiento verificado |
+|---|---|
+| `ingresarNuevamenteConservaRegistroYPosicion` | Un ingreso repetido devuelve el mismo registro y conserva su posición. |
+| `rechazaEventoSinAltaDemanda` | No se permite ingresar a la fila de un evento que no requiere fila virtual. |
+| `habilitaClientesRespetandoOrden` | Se seleccionan los primeros clientes en espera. |
+| `rechazaSegundaTandaSiExisteUnaActiva` | No se permite una nueva tanda mientras exista otra vigente. |
+| `turnoVigenteAutorizaAlCliente` | Un turno habilitado y vigente autoriza al cliente. |
+| `clienteEnEsperaNoEstaAutorizado` | Un cliente en espera no está autorizado para reservar. |
+| `turnoVencidoNoAutorizaAlCliente` | Un turno vencido no autoriza nuevas reservas. |
+| `finalizarTurnoEsIdempotente` | Una finalización repetida conserva el estado `FINALIZADO`. |
+| `turnoFinalizadoNoAutorizaNuevamente` | Un turno finalizado no puede reutilizarse. |
+| `permiteFinalizarTurnoVencidoPorConfirmacionDeReserva` | Permite cerrar un turno vencido mediante una finalización asíncrona tardía. |
 
 ### 3.2. Reglas de negocio verificadas
 
@@ -64,8 +76,11 @@ Las pruebas unitarias comprueban:
 - Autorización de turnos vigentes.
 - Rechazo de clientes que continúan esperando.
 - Detección de turnos vencidos.
-- Prevención de utilización de turnos finalizados.
+- Prevención de reutilización de turnos finalizados.
 - Idempotencia de la finalización.
+- Finalización tardía de turnos vencidos cuando corresponde a una reserva previamente creada.
+
+La finalización de un turno vencido no implica que pueda utilizarse para crear una nueva reserva.
 
 ## 4. Pruebas de concurrencia
 
@@ -73,11 +88,9 @@ Las pruebas de concurrencia se implementan en:
 
 `FilaVirtualConcurrenciaTest.java`
 
-Se ejecutan utilizando Spring Boot Test y la persistencia configurada para el perfil de pruebas.
+Se ejecutan utilizando Spring Boot Test y la persistencia configurada para el entorno de pruebas.
 
-La clase utiliza `ExecutorService`, `CountDownLatch` y `Future` para ejecutar solicitudes simultáneas.
-
-Las operaciones de base de datos se realizan mediante Spring Data JPA.
+La clase utiliza mecanismos de ejecución concurrente para iniciar operaciones simultáneas y verificar sus resultados.
 
 ### 4.1. Ingreso simultáneo del mismo cliente
 
@@ -87,15 +100,14 @@ Las operaciones de base de datos se realizan mediante Spring Data JPA.
 
 Se ejecutan dos solicitudes simultáneas para registrar al mismo cliente en la fila de un evento.
 
-La prueba verifica que:
+La prueba verifica:
 
-- Ambas solicitudes terminen sin errores.
-- Ambas reciban una respuesta.
-- Las dos respuestas contengan el mismo identificador de registro.
-- La posición del cliente se conserve.
-- Exista un único registro en la base de datos para la combinación de evento y cliente.
+- Que las solicitudes no generen registros duplicados.
+- Que ambas operaciones hagan referencia al mismo registro.
+- Que se conserve la posición del cliente.
+- Que exista un único registro para la combinación de evento y cliente.
 
-Esta prueba comprueba el funcionamiento de la restricción de unicidad y la operación de ingreso idempotente.
+Esta prueba verifica el funcionamiento de la restricción de unicidad y la operación de ingreso idempotente.
 
 ### 4.2. Habilitación simultánea de tandas
 
@@ -103,22 +115,16 @@ Esta prueba comprueba el funcionamiento de la restricción de unicidad y la oper
 
 `dosHabilitacionesSimultaneasNoCreanDosTandas`
 
-Se prepara una fila con seis clientes esperando.
+Se prepara una fila con clientes esperando y se ejecutan solicitudes simultáneas de habilitación.
 
-Posteriormente, se ejecutan dos solicitudes simultáneas para habilitar tres clientes cada una.
+La prueba verifica:
 
-La prueba verifica que:
-
-- Solamente tres clientes sean habilitados.
-- Los otros tres permanezcan en estado `EN_ESPERA`.
-- Una de las solicitudes sea rechazada debido a la existencia de una tanda activa.
-- Los clientes habilitados sean los primeros en ingresar a la fila.
-
-Esta prueba comprueba el control de concurrencia durante la habilitación de turnos.
+- Que no se generen dos tandas activas incompatibles.
+- Que se respete el orden de ingreso.
+- Que el bloqueo pesimista coordine las operaciones concurrentes.
+- Que los clientes no seleccionados permanezcan esperando.
 
 ### 4.3. Mecanismos de protección
-
-El microservicio utiliza diferentes mecanismos para proteger las operaciones concurrentes.
 
 **Ingreso de clientes:**
 
@@ -135,7 +141,40 @@ El microservicio utiliza diferentes mecanismos para proteger las operaciones con
 
 Estos mecanismos permiten mantener la consistencia cuando se reciben solicitudes simultáneas.
 
-## 5. Prueba de inicialización
+## 5. Pruebas de seguridad
+
+Las pruebas de seguridad verifican las restricciones de acceso configuradas mediante Spring Security y JWT.
+
+Se incluyen escenarios de autenticación y autorización para los distintos tipos de usuarios y operaciones.
+
+### 5.1. Autenticación
+
+Se verifica que los endpoints protegidos requieran una identidad autenticada.
+
+Las solicitudes sin un JWT válido deben rechazarse según las reglas de seguridad del servicio.
+
+### 5.2. Autorización por roles
+
+Se verifica que los permisos dependan de la identidad autenticada.
+
+Entre los escenarios implementados se encuentran:
+
+| Método de prueba | Comportamiento verificado |
+|---|---|
+| `clienteNoPuedeHabilitarTandas` | Un cliente no puede habilitar tandas. |
+| `administradorPuedeHabilitarTandas` | Un administrador tiene permisos para habilitar tandas. |
+
+También se comprueba la protección de los endpoints correspondientes a clientes y operaciones internas.
+
+### 5.3. Protección de las operaciones internas
+
+La validación y finalización de turnos están destinadas a la comunicación interna con Reservas.
+
+Estas operaciones utilizan autenticación mediante credenciales de servicio.
+
+La separación de permisos evita que un cliente pueda finalizar directamente su turno para modificar el proceso de reserva.
+
+## 6. Prueba de inicialización
 
 La clase:
 
@@ -145,7 +184,7 @@ incluye una prueba de inicialización mediante `@SpringBootTest`.
 
 Esta prueba verifica que el contexto de Spring Boot pueda cargarse correctamente con la configuración correspondiente.
 
-## 6. Pruebas HTTP mediante Postman
+## 7. Pruebas HTTP mediante Postman
 
 El microservicio dispone de una colección Postman para verificar el comportamiento de sus endpoints REST.
 
@@ -153,109 +192,179 @@ El microservicio dispone de una colección Postman para verificar el comportamie
 
 `postman/TicketYa-FilaVirtual.postman_collection.json`
 
-La colección utiliza las siguientes variables:
+La colección utiliza variables para configurar la dirección del servicio y los identificadores necesarios durante las pruebas.
 
-| Variable            | Descripción                                                  |
-| ------------------- | ------------------------------------------------------------ |
-| `baseUrl`           | Dirección base del microservicio.                            |
-| `eventoId`          | Identificador del evento utilizado para las pruebas.         |
-| `clienteId`         | Identificador del primer cliente.                            |
-| `segundoClienteId`  | Identificador del segundo cliente.                           |
-| `registroId`        | Identificador del registro generado para el primer cliente.  |
-| `segundoRegistroId` | Identificador del registro generado para el segundo cliente. |
-| `posicionOriginal`  | Posición inicial del primer cliente.                         |
+### 7.1. Escenarios funcionales
 
-### 6.1. Escenarios incluidos
+Los escenarios contemplados en la colección incluyen:
 
-| Caso | Escenario                                        | Resultado esperado                  |
-| ---- | ------------------------------------------------ | ----------------------------------- |
-| 01   | Ingresar un cliente a la fila.                   | HTTP 200 y estado `EN_ESPERA`.      |
-| 02   | Repetir el ingreso del mismo cliente.            | Se devuelve el registro existente.  |
-| 03   | Ingresar un segundo cliente.                     | Se crea un registro independiente.  |
-| 04   | Consultar la posición del primer cliente.        | Se informa su posición actual.      |
-| 05   | Validar un cliente en espera.                    | `autorizado = false`.               |
-| 06   | Habilitar una tanda de un cliente.               | El cliente pasa a `HABILITADO`.     |
-| 07   | Validar un turno habilitado.                     | `autorizado = true`.                |
-| 08   | Intentar habilitar otra tanda activa.            | HTTP 409.                           |
-| 09   | Finalizar un turno.                              | Estado `FINALIZADO`.                |
-| 10   | Repetir la finalización.                         | Se conserva el estado `FINALIZADO`. |
-| 11   | Validar un turno finalizado.                     | `autorizado = false`.               |
-| 12   | Consultar un cliente inexistente.                | HTTP 404.                           |
-| 13   | Intentar ingresar con un identificador inválido. | HTTP 400.                           |
+| Caso | Escenario | Resultado esperado |
+|---|---|---|
+| 01 | Ingresar un cliente a la fila. | HTTP 200 y estado `EN_ESPERA`. |
+| 02 | Repetir el ingreso del mismo cliente. | Se devuelve el registro existente. |
+| 03 | Ingresar un segundo cliente. | Se crea un registro independiente. |
+| 04 | Consultar la posición del primer cliente. | Se informa su posición actual. |
+| 05 | Validar un cliente en espera. | `autorizado = false`. |
+| 06 | Habilitar una tanda. | El cliente pasa a `HABILITADO`. |
+| 07 | Validar un turno habilitado. | `autorizado = true`. |
+| 08 | Intentar habilitar otra tanda activa. | HTTP 409. |
+| 09 | Finalizar un turno. | Estado `FINALIZADO`. |
+| 10 | Repetir la finalización. | Se conserva `FINALIZADO`. |
+| 11 | Validar un turno finalizado. | `autorizado = false`. |
+| 12 | Consultar un cliente inexistente. | HTTP 404. |
+| 13 | Intentar ingresar con un identificador inválido. | HTTP 400. |
 
-La colección incluye verificaciones automáticas de los códigos HTTP y los estados devueltos por la API.
+Los escenarios protegidos requieren configurar las credenciales JWT correspondientes.
 
-Los identificadores de los clientes se generan mediante variables de colección para facilitar ejecuciones independientes.
+Las operaciones internas de validación y finalización requieren una identidad de servicio autorizada.
 
-## 7. Ejecución de pruebas automatizadas
+## 8. Pruebas de integración con Reservas
 
-Las pruebas se ejecutan desde el directorio raíz del microservicio:
+Las pruebas de integración verifican la coordinación entre Fila Virtual y Reservas para controlar el acceso a eventos de alta demanda.
+
+El entorno de ejecución utiliza Docker Compose y los siguientes componentes:
+
+- API Gateway.
+- Usuarios.
+- Eventos y Lugares.
+- Fila Virtual.
+- Reservas.
+- Bases de datos MySQL independientes.
+
+La comunicación se realiza mediante HTTP y los mecanismos de autenticación y autorización JWT definidos para el sistema.
+
+### 8.1. Escenarios de integración
+
+| Caso | Escenario | Resultado esperado |
+|---|---|---|
+| INT-01 | Un cliente ingresa a la fila de un evento publicado de alta demanda. | Se registra en estado `EN_ESPERA` y recibe una posición. |
+| INT-02 | Un cliente intenta reservar sin tener un turno habilitado. | Reservas rechaza la solicitud con HTTP 409. |
+| INT-03 | Un administrador habilita una tanda. | Los clientes seleccionados pasan a `HABILITADO`. |
+| INT-04 | Un cliente con turno vigente solicita una reserva temporal. | Reservas valida la autorización y permite crear la reserva. |
+| INT-05 | Se crea correctamente una reserva temporal. | Reservas registra la finalización pendiente del turno. |
+| INT-06 | Se procesa la finalización pendiente. | Fila Virtual actualiza el turno a `FINALIZADO`. |
+| INT-07 | Un cliente intenta crear otra reserva con un turno finalizado. | Reservas rechaza la solicitud con HTTP 409. |
+| INT-08 | Se recibe nuevamente la finalización de un turno finalizado. | Se conserva el estado `FINALIZADO` sin efectos duplicados. |
+
+### 8.2. Validación de autorizaciones
+
+Para eventos de alta demanda, Reservas consulta el endpoint:
+
+`GET /filas/{eventoId}/clientes/{clienteId}/validar`
+
+La respuesta indica si el cliente está autorizado para continuar con la creación de una reserva.
+
+La autorización solamente es válida si el turno está en estado `HABILITADO` y no ha vencido.
+
+Los turnos en estado `EN_ESPERA`, `VENCIDO` o `FINALIZADO` no permiten crear nuevas reservas.
+
+### 8.3. Finalización asíncrona
+
+Después de crear correctamente una reserva temporal, Reservas registra una operación pendiente de finalización del turno.
+
+El procesamiento se realiza de forma asíncrona mediante:
+
+`POST /filas/{eventoId}/clientes/{clienteId}/finalizar`
+
+Ante fallos temporales de comunicación, Reservas conserva la operación pendiente y puede reintentar su ejecución.
+
+Fila Virtual admite finalizaciones repetidas de manera idempotente.
+
+También permite finalizar un turno vencido cuando recibe tardíamente la finalización correspondiente a una reserva creada con autorización vigente.
+
+### 8.4. Consistencia entre microservicios
+
+La integración mantiene las siguientes reglas:
+
+- Fila Virtual administra las autorizaciones temporales.
+- Reservas administra la disponibilidad y creación de reservas.
+- La validación del turno no consume la autorización.
+- La finalización se solicita después de crear correctamente la reserva.
+- Un turno finalizado no permite crear nuevas reservas.
+- Los reintentos de finalización no deben provocar efectos duplicados.
+- Cada microservicio mantiene su propia base de datos.
+  
+## 9. Ejecución de pruebas automatizadas
+
+Las pruebas se ejecutan desde el directorio:
 
 `TPE-micro2/msvc-fila-virtual`
 
-### 7.1. Ejecutar todas las pruebas
+### 9.1. Ejecutar todas las pruebas
 
 ```bash
-mvn test
+mvn clean test
 ```
 
-Este comando compila el código necesario y ejecuta los tests detectados por Maven.
+Este comando compila el código y ejecuta las pruebas detectadas por Maven.
 
-### 7.2. Ejecutar las pruebas unitarias
+### 9.2. Ejecutar las pruebas unitarias
 
 ```bash
 mvn -Dtest=FilaVirtualServiceImplTest test
 ```
 
-### 7.3. Ejecutar las pruebas de concurrencia
+### 9.3. Ejecutar las pruebas de concurrencia
 
 ```bash
 mvn -Dtest=FilaVirtualConcurrenciaTest test
 ```
 
-### 7.4. Consultar los resultados
+### 9.4. Consultar los resultados
 
-Maven genera los reportes de ejecución en:
+Maven genera reportes de ejecución en:
 
 `target/surefire-reports/`
 
-Los reportes permiten consultar la cantidad de pruebas ejecutadas, sus resultados y los detalles de los errores detectados.
+Estos reportes permiten consultar la cantidad de pruebas ejecutadas, sus resultados y los detalles de los errores detectados.
 
-## 8. Configuración del entorno de pruebas
+## 10. Configuración del entorno de pruebas
 
-Las pruebas de integración utilizan el perfil `test` de Spring Boot.
+Las pruebas automatizadas utilizan la configuración correspondiente a los perfiles de pruebas definidos en el proyecto.
 
-La configuración del entorno se define mediante las propiedades correspondientes al proyecto.
+Las pruebas unitarias emplean Mockito para simular dependencias.
 
-Para las pruebas de concurrencia se utiliza MySQL, con una base de datos de pruebas independiente.
+Las pruebas de concurrencia utilizan persistencia y mecanismos transaccionales para verificar el comportamiento ante operaciones simultáneas.
 
-Las dependencias con otros microservicios, como Eventos y Lugares, se simulan mediante Mockito durante las pruebas automatizadas.
+Las pruebas de integración HTTP se realizaron con los microservicios ejecutados mediante Docker Compose.
 
-Esto permite verificar las reglas de negocio de Fila Virtual sin necesidad de ejecutar simultáneamente todos los componentes de TicketYa.
+La comunicación entre servicios se realizó utilizando sus direcciones internas de Docker.
 
-## 9. Resultados de las pruebas automatizadas
+## 11. Resultados de las pruebas
 
-La suite automatizada se ejecutó mediante Maven y finalizó correctamente.
-
-| Categoría                      | Pruebas | Resultado        |
-| ------------------------------ | ------: | ---------------- |
-| Pruebas unitarias de servicios |      10 | Aprobadas        |
-| Pruebas de concurrencia        |       2 | Aprobadas        |
-| Inicialización de Spring Boot  |       1 | Aprobada         |
-| **Total**                      |  **13** | **13 aprobadas** |
-
-El resultado general de la ejecución fue:
+La ejecución de las pruebas automatizadas mediante Maven finaliza correctamente.
 
 ```text
 BUILD SUCCESS
 ```
 
-No se registraron fallas ni errores en la ejecución final de la suite.
+Las pruebas comprueban las principales reglas de negocio relacionadas con el ingreso de clientes, la asignación de posiciones, la habilitación de tandas, el vencimiento de autorizaciones, la concurrencia y la seguridad.
 
-## 10. Conclusión
+Las pruebas de integración verifican el comportamiento conjunto de Fila Virtual y Reservas.
 
-Las pruebas automatizadas verifican las reglas principales de Fila Virtual, incluyendo el ingreso idempotente de clientes, la conservación de posiciones, el orden de habilitación, la vigencia de turnos y la prevención de operaciones concurrentes incompatibles.
+| Funcionalidad | Resultado |
+|---|---|
+| Ingreso idempotente a la fila | Aprobado |
+| Asignación y consulta de posiciones | Aprobado |
+| Habilitación ordenada de clientes | Aprobado |
+| Control de tandas concurrentes | Aprobado |
+| Validación de autorizaciones vigentes | Aprobado |
+| Rechazo de reservas sin autorización | Aprobado |
+| Creación de reservas con turno vigente | Aprobado |
+| Finalización asíncrona de turnos | Aprobado |
+| Prevención de reutilización de turnos finalizados | Aprobado |
+| Autenticación y autorización | Aprobado |
 
-Las pruebas unitarias permiten validar los comportamientos individuales de los servicios, mientras que las pruebas de concurrencia comprueban la consistencia de las operaciones sobre la base de datos.
+Los resultados de las pruebas automatizadas pueden consultarse en los reportes generados por Maven:
 
-La colección Postman complementa estas verificaciones mediante escenarios HTTP y comprobaciones automáticas de las respuestas de la API.
+`target/surefire-reports/`
+
+## 12. Conclusión
+
+Las pruebas automatizadas verifican las reglas principales de Fila Virtual, incluyendo el ingreso idempotente de clientes, la conservación de posiciones, el orden de habilitación, la vigencia de turnos, la seguridad y la prevención de operaciones concurrentes incompatibles.
+
+Las pruebas de integración verificaron que Reservas utiliza correctamente las autorizaciones temporales de Fila Virtual.
+
+Se comprobó que un cliente sin turno vigente no puede reservar, que una autorización válida permite crear una reserva y que la finalización posterior impide reutilizar el turno.
+
+La separación de responsabilidades se mantiene: Fila Virtual administra las autorizaciones temporales y Reservas administra la creación y persistencia de reservas.

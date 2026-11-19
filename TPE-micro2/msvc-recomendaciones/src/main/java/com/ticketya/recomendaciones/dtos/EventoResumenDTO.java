@@ -1,4 +1,3 @@
-
 package com.ticketya.recomendaciones.dtos;
 
 import java.math.BigDecimal;
@@ -12,6 +11,7 @@ public class EventoResumenDTO {
     private Long id;
     private String nombre;
     private String tipo;
+    private String estado;
     private String ciudad;
     private LocalDateTime fechaHora;
     private BigDecimal precioDesde;
@@ -41,6 +41,14 @@ public class EventoResumenDTO {
 
     public void setTipo(String tipo) {
         this.tipo = tipo;
+    }
+
+    public String getEstado() {
+        return estado;
+    }
+
+    public void setEstado(String estado) {
+        this.estado = estado;
     }
 
     public String getCiudad() {

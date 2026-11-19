@@ -10,6 +10,17 @@ spring:
             response-timeout: 5s
           routes:
             # Las rutas de documentación deben evaluarse antes que las rutas generales.
+            - id: recomendaciones-api-docs
+              uri: ${RECOMENDACIONES_URL:http://localhost:8086}
+              predicates:
+                - Path=/recomendaciones/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
+
+            - id: recomendaciones
+              uri: ${RECOMENDACIONES_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/preferencias/**,/api/recomendaciones/**
             - id: usuarios-api-docs
               uri: ${USUARIOS_URL:http://localhost:8085}
               predicates:
@@ -38,6 +49,12 @@ spring:
                 - Path=/entradas/v3/api-docs
               filters:
                 - SetPath=/v3/api-docs
+            - id: fila-virtual-api-docs
+              uri: ${FILA_VIRTUAL_URL:http://localhost:8088}
+              predicates:
+                - Path=/filas/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
             - id: compras-api-docs
               uri: ${COMPRAS_URL:http://localhost:8082}
               predicates:
@@ -52,6 +69,10 @@ spring:
               uri: ${RESERVAS_URL:http://localhost:8080}
               predicates:
                 - Path=/reservas/**,/disponibilidad/**
+            - id: fila-virtual
+              uri: ${FILA_VIRTUAL_URL:http://localhost:8088}
+              predicates:
+                - Path=/filas/**
             - id: compras
               uri: ${COMPRAS_URL:http://localhost:8082}
               predicates:
@@ -92,3 +113,7 @@ springdoc:
         url: /compras/v3/api-docs
       - name: Entradas
         url: /entradas/v3/api-docs
+      - name: Fila Virtual
+        url: /filas/v3/api-docs
+      - name: Recomendaciones
+        url: /recomendaciones/v3/api-docs

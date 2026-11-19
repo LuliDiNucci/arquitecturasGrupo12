@@ -1,67 +1,82 @@
-# 04 - Contratos REST
+# 04 — Contratos REST
 
-## 1. Descripción general
+## 1. Acceso
 
-El microservicio `msvc-recomendaciones` expone operaciones REST para gestionar las preferencias de los clientes y consultar recomendaciones de eventos.
+El API Gateway publica las operaciones en `http://localhost:8084`. El microservicio también escucha directamente en `http://localhost:8086` para pruebas locales. Todas las operaciones de preferencias y recomendaciones requieren `Authorization: Bearer <JWT>`.
 
-La API utiliza JSON como formato de intercambio de información.
+Un cliente solo puede acceder a su propio `clienteId`; un administrador puede acceder a preferencias y recomendaciones de otros clientes. La validación de propiedad se aplica en el microservicio, además de la autorización por roles del Gateway.
 
-## 2. URL base
+## 2. Endpoints de Recomendaciones
 
-En el entorno local, el microservicio se ejecuta en:
+| Método | Ruta | Función | Respuesta principal |
+|---|---|---|---|
+| POST | `/api/preferencias/{clienteId}` | Registrar preferencias | `201` |
+| GET | `/api/preferencias/{clienteId}` | Consultar preferencias | `200` |
+| PUT | `/api/preferencias/{clienteId}` | Modificar preferencias | `200` |
+| GET | `/api/recomendaciones/{clienteId}` | Consultar eventos recomendados | `200` |
 
-`http://localhost:8086`
+### Registrar o modificar preferencias
 
-## 3. Consulta de recomendaciones
+**Solicitud JSON:**
 
-### GET /api/recomendaciones/{clienteId}
-
-Permite consultar las recomendaciones asociadas a un cliente.
-
-**Parámetros de ruta:**
-
-| Parámetro | Tipo | Descripción |
-|---|---|---|
-| clienteId | Long | Identificador del cliente para el cual se solicitan recomendaciones |
-
-**Ejemplo de solicitud:**
-
-```http
-GET http://localhost:8086/api/recomendaciones/1
+```json
+{
+  "tiposEventos": ["RECITAL"],
+  "artistasFavoritos": ["Banda de Prueba TicketYa"],
+  "ciudad": "Tandil"
+}
 ```
 
-**Respuesta esperada:**
+Las respuestas de preferencias contienen `clienteId`, `tiposEventos`, `artistasFavoritos` y `ciudad`.
 
-La operación devuelve la información de los eventos recomendados para el cliente solicitado, según sus preferencias y los eventos publicados disponibles.
+### Consultar recomendaciones
 
-La estructura exacta de la respuesta depende del DTO o modelo utilizado por el controlador.
+`GET /api/recomendaciones/{clienteId}` devuelve una lista de eventos que coinciden con las preferencias o con sugerencias colaborativas del historial.
 
-## 4. Gestión de preferencias
+**Ejemplo de elemento de respuesta:**
 
-El microservicio también contempla operaciones para registrar y consultar las preferencias de los clientes.
+```json
+{
+  "id": 1,
+  "nombre": "Recital Alta Demanda TicketYa",
+  "tipo": "RECITAL",
+  "artista": "Banda de Prueba TicketYa",
+  "ciudad": "Tandil",
+  "fechaHora": "2027-02-20T21:00:00",
+  "precio": 20000.0
+}
+```
 
-Estas operaciones permiten almacenar los intereses que luego se utilizan durante el proceso de recomendación.
+Si no existen coincidencias, devuelve `200` con `[]`. Si el cliente no tiene preferencias registradas, devuelve `404`.
 
-Las rutas, métodos HTTP, parámetros y estructuras de respuesta deben completarse según las operaciones efectivamente expuestas por `PreferenciasController`.
+## 3. Contrato interno con Compras
 
-## 5. Códigos de respuesta
+**Endpoint en Compras:** `GET /compras/cliente/{clienteId}/eventos-recomendados`.
 
-Los siguientes códigos describen situaciones habituales que deben verificarse en las pruebas de la API:
+- Retorna una lista JSON de identificadores `Long`, por ejemplo `[2, 5]`, o `[]` si no hay sugerencias.
+- Considera exclusivamente compras `CONFIRMADA`.
+- Excluye los eventos que el cliente ya compró.
+- Requiere JWT válido con rol `CLIENTE`; Compras verifica que el `clienteId` coincida con la identidad autenticada.
+- Recomendaciones transmite el JWT original al llamar mediante Feign.
 
-| Código | Descripción |
+Este endpoint se utiliza en la comunicación interna; no se incorpora como ruta pública adicional en Gateway.
+
+## 4. Códigos HTTP
+
+| Código | Situación |
 |---|---|
-| 200 | Solicitud procesada correctamente |
-| 400 | Solicitud con datos inválidos |
-| 404 | Recurso o información solicitada no encontrada |
-| 500 | Error interno durante el procesamiento |
+| `200` | Consulta o modificación correcta; incluye respuestas vacías de recomendaciones |
+| `201` | Preferencias creadas |
+| `400` | Datos de entrada inválidos |
+| `401` | JWT ausente o inválido |
+| `403` | Rol insuficiente o acceso a un cliente ajeno |
+| `404` | Preferencias no registradas |
+| `409` | Preferencias ya registradas al intentar crearlas nuevamente |
 
-Los códigos concretos que devuelve cada operación dependen de su implementación.
+La indisponibilidad de una dependencia externa puede impedir completar las recomendaciones; la respuesta exacta depende del error propagado por Feign y del manejo de excepciones configurado.
 
-## 6. Documentación Swagger
+## 5. OpenAPI
 
-La API puede consultarse mediante Swagger UI en:
-
-`http://localhost:8086/swagger-ui.html`
-
-Swagger permite visualizar los endpoints, sus parámetros, los esquemas de datos y ejecutar solicitudes de prueba.
-
+- Swagger UI del microservicio: `http://localhost:8086/swagger-ui.html`.
+- Especificación OpenAPI a través de Gateway: `http://localhost:8084/recomendaciones/v3/api-docs`.
+- Swagger UI de Gateway: `http://localhost:8084/swagger-ui.html` (incluye el grupo Recomendaciones).

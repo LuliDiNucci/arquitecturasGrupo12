@@ -37,333 +37,334 @@ import com.ticketya.msvc_fila_virtual.services.impl.FilaVirtualServiceImpl;
 @ExtendWith(MockitoExtension.class)
 class FilaVirtualServiceImplTest {
 
-    @Mock
-    private ClienteEnFilaRepository repository;
-
-    @Mock
-    private EventosFeignClient eventosFeignClient;
-
-    private FilaVirtualServiceImpl service;
+        @Mock
+        private ClienteEnFilaRepository repository;
+
+        @Mock
+        private EventosFeignClient eventosFeignClient;
+
+        private FilaVirtualServiceImpl service;
 
-    @BeforeEach
-    void preparar() {
-        service = new FilaVirtualServiceImpl(
-                repository,
-                eventosFeignClient);
-    }
+        @BeforeEach
+        void preparar() {
+                service = new FilaVirtualServiceImpl(
+                                repository,
+                                eventosFeignClient);
+        }
 
-    private ClienteEnFila crearCliente(
-            Long id,
-            Long eventoId,
-            Long clienteId) {
+        private ClienteEnFila crearCliente(
+                        Long id,
+                        Long eventoId,
+                        Long clienteId) {
 
-        ClienteEnFila cliente = new ClienteEnFila(
-                eventoId,
-                clienteId);
+                ClienteEnFila cliente = new ClienteEnFila(
+                                eventoId,
+                                clienteId);
 
-        ReflectionTestUtils.setField(cliente, "id", id);
+                ReflectionTestUtils.setField(cliente, "id", id);
 
-        return cliente;
-    }
+                return cliente;
+        }
 
-    private void simularEventoPublicado(Long eventoId) {
+        private void simularEventoPublicado(Long eventoId) {
 
-        when(eventosFeignClient.obtenerEvento(eventoId))
-                .thenReturn(new EventoDTO(
-                        eventoId,
-                        "Evento de prueba",
-                        "PUBLICADO",
-                        true));
-    }
+                when(eventosFeignClient.obtenerEvento(eventoId))
+                                .thenReturn(new EventoDTO(
+                                                eventoId,
+                                                "Evento de prueba",
+                                                "PUBLICADO",
+                                                true));
+        }
 
-    @Test
-    void ingresarNuevamenteConservaRegistroYPosicion() {
+        @Test
+        void ingresarNuevamenteConservaRegistroYPosicion() {
 
-        Long eventoId = 1L;
-        Long clienteId = 10L;
+                Long eventoId = 1L;
+                Long clienteId = 10L;
 
-        ClienteEnFila cliente = crearCliente(
-                5L, eventoId, clienteId);
+                ClienteEnFila cliente = crearCliente(
+                                5L, eventoId, clienteId);
 
-        simularEventoPublicado(eventoId);
+                simularEventoPublicado(eventoId);
 
-        when(repository.findByEventoIdAndClienteId(
-                eventoId, clienteId))
-                .thenReturn(Optional.of(cliente));
+                when(repository.findByEventoIdAndClienteId(
+                                eventoId, clienteId))
+                                .thenReturn(Optional.of(cliente));
 
-        when(repository.countByEventoIdAndEstadoAndIdLessThan(
-                eventoId,
-                EstadoFila.EN_ESPERA,
-                5L))
-                .thenReturn(2L);
+                when(repository.countByEventoIdAndEstadoAndIdLessThan(
+                                eventoId,
+                                EstadoFila.EN_ESPERA,
+                                5L))
+                                .thenReturn(2L);
 
-        ClienteEnFilaDTO primero = service.ingresar(
-                eventoId, clienteId);
+                ClienteEnFilaDTO primero = service.ingresar(
+                                eventoId, clienteId);
 
-        ClienteEnFilaDTO segundo = service.ingresar(
-                eventoId, clienteId);
+                ClienteEnFilaDTO segundo = service.ingresar(
+                                eventoId, clienteId);
 
-        assertEquals(primero.id(), segundo.id());
-        assertEquals(3L, primero.posicion());
-        assertEquals(3L, segundo.posicion());
+                assertEquals(primero.id(), segundo.id());
+                assertEquals(3L, primero.posicion());
+                assertEquals(3L, segundo.posicion());
 
-        verify(repository, times(2))
-                .ingresarSiNoExiste(
-                        eq(eventoId),
-                        eq(clienteId),
-                        any(LocalDateTime.class));
-    }
+                verify(repository, times(2))
+                                .ingresarSiNoExiste(
+                                                eq(eventoId),
+                                                eq(clienteId),
+                                                any(LocalDateTime.class));
+        }
 
-    @Test
-    void rechazaEventoSinAltaDemanda() {
+        @Test
+        void rechazaEventoSinAltaDemanda() {
 
-        Long eventoId = 2L;
+                Long eventoId = 2L;
 
-        when(eventosFeignClient.obtenerEvento(eventoId))
-                .thenReturn(new EventoDTO(
-                        eventoId,
-                        "Evento normal",
-                        "PUBLICADO",
-                        false));
+                when(eventosFeignClient.obtenerEvento(eventoId))
+                                .thenReturn(new EventoDTO(
+                                                eventoId,
+                                                "Evento normal",
+                                                "PUBLICADO",
+                                                false));
 
-        ResponseStatusException error = assertThrows(
-                ResponseStatusException.class,
-                () -> service.ingresar(eventoId, 10L));
+                ResponseStatusException error = assertThrows(
+                                ResponseStatusException.class,
+                                () -> service.ingresar(eventoId, 10L));
 
-        assertEquals(
-                HttpStatus.CONFLICT,
-                error.getStatusCode());
+                assertEquals(
+                                HttpStatus.CONFLICT,
+                                error.getStatusCode());
 
-        verify(repository, never())
-                .ingresarSiNoExiste(
-                        anyLong(),
-                        anyLong(),
-                        any(LocalDateTime.class));
-    }
+                verify(repository, never())
+                                .ingresarSiNoExiste(
+                                                anyLong(),
+                                                anyLong(),
+                                                any(LocalDateTime.class));
+        }
 
-    @Test
-    void habilitaClientesRespetandoOrden() {
+        @Test
+        void habilitaClientesRespetandoOrden() {
 
-        Long eventoId = 3L;
+                Long eventoId = 3L;
 
-        ClienteEnFila primero = crearCliente(1L, eventoId, 10L);
-        ClienteEnFila segundo = crearCliente(2L, eventoId, 20L);
-        ClienteEnFila tercero = crearCliente(3L, eventoId, 30L);
+                ClienteEnFila primero = crearCliente(1L, eventoId, 10L);
+                ClienteEnFila segundo = crearCliente(2L, eventoId, 20L);
+                ClienteEnFila tercero = crearCliente(3L, eventoId, 30L);
 
-        when(repository.findFirstByEventoIdOrderByIdAsc(eventoId))
-                .thenReturn(Optional.of(primero));
+                when(repository.findFirstByEventoIdOrderByIdAsc(eventoId))
+                                .thenReturn(Optional.of(primero));
 
-        when(repository.findByEventoIdAndEstadoOrderByIdAsc(
-                eventoId, EstadoFila.HABILITADO))
-                .thenReturn(List.of());
+                when(repository.findByEventoIdAndEstadoOrderByIdAsc(
+                                eventoId, EstadoFila.HABILITADO))
+                                .thenReturn(List.of());
 
-        when(repository.findByEventoIdAndEstadoOrderByIdAsc(
-                eventoId, EstadoFila.EN_ESPERA))
-                .thenReturn(List.of(primero, segundo, tercero));
+                when(repository.findByEventoIdAndEstadoOrderByIdAsc(
+                                eventoId, EstadoFila.EN_ESPERA))
+                                .thenReturn(List.of(primero, segundo, tercero));
 
-        List<ClienteEnFilaDTO> resultado = service.habilitarTanda(eventoId, 2);
+                List<ClienteEnFilaDTO> resultado = service.habilitarTanda(eventoId, 2);
 
-        assertEquals(2, resultado.size());
+                assertEquals(2, resultado.size());
 
-        assertEquals(10L, resultado.get(0).clienteId());
-        assertEquals(20L, resultado.get(1).clienteId());
+                assertEquals(10L, resultado.get(0).clienteId());
+                assertEquals(20L, resultado.get(1).clienteId());
 
-        assertEquals(EstadoFila.HABILITADO,
-                primero.getEstado());
+                assertEquals(EstadoFila.HABILITADO,
+                                primero.getEstado());
 
-        assertEquals(EstadoFila.HABILITADO,
-                segundo.getEstado());
+                assertEquals(EstadoFila.HABILITADO,
+                                segundo.getEstado());
 
-        assertEquals(EstadoFila.EN_ESPERA,
-                tercero.getEstado());
+                assertEquals(EstadoFila.EN_ESPERA,
+                                tercero.getEstado());
 
-        verify(repository).flush();
-    }
+                verify(repository).flush();
+        }
 
-    @Test
-    void rechazaSegundaTandaSiExisteUnaActiva() {
+        @Test
+        void rechazaSegundaTandaSiExisteUnaActiva() {
 
-        Long eventoId = 4L;
+                Long eventoId = 4L;
 
-        ClienteEnFila cliente = crearCliente(1L, eventoId, 10L);
+                ClienteEnFila cliente = crearCliente(1L, eventoId, 10L);
 
-        cliente.habilitar(LocalDateTime.now(), 10);
+                cliente.habilitar(LocalDateTime.now(), 10);
 
-        when(repository.findFirstByEventoIdOrderByIdAsc(eventoId))
-                .thenReturn(Optional.of(cliente));
+                when(repository.findFirstByEventoIdOrderByIdAsc(eventoId))
+                                .thenReturn(Optional.of(cliente));
 
-        when(repository.findByEventoIdAndEstadoOrderByIdAsc(
-                eventoId, EstadoFila.HABILITADO))
-                .thenReturn(List.of(cliente));
+                when(repository.findByEventoIdAndEstadoOrderByIdAsc(
+                                eventoId, EstadoFila.HABILITADO))
+                                .thenReturn(List.of(cliente));
 
-        ResponseStatusException error = assertThrows(
-                ResponseStatusException.class,
-                () -> service.habilitarTanda(eventoId, 3));
+                ResponseStatusException error = assertThrows(
+                                ResponseStatusException.class,
+                                () -> service.habilitarTanda(eventoId, 3));
 
-        assertEquals(
-                HttpStatus.CONFLICT,
-                error.getStatusCode());
+                assertEquals(
+                                HttpStatus.CONFLICT,
+                                error.getStatusCode());
 
-        verify(repository, never()).flush();
-    }
+                verify(repository, never()).flush();
+        }
 
-    @Test
-    void turnoVigenteAutorizaAlCliente() {
+        @Test
+        void turnoVigenteAutorizaAlCliente() {
 
-        Long eventoId = 5L;
-        Long clienteId = 10L;
+                Long eventoId = 5L;
+                Long clienteId = 10L;
 
-        ClienteEnFila cliente = crearCliente(
-                1L, eventoId, clienteId);
+                ClienteEnFila cliente = crearCliente(
+                                1L, eventoId, clienteId);
 
-        cliente.habilitar(LocalDateTime.now(), 10);
+                cliente.habilitar(LocalDateTime.now(), 10);
 
-        when(repository.bloquearPorEventoYCliente(
-                eventoId, clienteId))
-                .thenReturn(Optional.of(cliente));
+                when(repository.bloquearPorEventoYCliente(
+                                eventoId, clienteId))
+                                .thenReturn(Optional.of(cliente));
 
-        ValidacionTurnoDTO resultado = service.validarTurno(eventoId, clienteId);
+                ValidacionTurnoDTO resultado = service.validarTurno(eventoId, clienteId);
 
-        assertTrue(resultado.autorizado());
+                assertTrue(resultado.autorizado());
 
-        assertEquals(
-                EstadoFila.HABILITADO,
-                resultado.estado());
+                assertEquals(
+                                EstadoFila.HABILITADO,
+                                resultado.estado());
 
-        assertNotNull(resultado.fechaVencimiento());
-    }
+                assertNotNull(resultado.fechaVencimiento());
+        }
 
-    @Test
-    void clienteEnEsperaNoEstaAutorizado() {
+        @Test
+        void clienteEnEsperaNoEstaAutorizado() {
 
-        Long eventoId = 6L;
-        Long clienteId = 10L;
+                Long eventoId = 6L;
+                Long clienteId = 10L;
 
-        ClienteEnFila cliente = crearCliente(
-                1L, eventoId, clienteId);
+                ClienteEnFila cliente = crearCliente(
+                                1L, eventoId, clienteId);
 
-        when(repository.bloquearPorEventoYCliente(
-                eventoId, clienteId))
-                .thenReturn(Optional.of(cliente));
+                when(repository.bloquearPorEventoYCliente(
+                                eventoId, clienteId))
+                                .thenReturn(Optional.of(cliente));
 
-        ValidacionTurnoDTO resultado = service.validarTurno(eventoId, clienteId);
+                ValidacionTurnoDTO resultado = service.validarTurno(eventoId, clienteId);
 
-        assertFalse(resultado.autorizado());
+                assertFalse(resultado.autorizado());
 
-        assertEquals(
-                EstadoFila.EN_ESPERA,
-                resultado.estado());
-    }
+                assertEquals(
+                                EstadoFila.EN_ESPERA,
+                                resultado.estado());
+        }
 
-    @Test
-    void turnoVencidoNoAutorizaAlCliente() {
+        @Test
+        void turnoVencidoNoAutorizaAlCliente() {
 
-        Long eventoId = 7L;
-        Long clienteId = 10L;
+                Long eventoId = 7L;
+                Long clienteId = 10L;
 
-        ClienteEnFila cliente = crearCliente(
-                1L, eventoId, clienteId);
+                ClienteEnFila cliente = crearCliente(
+                                1L, eventoId, clienteId);
 
-        cliente.habilitar(
-                LocalDateTime.now().minusMinutes(11),
-                10);
+                cliente.habilitar(
+                                LocalDateTime.now().minusMinutes(11),
+                                10);
 
-        when(repository.bloquearPorEventoYCliente(
-                eventoId, clienteId))
-                .thenReturn(Optional.of(cliente));
+                when(repository.bloquearPorEventoYCliente(
+                                eventoId, clienteId))
+                                .thenReturn(Optional.of(cliente));
 
-        ValidacionTurnoDTO resultado = service.validarTurno(eventoId, clienteId);
+                ValidacionTurnoDTO resultado = service.validarTurno(eventoId, clienteId);
 
-        assertFalse(resultado.autorizado());
+                assertFalse(resultado.autorizado());
 
-        assertEquals(
-                EstadoFila.VENCIDO,
-                resultado.estado());
-    }
+                assertEquals(
+                                EstadoFila.VENCIDO,
+                                resultado.estado());
+        }
 
-    @Test
-    void noPermiteFinalizarTurnoVencido() {
+        @Test
+        void permiteFinalizarTurnoVencidoPorConfirmacionDeReserva() {
 
-        Long eventoId = 8L;
-        Long clienteId = 10L;
+                Long eventoId = 8L;
+                Long clienteId = 10L;
 
-        ClienteEnFila cliente = crearCliente(
-                1L, eventoId, clienteId);
+                ClienteEnFila cliente = crearCliente(
+                                1L, eventoId, clienteId);
 
-        cliente.habilitar(
-                LocalDateTime.now().minusMinutes(11),
-                10);
+                // El cliente tuvo un turno habilitado,
+                // pero su autorización ya venció.
+                cliente.habilitar(
+                                LocalDateTime.now().minusMinutes(11),
+                                10);
 
-        when(repository.bloquearPorEventoYCliente(
-                eventoId, clienteId))
-                .thenReturn(Optional.of(cliente));
+                when(repository.bloquearPorEventoYCliente(
+                                eventoId, clienteId))
+                                .thenReturn(Optional.of(cliente));
 
-        ResponseStatusException error = assertThrows(
-                ResponseStatusException.class,
-                () -> service.finalizarTurno(
-                        eventoId, clienteId));
+                ClienteEnFilaDTO resultado = service.finalizarTurno(
+                                eventoId,
+                                clienteId);
 
-        assertEquals(
-                HttpStatus.CONFLICT,
-                error.getStatusCode());
+                assertEquals(
+                                EstadoFila.FINALIZADO,
+                                resultado.estado());
 
-        assertEquals(
-                EstadoFila.HABILITADO,
-                cliente.getEstado());
-    }
+                assertEquals(
+                                EstadoFila.FINALIZADO,
+                                cliente.getEstado());
+        }
 
-    @Test
-    void finalizarTurnoEsIdempotente() {
+        @Test
+        void finalizarTurnoEsIdempotente() {
 
-        Long eventoId = 9L;
-        Long clienteId = 10L;
+                Long eventoId = 9L;
+                Long clienteId = 10L;
 
-        ClienteEnFila cliente = crearCliente(
-                1L, eventoId, clienteId);
+                ClienteEnFila cliente = crearCliente(
+                                1L, eventoId, clienteId);
 
-        cliente.habilitar(LocalDateTime.now(), 10);
+                cliente.habilitar(LocalDateTime.now(), 10);
 
-        when(repository.bloquearPorEventoYCliente(
-                eventoId, clienteId))
-                .thenReturn(Optional.of(cliente));
+                when(repository.bloquearPorEventoYCliente(
+                                eventoId, clienteId))
+                                .thenReturn(Optional.of(cliente));
 
-        ClienteEnFilaDTO primero = service.finalizarTurno(eventoId, clienteId);
+                ClienteEnFilaDTO primero = service.finalizarTurno(eventoId, clienteId);
 
-        ClienteEnFilaDTO segundo = service.finalizarTurno(eventoId, clienteId);
+                ClienteEnFilaDTO segundo = service.finalizarTurno(eventoId, clienteId);
 
-        assertEquals(
-                EstadoFila.FINALIZADO,
-                primero.estado());
+                assertEquals(
+                                EstadoFila.FINALIZADO,
+                                primero.estado());
 
-        assertEquals(
-                EstadoFila.FINALIZADO,
-                segundo.estado());
+                assertEquals(
+                                EstadoFila.FINALIZADO,
+                                segundo.estado());
 
-        assertEquals(primero.id(), segundo.id());
-    }
+                assertEquals(primero.id(), segundo.id());
+        }
 
-    @Test
-    void turnoFinalizadoNoAutorizaNuevamente() {
+        @Test
+        void turnoFinalizadoNoAutorizaNuevamente() {
 
-        Long eventoId = 10L;
-        Long clienteId = 10L;
+                Long eventoId = 10L;
+                Long clienteId = 10L;
 
-        ClienteEnFila cliente = crearCliente(
-                1L, eventoId, clienteId);
+                ClienteEnFila cliente = crearCliente(
+                                1L, eventoId, clienteId);
 
-        cliente.habilitar(LocalDateTime.now(), 10);
-        cliente.finalizar();
+                cliente.habilitar(LocalDateTime.now(), 10);
+                cliente.finalizar();
 
-        when(repository.bloquearPorEventoYCliente(
-                eventoId, clienteId))
-                .thenReturn(Optional.of(cliente));
+                when(repository.bloquearPorEventoYCliente(
+                                eventoId, clienteId))
+                                .thenReturn(Optional.of(cliente));
 
-        ValidacionTurnoDTO resultado = service.validarTurno(eventoId, clienteId);
+                ValidacionTurnoDTO resultado = service.validarTurno(eventoId, clienteId);
 
-        assertFalse(resultado.autorizado());
+                assertFalse(resultado.autorizado());
 
-        assertEquals(
-                EstadoFila.FINALIZADO,
-                resultado.estado());
-    }
+                assertEquals(
+                                EstadoFila.FINALIZADO,
+                                resultado.estado());
+        }
 }

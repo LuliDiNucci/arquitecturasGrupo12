@@ -77,9 +77,11 @@ public class ClienteEnFila {
     public void finalizar() {
 
         if (estado != EstadoFila.HABILITADO
+                && estado != EstadoFila.VENCIDO
                 && estado != EstadoFila.FINALIZADO) {
+
             throw new IllegalStateException(
-                    "Solo puede finalizarse un turno habilitado");
+                    "El cliente nunca tuvo un turno habilitado");
         }
 
         this.estado = EstadoFila.FINALIZADO;

@@ -13,6 +13,7 @@ public class EventoDTO {
     private String estado;
     private Long lugarId;
     private LugarDTO lugar;
+    private Boolean altaDemanda;
 
     public EventoDTO() {
     }
@@ -71,6 +72,14 @@ public class EventoDTO {
 
     public void setLugar(LugarDTO lugar) {
         this.lugar = lugar;
+    }
+
+    public Boolean getAltaDemanda() {
+        return altaDemanda;
+    }
+
+    public void setAltaDemanda(Boolean altaDemanda) {
+        this.altaDemanda = altaDemanda;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

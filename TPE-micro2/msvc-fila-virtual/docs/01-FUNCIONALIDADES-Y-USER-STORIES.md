@@ -15,6 +15,8 @@
 - Si el cliente intenta ingresar nuevamente, el sistema debe devolver su registro existente.
 - Las solicitudes simultáneas del mismo cliente para el mismo evento no deben generar registros duplicados.
 - Un cliente puede participar en filas de distintos eventos.
+- El ingreso debe realizarse mediante una solicitud autenticada.
+- Un cliente no debe poder registrar a otro cliente utilizando una identidad que no le corresponde.
 
 ## US02 — Consultar la posición y el estado en la fila
 
@@ -29,6 +31,8 @@
 - Los clientes habilitados, finalizados o vencidos no deben ocupar posiciones dentro de la lista de espera.
 - La consulta no debe modificar el orden de ingreso.
 - Si el cliente no está registrado en la fila del evento, el sistema debe informar que no existe el registro.
+- La consulta debe requerir autenticación.
+- Un cliente no debe poder consultar la información de otro cliente sin los permisos correspondientes.
 
 ## US03 — Habilitar clientes respetando el orden de llegada
 
@@ -46,6 +50,8 @@
 - Si quedan menos clientes esperando que la cantidad solicitada, deben habilitarse únicamente los disponibles.
 - No debe permitirse habilitar una nueva tanda mientras exista otra tanda con turnos vigentes.
 - Las solicitudes simultáneas de habilitación no deben generar tandas superpuestas.
+- La habilitación de tandas debe estar restringida a usuarios con rol `ADMINISTRADOR`.
+- Los clientes no deben tener permisos para habilitar tandas.
 
 ## US04 — Validar la vigencia de un turno
 
@@ -60,6 +66,8 @@
 - La respuesta debe indicar si el cliente está autorizado, su estado y la fecha de vencimiento del turno.
 - Si el cliente no está registrado, debe informarse que el registro no existe.
 - La consulta de validación no debe consumir ni finalizar el turno.
+- La operación debe estar protegida mediante autenticación interna entre microservicios.
+- La validación debe permitir que Reservas determine si corresponde autorizar o rechazar la creación de una reserva temporal.
 
 ## US05 — Gestionar el vencimiento de turnos
 
@@ -76,18 +84,27 @@
 - Debe existir un mecanismo automático que actualice periódicamente los turnos vencidos.
 - El vencimiento de un turno no debe modificar el estado de otros clientes que continúan esperando.
 - Los clientes con turnos vencidos no deben bloquear la habilitación de nuevas tandas.
+- Un turno vencido puede ser finalizado mediante una operación interna tardía correspondiente a una reserva creada previamente con autorización vigente.
+- La finalización tardía de un turno vencido no debe habilitar nuevas reservas.
 
 ## US06 — Finalizar un turno utilizado
 
-**Como sistema de Reservas**, quiero finalizar el turno de un cliente cuando se concreta su reserva, para impedir que vuelva a utilizar la misma autorización.
+**Como sistema de Reservas**, quiero finalizar el turno de un cliente después de crear correctamente su reserva temporal, para impedir que vuelva a utilizar la misma autorización.
+
+La finalización se procesa de forma asíncrona, con reintentos ante fallos temporales de comunicación entre los microservicios.
 
 **Criterios de aceptación:**
 
 - La operación debe identificar al cliente y al evento.
-- Solo debe poder finalizarse un turno que se encuentre habilitado y vigente.
+- La finalización debe solicitarse después de crear correctamente la reserva temporal.
+- Puede finalizarse un turno que se encuentre en estado `HABILITADO`.
+- También puede finalizarse un turno en estado `VENCIDO` cuando Reservas procesa tardíamente la finalización correspondiente a una reserva ya creada.
+- No debe permitirse finalizar un turno que todavía se encuentre en estado `EN_ESPERA`.
+- La operación de finalización debe estar restringida a la comunicación interna autorizada desde Reservas.
 - Al finalizarse, el turno debe pasar al estado `FINALIZADO`.
 - Un turno finalizado no debe autorizar nuevas reservas.
-- No debe permitirse finalizar un turno que todavía esté en espera.
-- No debe permitirse finalizar un turno vencido.
-- Si se solicita nuevamente la finalización de un turno ya finalizado, el sistema debe conservar el resultado anterior.
+- La finalización debe procesarse de forma asíncrona para evitar que los fallos temporales de comunicación con Fila Virtual bloqueen la creación de una reserva válida.
+- Si la comunicación con Fila Virtual falla, Reservas debe conservar la operación pendiente y reintentar su procesamiento.
+- La finalización debe ser idempotente: si se solicita nuevamente la finalización de un turno ya finalizado, el sistema debe conservar el resultado anterior.
 - La finalización de un turno no debe modificar los registros de otros clientes.
+- Si el cliente intenta crear otra reserva con una clave de idempotencia diferente utilizando un turno finalizado, el sistema debe rechazar la solicitud.

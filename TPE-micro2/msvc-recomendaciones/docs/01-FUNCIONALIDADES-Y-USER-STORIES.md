@@ -1,73 +1,103 @@
-# 01 - Funcionalidades y User Stories
+# 01 — Funcionalidades y User Stories
 
 ## 1. Descripción general
 
-El microservicio de Recomendaciones tiene como objetivo ofrecer a los clientes de TicketYa sugerencias de eventos que puedan resultar de su interés.
+El microservicio `msvc-recomendaciones` administra las preferencias de los clientes y sugiere eventos de TicketYa combinando coincidencias explícitas con sugerencias colaborativas basadas en compras confirmadas.
 
-Para ello, permite registrar las preferencias de los clientes y consultar los eventos publicados en el sistema, utilizando esa información para generar recomendaciones.
+Las preferencias se almacenan en MongoDB. La información de eventos y compras se consulta a sus respectivos microservicios mediante Spring Cloud OpenFeign. Las operaciones externas se exponen por el API Gateway y requieren JWT.
 
-## 2. Funcionalidades principales
+## 2. Funcionalidades
 
-### 2.1. Registro de preferencias
+### Preferencias
 
-Permite registrar las preferencias de un cliente para utilizarlas como criterio al momento de generar recomendaciones.
+- Registrar los tipos de eventos preferidos, artistas favoritos y ciudad de interés de un cliente.
+- Consultar las preferencias registradas.
+- Modificar las preferencias existentes.
+- Mantener un único registro de preferencias por cliente; rechazar un registro duplicado.
 
-Las preferencias se almacenan en MongoDB.
+### Recomendaciones
 
-### 2.2. Consulta de recomendaciones
+Para cada cliente se consultan sus preferencias y se evalúan eventos **PUBLICADOS** con fecha futura. Un evento puede recomendarse cuando se cumple al menos uno de estos criterios:
 
-Permite consultar las recomendaciones asociadas a un cliente mediante su identificador.
+- Coincide el tipo de evento.
+- Coincide la ciudad.
+- Alguno de sus participantes coincide con un artista favorito.
+- Su identificador figura entre las sugerencias derivadas del historial de compras confirmadas.
 
-Para generar las recomendaciones, el microservicio utiliza las preferencias almacenadas y consulta los eventos publicados a través del microservicio de Eventos y Lugares.
+Para el criterio colaborativo, Compras identifica clientes que adquirieron entradas para eventos comprados por el cliente consultado y obtiene otros eventos que esos compradores también adquirieron. Se excluyen de las sugerencias de historial los eventos ya comprados por el cliente. El resultado final no duplica eventos que coincidan por varios criterios.
 
-### 2.3. Integración con Eventos y Lugares
-
-El microservicio se comunica con `msvc-eventosylugares` mediante Spring Cloud OpenFeign.
-
-Esta integración permite obtener los eventos publicados que pueden utilizarse en el proceso de recomendación.
+La consulta devuelve una lista vacía si no hay coincidencias. Si no existen preferencias registradas, se informa que el recurso no existe. La versión implementada necesita preferencias registradas incluso cuando las sugerencias provienen del historial.
 
 ## 3. User Stories
 
-### US-01: Registrar preferencias
+### US-01 — Registrar preferencias
 
-**Como** cliente de TicketYa,
-
-**quiero** registrar mis preferencias,
-
-**para** recibir recomendaciones de eventos relacionadas con mis intereses.
-
-**Criterio de aceptación:**
-- El sistema debe permitir registrar las preferencias asociadas a un cliente.
-- La información debe persistirse en MongoDB.
-
-### US-02: Consultar recomendaciones
-
-**Como** cliente de TicketYa,
-
-**quiero** consultar recomendaciones de eventos,
-
-**para** encontrar eventos que coincidan con mis intereses.
+**Como** cliente, **quiero** registrar mis intereses **para** recibir recomendaciones personalizadas.
 
 **Criterios de aceptación:**
-- El sistema debe permitir consultar recomendaciones utilizando el identificador del cliente.
-- Debe utilizar las preferencias registradas para generar las recomendaciones.
-- Debe consultar los eventos publicados disponibles en el microservicio de Eventos y Lugares.
 
-### US-03: Obtener eventos publicados
+- Se registran tipos de eventos, artistas favoritos y ciudad asociados al identificador del cliente.
+- Los tipos de evento no pueden estar vacíos; la lista de artistas puede estar vacía, pero no ser nula; la ciudad es obligatoria.
+- Se persisten las preferencias en MongoDB.
+- No se permite un segundo registro para el mismo cliente.
+- El cliente debe autenticarse y no puede registrar preferencias para otra persona; un administrador puede acceder a otros clientes.
 
-**Como** sistema de recomendaciones,
+### US-02 — Consultar preferencias
 
-**quiero** consultar los eventos publicados en TicketYa,
-
-**para** utilizarlos como información de entrada al proceso de recomendación.
+**Como** cliente, **quiero** consultar mis preferencias **para** conocer los criterios de recomendación.
 
 **Criterios de aceptación:**
-- El microservicio debe comunicarse con Eventos y Lugares mediante Feign.
-- Debe utilizar los eventos publicados recibidos para el proceso de recomendación.
 
-## 4. Alcance y estado de verificación
+- La respuesta contiene tipos de eventos, artistas favoritos y ciudad.
+- Si no existe el registro, se informa `404`.
+- Solo el propietario o un administrador puede consultar el registro.
 
-Las funcionalidades de registro de preferencias y consulta de recomendaciones están implementadas.
+### US-03 — Modificar preferencias
 
-La integración con Eventos y Lugares está desarrollada mediante Feign. Sin embargo, quedó pendiente verificar el resultado completo de las recomendaciones utilizando eventos reales publicados, debido a que no se logró disponer de un evento publicado durante las pruebas de integración.
+**Como** cliente, **quiero** actualizar mis intereses **para** recibir sugerencias pertinentes.
 
+**Criterios de aceptación:**
+
+- Los cambios se almacenan y se reflejan en consultas posteriores.
+- Se rechazan los datos inválidos y la modificación de preferencias inexistentes.
+- Solo el propietario o un administrador puede modificarlas.
+
+### US-04 — Obtener recomendaciones por preferencias
+
+**Como** cliente, **quiero** recibir eventos relacionados con mis gustos **para** descubrir espectáculos de interés.
+
+**Criterios de aceptación:**
+
+- Se consultan los eventos publicados y los detalles de sus participantes en Eventos y Lugares.
+- Se consideran coincidencias por tipo, artista o ciudad.
+- Solo se incluyen eventos publicados cuya fecha de realización sea futura.
+- La respuesta contiene el identificador, nombre, tipo, artista, ciudad, fecha y precio del evento.
+- Sin coincidencias, se devuelve `200` con una lista vacía.
+- Sin preferencias registradas, se informa `404`.
+
+### US-05 — Recomendar según historial de compras
+
+**Como** cliente, **quiero** recibir sugerencias basadas en compras de clientes con eventos en común **para** descubrir otros eventos.
+
+**Criterios de aceptación:**
+
+- Solo se consideran compras en estado `CONFIRMADA`.
+- Se identifican otros clientes que hayan comprado entradas para alguno de los mismos eventos.
+- Se sugieren otros eventos comprados por esos clientes, excluyendo los que ya compró el cliente consultado.
+- Compras devuelve los identificadores sugeridos mediante una API protegida.
+- Recomendaciones combina las sugerencias históricas con las preferencias, sin duplicados, y aplica el filtro de eventos publicados y futuros.
+
+### US-06 — Acceder de forma segura
+
+**Como** cliente, **quiero** que mis preferencias e historial se consulten de forma segura **para** proteger mis datos.
+
+**Criterios de aceptación:**
+
+- Las operaciones requieren un JWT válido con rol `CLIENTE` o `ADMINISTRADOR`.
+- El cliente solo puede acceder a su información; el administrador puede consultar preferencias y recomendaciones de otros clientes.
+- Las solicitudes sin JWT válido se rechazan con `401`; el acceso a datos ajenos se rechaza con `403`.
+- Recomendaciones reenvía el JWT recibido cuando consulta el endpoint protegido de Compras.
+
+## 4. Alcance
+
+La estrategia colaborativa implementada compara eventos comprados en común y no utiliza modelos predictivos ni aprendizaje automático. Cada microservicio conserva la propiedad de sus datos: Recomendaciones almacena preferencias, Eventos administra el catálogo y Compras administra las compras.

@@ -8,6 +8,15 @@ import java.time.Instant;
 @Table(name = "avisos_compra_pendientes", uniqueConstraints =
         @UniqueConstraint(name = "uk_aviso_compra", columnNames = "compra_id"))
 public class AvisoCompraPendiente {
+    // Nullable para registros anteriores; los nuevos capturan el contexto actual.
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId = com.ticketya.observability.Correlation.currentOrNew();
+
+    public String getCorrelationId() {
+        correlationId = com.ticketya.observability.Correlation.validateOrNew(correlationId);
+        return correlationId;
+    }
+
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @Column(name = "compra_id", nullable = false)

@@ -32,6 +32,10 @@ import com.ticketya.msvc_fila_virtual.services.FilaVirtualService;
 @SpringBootTest
 @ActiveProfiles("test")
 class FilaVirtualConcurrenciaTest {
+        @org.springframework.test.context.DynamicPropertySource
+        static void key(org.springframework.test.context.DynamicPropertyRegistry registry) {
+                registry.add("ticketya.jwt.public-key", () -> com.ticketya.msvc_fila_virtual.security.TestTokens.PUBLIC);
+        }
 
         @Autowired
         private FilaVirtualService service;

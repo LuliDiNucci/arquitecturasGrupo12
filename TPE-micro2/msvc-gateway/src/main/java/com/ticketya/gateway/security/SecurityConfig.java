@@ -25,6 +25,8 @@ public class SecurityConfig {
     @Bean
     SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http.csrf(c -> c.disable()).httpBasic(b -> b.disable()).formLogin(f -> f.disable())
+                .addFilterAfter(new com.ticketya.observability.ReactiveIdentityFilter(),
+                    org.springframework.security.config.web.server.SecurityWebFiltersOrder.AUTHENTICATION)
                 .authorizeExchange(a -> a
                         .pathMatchers(HttpMethod.GET, "/actuator/health", "/swagger-ui.html", "/swagger-ui/**",
                                 "/webjars/**",
@@ -71,6 +73,10 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.POST, "/compras/evento/*/cancelar").hasAuthority("SERVICE_eventos")
                         .pathMatchers(HttpMethod.POST, "/compras/*/compensar").hasRole("ADMINISTRADOR")
                         .pathMatchers(HttpMethod.POST, "/entradas/emitir").hasAuthority("SERVICE_compras")
+                        .pathMatchers(HttpMethod.POST, "/entradas/validar").hasRole("PERSONAL_ACCESO")
+                        .pathMatchers(HttpMethod.PUT, "/entradas/accesos/eventos/*/personal/*").hasRole("ADMINISTRADOR")
+                        .pathMatchers(HttpMethod.DELETE, "/entradas/accesos/eventos/*/personal/*").hasRole("ADMINISTRADOR")
+                        .pathMatchers(HttpMethod.GET, "/notificaciones/*").hasAuthority("USER")
                         .pathMatchers(HttpMethod.POST, "/entradas/evento/*/invalidar")
                         .hasAnyAuthority("SERVICE_eventos", "SERVICE_compras")
                         .pathMatchers(HttpMethod.GET, "/entradas/*", "/entradas/cliente/*")

@@ -13,6 +13,15 @@ import jakarta.persistence.UniqueConstraint;
 @Entity
 @Table(name = "finalizaciones_fila_pendientes", uniqueConstraints = @UniqueConstraint(name = "uk_finalizacion_reserva", columnNames = "reserva_id"))
 public class FinalizacionFilaPendiente {
+    // Nullable para registros anteriores; los nuevos capturan el contexto actual.
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId = com.ticketya.observability.Correlation.currentOrNew();
+
+    public String getCorrelationId() {
+        correlationId = com.ticketya.observability.Correlation.validateOrNew(correlationId);
+        return correlationId;
+    }
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

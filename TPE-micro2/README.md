@@ -14,8 +14,23 @@ La Entrega 2 se describe en [msvc-usuarios/README.md](msvc-usuarios/README.md):
 registro, BCrypt, JWT RS256 y controles de roles/titularidad en Gateway y servicios.
 Los ejemplos privados de la Entrega 1 ahora requieren Bearer y los endpoints
 internos requieren credenciales de servicio; ver la [matriz completa](msvc-usuarios/docs/03-PERMISOS.md).
-Hay un [Compose de los seis procesos](docker-compose.yml), un generador local de
+Hay un [Compose de los nueve procesos](docker-compose.yml), un generador local de
 claves y una [prueba HTTP completa](scripts/Smoke-Security.ps1).
+
+La implementación de observabilidad y la revisión de seguridad están documentadas en:
+
+- [07 — Logging, correlación y centralización](docs/07-OBSERVABILIDAD.md).
+- [08 — Seguridad y matriz de permisos](docs/08-SEGURIDAD-Y-PERMISOS.md).
+- [09 — Ejecución con Docker y ejecución local](docs/09-EJECUCION-OBSERVABILIDAD.md).
+- [10 — Resultados y evidencia de pruebas](docs/10-EVIDENCIA-OBSERVABILIDAD.md).
+- [11 — Archivos creados y modificados](docs/11-ARCHIVOS-OBSERVABILIDAD.md).
+
+Ahora se incluyen ocho microservicios funcionales y el Gateway. Cada módulo conserva
+su versión de Spring Boot/Cloud; el nuevo `pom.xml` raíz sólo agrega la compilación.
+El módulo `observability` debe instalarse antes de compilar un servicio por separado
+(`mvn -f observability/pom.xml install`), o compilar todos con `mvn clean install`.
+La recolección está configurada tanto para contenedores como para procesos locales.
+Consultar la evidencia: la validación real de Loki requiere un motor Docker iniciado.
 
 ## 2. Funcionalidades principales
 
@@ -34,7 +49,7 @@ claves y una [prueba HTTP completa](scripts/Smoke-Security.ps1).
 
 ## 3. Arquitectura del sistema
 
-TicketYa se organiza en cinco microservicios funcionales y un API Gateway.
+TicketYa se organiza en ocho microservicios funcionales y un API Gateway.
 
 | Componente | Responsabilidad |
 |---|---|
@@ -44,6 +59,9 @@ TicketYa se organiza en cinco microservicios funcionales y un API Gateway.
 | `msvc-compras` | Gestiona compras, pagos, confirmaciones y reintegros. |
 | `msvc-entradas` | Administra la emisión, consulta, devolución e invalidación de entradas digitales. |
 | `msvc-gateway` | Centraliza el acceso y el enrutamiento de solicitudes hacia los microservicios. |
+| `msvc-notificaciones` | Registra avisos internos autenticados, permite consultar avisos propios y procesa correos con reintentos. |
+| `msvc-fila-virtual` | Administra turnos de compra para eventos de alta demanda. |
+| `msvc-recomendaciones` | Gestiona preferencias privadas y recomendaciones. |
 
 Cada microservicio administra sus propios datos y se comunica con los demás mediante APIs REST y clientes de integración.
 
@@ -204,6 +222,9 @@ Los puertos predeterminados de los microservicios funcionales son:
 | Entradas | `8083` |
 | Api Gateway | `8084` |
 | Usuarios | `8085` |
+| Recomendaciones | `8086` |
+| Notificaciones | `8087` |
+| Fila Virtual | `8088` |
 
 
 ### 8.2. Iniciar los microservicios

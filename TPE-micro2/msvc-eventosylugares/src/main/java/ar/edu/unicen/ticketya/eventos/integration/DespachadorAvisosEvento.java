@@ -51,30 +51,32 @@ public class DespachadorAvisosEvento {
     }
 
     private void despachar(AvisoEventoPendiente aviso) {
-        List<Long> compradores;
-        try {
-            compradores = compras.buscarCompradores(aviso.getEventoId(), aviso.isCancelacion());
-        } catch (RuntimeException error) {
-            aviso.reintentar(reloj.instant().plusSeconds(10));
-            log.warn("No se pudo consultar compradores del evento {}: {}", aviso.getEventoId(),
-                    error.getClass().getSimpleName());
-            return;
-        }
-
-        boolean huboFallo = false;
-        for (Long clienteId : compradores) {
+        try (var correlation = com.ticketya.observability.Correlation.open(aviso.getCorrelationId())) {
+            List<Long> compradores;
             try {
-                enviarCliente(aviso, clienteId);
+                compradores = compras.buscarCompradores(aviso.getEventoId(), aviso.isCancelacion());
             } catch (RuntimeException error) {
-                huboFallo = true;
-                log.warn("Falló el aviso del evento {} para el cliente {}: {}", aviso.getEventoId(), clienteId,
+                aviso.reintentar(reloj.instant().plusSeconds(10));
+                log.warn("No se pudo consultar compradores del evento {}: {}", aviso.getEventoId(),
                         error.getClass().getSimpleName());
+                return;
             }
-        }
-        if (huboFallo) {
-            aviso.reintentar(reloj.instant().plusSeconds(10));
-        } else {
-            aviso.marcarEntregado();
+
+            boolean huboFallo = false;
+            for (Long clienteId : compradores) {
+                try {
+                    enviarCliente(aviso, clienteId);
+                } catch (RuntimeException error) {
+                    huboFallo = true;
+                    log.warn("Falló el aviso del evento {} para el cliente {}: {}", aviso.getEventoId(), clienteId,
+                            error.getClass().getSimpleName());
+                }
+            }
+            if (huboFallo) {
+                aviso.reintentar(reloj.instant().plusSeconds(10));
+            } else {
+                aviso.marcarEntregado();
+            }
         }
     }
 

@@ -77,9 +77,9 @@ public class PagoServiceImpl implements PagoService {
 
                                 log.warn(
                                                 "No se pudo completar la confirmación "
-                                                                + "o compensación de la compra {}",
+                                                                + "o compensación de la compra {}: {}",
                                                 compraId,
-                                                e);
+                                                e.getClass().getSimpleName());
                         }
 
                 } else if (EstadoPago.RECHAZADO.name().equals(resultado.getEstado())) {
@@ -92,10 +92,10 @@ public class PagoServiceImpl implements PagoService {
 
                                 log.warn(
                                                 "Pago {} rechazado; liberación de compra {} "
-                                                                + "pendiente de reintento",
+                                                                + "pendiente de reintento: {}",
                                                 resultado.getId(),
                                                 compraId,
-                                                e);
+                                                e.getClass().getSimpleName());
                         }
                 }
 

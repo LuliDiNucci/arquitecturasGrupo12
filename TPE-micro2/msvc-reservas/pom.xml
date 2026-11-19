@@ -38,6 +38,7 @@
     <dependencies>
 
     
+      <dependency><groupId>com.ticketya</groupId><artifactId>ticketya-observability</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
         <!-- Swagger / OpenAPI -->
         <dependency>
             <groupId>org.springdoc</groupId>

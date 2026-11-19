@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: classpath:ticketya-logging.properties
   application:
     name: msvc-gateway
   cloud:
@@ -9,6 +11,17 @@ spring:
             connect-timeout: 3000
             response-timeout: 5s
           routes:
+            - id: notificaciones-api-docs
+              uri: ${NOTIFICACIONES_URL:http://localhost:8087}
+              predicates:
+                - Path=/notificaciones/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
+            - id: notificaciones-consulta
+              uri: ${NOTIFICACIONES_URL:http://localhost:8087}
+              predicates:
+                - Path=/notificaciones/*
+                - Method=GET
             # Las rutas de documentación deben evaluarse antes que las rutas generales.
             - id: recomendaciones-api-docs
               uri: ${RECOMENDACIONES_URL:http://localhost:8086}
@@ -105,6 +118,8 @@ springdoc:
     urls:
       - name: Usuarios
         url: /usuarios/v3/api-docs
+      - name: Notificaciones
+        url: /notificaciones/v3/api-docs
       - name: Eventos
         url: /eventos/v3/api-docs
       - name: Reservas

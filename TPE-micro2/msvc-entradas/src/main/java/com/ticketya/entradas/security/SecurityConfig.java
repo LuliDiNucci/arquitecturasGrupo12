@@ -22,11 +22,15 @@ public class SecurityConfig {
     @Bean SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf(c -> c.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(a -> a
+            .addFilterAfter(new com.ticketya.observability.HttpIdentityFilter(),
+                    org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
+                .authorizeHttpRequests(a -> a
                 .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                 .requestMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/health").permitAll()
                 .requestMatchers(HttpMethod.POST, "/entradas/emitir").hasAuthority("SERVICE_compras")
                 .requestMatchers(HttpMethod.POST, "/entradas/validar").hasRole("PERSONAL_ACCESO")
+                .requestMatchers(HttpMethod.PUT, "/entradas/accesos/eventos/*/personal/*").hasRole("ADMINISTRADOR")
+                .requestMatchers(HttpMethod.DELETE, "/entradas/accesos/eventos/*/personal/*").hasRole("ADMINISTRADOR")
                 .requestMatchers(HttpMethod.POST, "/entradas/evento/*/invalidar").hasAnyAuthority("SERVICE_eventos", "SERVICE_compras")
                 .requestMatchers(HttpMethod.GET, "/entradas/*", "/entradas/cliente/*").hasAnyAuthority("ROLE_CLIENTE", "ROLE_ADMINISTRADOR", "SERVICE_compras")
                 .requestMatchers(HttpMethod.POST, "/devoluciones").hasRole("CLIENTE")

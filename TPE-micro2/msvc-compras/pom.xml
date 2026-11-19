@@ -37,6 +37,7 @@
 
     <dependencies>
         
+      <dependency><groupId>com.ticketya</groupId><artifactId>ticketya-observability</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
         <!-- Validaciones de DTO -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

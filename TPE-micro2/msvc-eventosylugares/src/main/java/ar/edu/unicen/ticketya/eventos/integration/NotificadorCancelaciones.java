@@ -62,82 +62,84 @@ public class NotificadorCancelaciones {
 
         // Recorrer las notificaciones de cancelacion pendientes
         for (NotificacionCancelacion aviso : pendientes.pendientes()) {
+            try (var correlation = com.ticketya.observability.Correlation.open(aviso.getCorrelationId())) {
 
-            // Verificar si queda algun servicio habilitado por notificar
-            boolean hayNotificacionesHabilitadasPendientes = !aviso.isReservasNotificadas()
-                    || (entradasHabilitadas && !aviso.isEntradasNotificadas())
-                    || (comprasHabilitadas && !aviso.isComprasNotificadas());
+                // Verificar si queda algun servicio habilitado por notificar
+                boolean hayNotificacionesHabilitadasPendientes = !aviso.isReservasNotificadas()
+                        || (entradasHabilitadas && !aviso.isEntradasNotificadas())
+                        || (comprasHabilitadas && !aviso.isComprasNotificadas());
 
-            if (!hayNotificacionesHabilitadasPendientes) {
-                continue;
-            }
-
-            // Registrar el intento de notificacion
-            aviso.setIntentos(aviso.getIntentos() + 1);
-            aviso.setUltimoIntentoEn(LocalDateTime.now(clock));
-            aviso.setUltimoError(null);
-
-            String operacionId = "cancelacion-evento-" + aviso.getEventoId();
-
-            // NOTIFICAR A RESERVAS
-            // Cancela las reservas activas y bloquea nuevas reservas
-            if (!aviso.isReservasNotificadas()) {
-                try {
-                    reservasClient.cancelarEvento(
-                            aviso.getEventoId(),
-                            operacionId);
-
-                    aviso.setReservasNotificadas(true);
-
-                } catch (Exception e) {
-                    registrarError(aviso, "Reservas", e);
+                if (!hayNotificacionesHabilitadasPendientes) {
+                    continue;
                 }
-            }
 
-            // NOTIFICAR A ENTRADAS
-            // Solo si la integracion esta habilitada
-            if (entradasHabilitadas && !aviso.isEntradasNotificadas()) {
-                try {
-                    entradasClient.cancelarEvento(
-                            aviso.getEventoId(),
-                            operacionId);
+                // Registrar el intento de notificacion
+                aviso.setIntentos(aviso.getIntentos() + 1);
+                aviso.setUltimoIntentoEn(LocalDateTime.now(clock));
+                aviso.setUltimoError(null);
 
-                    aviso.setEntradasNotificadas(true);
+                String operacionId = "cancelacion-evento-" + aviso.getEventoId();
 
-                } catch (Exception e) {
-                    registrarError(aviso, "Entradas", e);
+                // NOTIFICAR A RESERVAS
+                // Cancela las reservas activas y bloquea nuevas reservas
+                if (!aviso.isReservasNotificadas()) {
+                    try {
+                        reservasClient.cancelarEvento(
+                                aviso.getEventoId(),
+                                operacionId);
+
+                        aviso.setReservasNotificadas(true);
+
+                    } catch (Exception e) {
+                        registrarError(aviso, "Reservas", e);
+                    }
                 }
-            }
 
-            // NOTIFICAR A COMPRAS
-            // Solo si la integracion esta habilitada
-            if (comprasHabilitadas
-                    && !aviso.isComprasNotificadas()
-                    && aviso.isReservasNotificadas()
-                    && (!entradasHabilitadas || aviso.isEntradasNotificadas())) {
-                try {
-                    comprasClient.cancelarEvento(
-                            aviso.getEventoId(),
-                            operacionId);
+                // NOTIFICAR A ENTRADAS
+                // Solo si la integracion esta habilitada
+                if (entradasHabilitadas && !aviso.isEntradasNotificadas()) {
+                    try {
+                        entradasClient.cancelarEvento(
+                                aviso.getEventoId(),
+                                operacionId);
 
-                    aviso.setComprasNotificadas(true);
+                        aviso.setEntradasNotificadas(true);
 
-                } catch (Exception e) {
-                    registrarError(aviso, "Compras", e);
+                    } catch (Exception e) {
+                        registrarError(aviso, "Entradas", e);
+                    }
                 }
-            }
 
-            // Guardar el estado de las notificaciones
-            pendientes.save(aviso);
+                // NOTIFICAR A COMPRAS
+                // Solo si la integracion esta habilitada
+                if (comprasHabilitadas
+                        && !aviso.isComprasNotificadas()
+                        && aviso.isReservasNotificadas()
+                        && (!entradasHabilitadas || aviso.isEntradasNotificadas())) {
+                    try {
+                        comprasClient.cancelarEvento(
+                                aviso.getEventoId(),
+                                operacionId);
+
+                        aviso.setComprasNotificadas(true);
+
+                    } catch (Exception e) {
+                        registrarError(aviso, "Compras", e);
+                    }
+                }
+
+                // Guardar el estado de las notificaciones
+                pendientes.save(aviso);
+            }
         }
     }
 
     private void registrarError(NotificacionCancelacion aviso, String servicio, Exception e) {
-        String mensaje = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        String mensaje = e.getClass().getSimpleName();
         String resumen = mensaje.substring(0, Math.min(mensaje.length(), 350));
         String anterior = aviso.getUltimoError();
         aviso.setUltimoError((anterior == null ? "" : anterior + "; ") + servicio + ": " + resumen);
-        log.warn("No se pudo avisar a {} sobre la cancelacion del evento {}",
-                servicio, aviso.getEventoId(), e);
+        log.warn("No se pudo avisar a {} sobre la cancelacion del evento {}: {}",
+                servicio, aviso.getEventoId(), e.getClass().getSimpleName());
     }
 }

@@ -34,6 +34,10 @@ import static org.mockito.Mockito.when;
 @SpringBootTest(properties = "app.notificaciones.procesamiento-habilitado=false")
 @ActiveProfiles("test")
 class ProcesadorNotificacionesIntegrationTest {
+    @org.springframework.test.context.DynamicPropertySource
+    static void securityKey(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        registry.add("ticketya.jwt.public-key", () -> com.ticketya.notificaciones.security.TestTokens.PUBLIC);
+    }
 
     private static final Instant AHORA = Instant.parse("2026-11-16T22:00:00Z");
     private static final DestinatarioDTO CLIENTE = new DestinatarioDTO(12L, "cliente@example.test");

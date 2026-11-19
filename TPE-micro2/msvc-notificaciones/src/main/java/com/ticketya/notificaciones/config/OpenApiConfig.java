@@ -10,7 +10,12 @@ public class OpenApiConfig {
 
     @Bean
     public OpenAPI notificacionesOpenApi() {
-        return new OpenAPI().info(new Info()
+        return new OpenAPI()
+                .components(new io.swagger.v3.oas.models.Components().addSecuritySchemes("bearerJwt",
+                        new io.swagger.v3.oas.models.security.SecurityScheme().type(
+                                io.swagger.v3.oas.models.security.SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")))
+                .addSecurityItem(new io.swagger.v3.oas.models.security.SecurityRequirement().addList("bearerJwt"))
+                .info(new Info()
                 .title("TicketYa - Notificaciones")
                 .version("1.0")
                 .description("API interna de solicitudes de correo y consulta del estado de envío."));

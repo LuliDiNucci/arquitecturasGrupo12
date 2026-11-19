@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.ticketya</groupId><artifactId>ticketya</artifactId><version>0.0.1-SNAPSHOT</version><packaging>pom</packaging>
+  <!-- Agregador solamente: cada servicio conserva su parent y sus versiones. -->
+  <modules>
+    <module>observability</module><module>msvc-usuarios</module><module>msvc-eventosylugares</module>
+    <module>msvc-reservas</module><module>msvc-compras</module><module>msvc-entradas</module>
+    <module>msvc-gateway</module><module>msvc-notificaciones</module><module>msvc-fila-virtual</module>
+    <module>msvc-recomendaciones</module>
+  </modules>
+</project>

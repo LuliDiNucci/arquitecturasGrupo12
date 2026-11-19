@@ -44,29 +44,31 @@ public class ProcesadorFinalizacionesFila {
             return;
         }
 
-        try {
+        try (var correlation = com.ticketya.observability.Correlation.open(pendiente.getCorrelationId())) {
+            try {
 
-            filaVirtualClient.finalizarTurno(
-                    pendiente.getEventoId(),
-                    pendiente.getClienteId());
+                filaVirtualClient.finalizarTurno(
+                        pendiente.getEventoId(),
+                        pendiente.getClienteId());
 
-            pendiente.marcarFinalizada();
+                pendiente.marcarFinalizada();
 
-            logger.info(
-                    "Turno finalizado para reserva {}",
-                    pendiente.getReservaId());
+                logger.info(
+                        "Turno finalizado para reserva {}",
+                        pendiente.getReservaId());
 
-        } catch (Exception ex) {
+            } catch (Exception ex) {
 
-            pendiente.programarReintento(
-                    Instant.now().plusSeconds(segundosReintento));
+                pendiente.programarReintento(
+                        Instant.now().plusSeconds(segundosReintento));
 
-            logger.warn(
-                    "No se pudo finalizar el turno de la reserva {}: {}",
-                    pendiente.getReservaId(),
-                    ex.getMessage());
+                logger.warn(
+                        "No se pudo finalizar el turno de la reserva {}: {}",
+                        pendiente.getReservaId(),
+                        ex.getClass().getSimpleName());
+            }
+
+            repository.save(pendiente);
         }
-
-        repository.save(pendiente);
     }
 }

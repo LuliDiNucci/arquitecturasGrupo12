@@ -42,6 +42,7 @@ class NotificacionApiIntegrationTest {
 
     @DynamicPropertySource
     static void configurarSmtp(DynamicPropertyRegistry registry) {
+        registry.add("ticketya.jwt.public-key", () -> com.ticketya.notificaciones.security.TestTokens.PUBLIC);
         registry.add("spring.mail.host", () -> "127.0.0.1");
         registry.add("spring.mail.port", () -> SMTP.getSmtp().getPort());
     }
@@ -201,6 +202,8 @@ class NotificacionApiIntegrationTest {
         return HttpRequest.newBuilder(URI.create("http://localhost:" + puerto + "/notificaciones" + ruta))
                 .timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + com.ticketya.notificaciones.security.TestTokens.service(
+                        ruta.equals("/compras-confirmadas") ? "compras" : "eventos"))
                 .POST(HttpRequest.BodyPublishers.ofString(cuerpo))
                 .build();
     }
@@ -208,6 +211,7 @@ class NotificacionApiIntegrationTest {
     private HttpResponse<String> get(String ruta) throws Exception {
         var solicitud = HttpRequest.newBuilder(URI.create("http://localhost:" + puerto + ruta))
                 .timeout(Duration.ofSeconds(10))
+                .header("Authorization", "Bearer " + com.ticketya.notificaciones.security.TestTokens.user(12, "CLIENTE"))
                 .GET().build();
         return http.send(solicitud, HttpResponse.BodyHandlers.ofString());
     }

@@ -184,6 +184,7 @@ services:
       COMPRAS_URL: http://compras:8082
       ENTRADAS_URL: http://entradas:8083
       NOTIFICACIONES_URL: http://notificaciones:8087
+      RECOMENDACIONES_URL: http://recomendaciones:8086
     ports: ["8081:8081"]
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro

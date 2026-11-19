@@ -1,20 +1,5 @@
 package com.ticketya.notificaciones;
 
-import com.icegreen.greenmail.util.GreenMail;
-import com.icegreen.greenmail.util.ServerSetup;
-import com.ticketya.notificaciones.entities.TipoNotificacion;
-import com.ticketya.notificaciones.repositories.NotificacionRepository;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -26,6 +11,22 @@ import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+
+import com.icegreen.greenmail.util.GreenMail;
+import com.icegreen.greenmail.util.ServerSetup;
+import com.ticketya.notificaciones.entities.TipoNotificacion;
+import com.ticketya.notificaciones.repositories.NotificacionRepository;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -99,7 +100,8 @@ class NotificacionApiIntegrationTest {
 
         esperarEnvio("/notificaciones/" + id);
         var coincidentes = repository.findAll().stream()
-                .filter(aviso -> aviso.getTipo() == TipoNotificacion.COMPRA_CONFIRMADA && aviso.getReferenciaId() == 102)
+                .filter(aviso -> aviso.getTipo() == TipoNotificacion.COMPRA_CONFIRMADA
+                        && aviso.getReferenciaId() == 102)
                 .toList();
         assertThat(coincidentes).hasSize(1);
         assertThat(SMTP.getReceivedMessagesForDomain("concurrente.test")).hasSize(1);
@@ -123,24 +125,53 @@ class NotificacionApiIntegrationTest {
     }
 
     @Test
-    void aceptaSoloArtistasFavoritosQueSePresentanEnLaCiudadDelCliente() throws Exception {
+    void aceptaSoloArtistasFavoritosQueSePresentanEnLaCiudadDelCliente()
+            throws Exception {
+
         String cuerpo = """
-                {"destinatario":{"clienteId":12,"email":"favoritos@example.test"},
-                "eventoId":50,"nombreEvento":"Recital en Tandil","fechaHora":"2026-12-05T21:00:00",
-                "ciudadEvento":"Tandil","artistaId":8,"nombreArtista":"Los Viajeros",
-                "ciudadCliente":" tandil ","artistasFavoritosIds":[8,15]}
+                {
+                  "destinatario": {
+                    "clienteId": 12,
+                    "email": "favoritos@example.test"
+                  },
+                  "eventoId": 50,
+                  "nombreEvento": "Recital en Tandil",
+                  "fechaHora": "2026-12-05T21:00:00",
+                  "ciudadEvento": "Tandil",
+                  "nombreArtista": "Los Viajeros",
+                  "ciudadCliente": " tandil ",
+                  "artistasFavoritos": ["Los Viajeros", "Otra Banda"]
+                }
                 """;
 
-        var otraCiudad = post("/artistas-favoritos", cuerpo.replace(" tandil ", "Azul"));
+        var otraCiudad = post(
+                "/artistas-favoritos",
+                cuerpo.replace(" tandil ", "Azul"));
+
         assertThat(otraCiudad.statusCode()).isEqualTo(204);
         assertThat(otraCiudad.body()).isEmpty();
-        var otroArtista = post("/artistas-favoritos", cuerpo.replace("[8,15]", "[15]"));
+
+        var otroArtista = post(
+                "/artistas-favoritos",
+                cuerpo.replace(
+                        "[\"Los Viajeros\", \"Otra Banda\"]",
+                        "[\"Otra Banda\"]"));
+
         assertThat(otroArtista.statusCode()).isEqualTo(204);
 
-        long favorita = idAceptado(post("/artistas-favoritos", cuerpo));
-        var mismoEvento = post("/artistas-favoritos", cuerpo.replace("\"artistaId\":8", "\"artistaId\":15"));
+        long favorita = idAceptado(
+                post("/artistas-favoritos", cuerpo));
+
+        var mismoEvento = post(
+                "/artistas-favoritos",
+                cuerpo.replace(
+                        "\"nombreArtista\": \"Los Viajeros\"",
+                        "\"nombreArtista\": \"los viajeros\""));
+
         assertThat(mismoEvento.statusCode()).isIn(200, 202);
-        assertThat(JSON.readTree(mismoEvento.body()).path("id").asLong()).isEqualTo(favorita);
+
+        assertThat(JSON.readTree(mismoEvento.body())
+                .path("id").asLong()).isEqualTo(favorita);
     }
 
     @Test

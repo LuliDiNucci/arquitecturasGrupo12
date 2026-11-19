@@ -66,4 +66,54 @@ public class RecomendacionesServiceTest {
         assertEquals(1, resultado.size());
         assertEquals(2L, resultado.get(0).getId());
     }
+
+    @Test
+    void noRecomiendaEventosVencidosNiNoPublicados() {
+
+        PreferenciasRepository repository = Mockito.mock(PreferenciasRepository.class);
+
+        EventoClient eventoClient = Mockito.mock(EventoClient.class);
+
+        CompraClient compraClient = Mockito.mock(CompraClient.class);
+
+        RecomendacionesService service = new RecomendacionesService(
+                repository, eventoClient, compraClient);
+
+        Preferencias preferencias = new Preferencias();
+        preferencias.setClienteId(6L);
+        preferencias.setTiposEventos(List.of("RECITAL"));
+        preferencias.setArtistasFavoritos(List.of());
+        preferencias.setCiudad("Tandil");
+
+        // Evento publicado, pero con fecha pasada
+        EventoResumenDTO vencido = new EventoResumenDTO();
+        vencido.setId(10L);
+        vencido.setNombre("Recital vencido");
+        vencido.setTipo("RECITAL");
+        vencido.setEstado("PUBLICADO");
+        vencido.setCiudad("Tandil");
+        vencido.setFechaHora(LocalDateTime.now().minusDays(5));
+
+        // Evento futuro, pero suspendido
+        EventoResumenDTO suspendido = new EventoResumenDTO();
+        suspendido.setId(11L);
+        suspendido.setNombre("Recital suspendido");
+        suspendido.setTipo("RECITAL");
+        suspendido.setEstado("SUSPENDIDO");
+        suspendido.setCiudad("Tandil");
+        suspendido.setFechaHora(LocalDateTime.now().plusDays(30));
+
+        when(repository.findByClienteId(6L))
+                .thenReturn(Optional.of(preferencias));
+
+        when(eventoClient.listarEventosPublicados())
+                .thenReturn(List.of(vencido, suspendido));
+
+        when(compraClient.obtenerEventosRecomendados(6L))
+                .thenReturn(List.of(10L, 11L));
+
+        List<EventoRecomendadoDTO> resultado = service.obtenerRecomendaciones(6L);
+
+        assertEquals(0, resultado.size());
+    }
 }

@@ -30,6 +30,7 @@ import ar.edu.unicen.ticketya.eventos.feign.ReservasFeignClient;
 import ar.edu.unicen.ticketya.eventos.model.EstadoEvento;
 import ar.edu.unicen.ticketya.eventos.model.OrdenEvento;
 import ar.edu.unicen.ticketya.eventos.model.TipoEvento;
+import ar.edu.unicen.ticketya.eventos.service.AvisoArtistasFavoritosService;
 import ar.edu.unicen.ticketya.eventos.service.EventoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -54,15 +55,19 @@ public class EventoController {
 
     private final ReservasFeignClient reservasFeignClient;
 
+    private final AvisoArtistasFavoritosService avisoArtistasFavoritosService;
+
     @Value("${app.integraciones.habilitadas:false}")
     private boolean integracionesHabilitadas;
 
     public EventoController(
             EventoService eventoService,
-            ReservasFeignClient reservasFeignClient) {
+            ReservasFeignClient reservasFeignClient,
+            AvisoArtistasFavoritosService avisoArtistasFavoritosService) {
 
         this.eventoService = eventoService;
         this.reservasFeignClient = reservasFeignClient;
+        this.avisoArtistasFavoritosService = avisoArtistasFavoritosService;
     }
 
     @Operation(summary = "Crear un evento en estado BORRADOR")
@@ -144,12 +149,15 @@ public class EventoController {
     @PatchMapping("/{id}/publicar")
     @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.event(#id)")
     public EventoResponseDTO publicar(@PathVariable Long id) {
+
         EventoResponseDTO publicado = eventoService.publicar(id);
 
         if (integracionesHabilitadas
                 && publicado.getEstado() == EstadoEvento.PUBLICADO) {
 
             reservasFeignClient.habilitarEvento(id);
+
+            avisoArtistasFavoritosService.notificarPublicacion(publicado);
         }
 
         return publicado;

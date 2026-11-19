@@ -1,12 +1,11 @@
 package com.ticketya.recomendaciones.security;
 
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -24,6 +23,7 @@ public class SecurityConfig {
                         @Value("${ticketya.jwt.public-key}") Resource publicKey,
                         @Value("${ticketya.jwt.issuer}") String issuer,
                         @Value("${ticketya.jwt.audience}") String audience) {
+
                 return JwtSupport.decoder(publicKey, issuer, audience);
         }
 
@@ -44,9 +44,11 @@ public class SecurityConfig {
                                 .sessionManagement(session -> session.sessionCreationPolicy(
                                                 SessionCreationPolicy.STATELESS))
 
-                                .addFilterAfter(new com.ticketya.observability.HttpIdentityFilter(),
-                    org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
-                .authorizeHttpRequests(auth -> auth
+                                .addFilterAfter(
+                                                new com.ticketya.observability.HttpIdentityFilter(),
+                                                org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
+
+                                .authorizeHttpRequests(auth -> auth
 
                                                 .requestMatchers(
                                                                 HttpMethod.GET,
@@ -60,6 +62,11 @@ public class SecurityConfig {
                                                                 "/api/preferencias/**",
                                                                 "/api/recomendaciones/**")
                                                 .hasAnyRole("CLIENTE", "ADMINISTRADOR")
+
+                                                .requestMatchers(
+                                                                HttpMethod.GET,
+                                                                "/internal/clientes-interesados")
+                                                .hasAuthority("SERVICE_eventos")
 
                                                 .anyRequest().denyAll())
 

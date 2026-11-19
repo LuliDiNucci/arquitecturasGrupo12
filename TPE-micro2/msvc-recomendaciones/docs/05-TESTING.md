@@ -22,11 +22,20 @@ Las comprobaciones de `msvc-recomendaciones` se realizaron con Spring Boot 4.1.2
 | Cliente propietario | Cliente 3 consulta sus preferencias | HTTP `200` |
 | Historial en Compras | GET `/compras/cliente/3/eventos-recomendados` | HTTP `200`, cuerpo `[]` |
 | Recomendaciones + Compras | GET mediante Gateway para cliente 3 | HTTP `200` con recital recomendado por preferencias |
+| Compras confirmadas para historial | Cliente 6 compra evento 2; cliente 7 compra eventos 2 y 3 | Tres compras confirmadas correctamente |
+| Historial colaborativo real | GET `/compras/cliente/6/eventos-recomendados` | Incluye el evento 3 |
+| Recomendación por historial real | GET `/api/recomendaciones/6` | Incluye el evento 3 aunque no coincide con las preferencias de tipo, artista o ciudad |
+| Unicidad de recomendaciones | Agrupar los resultados por ID de evento | Ningún evento duplicado |
 | Despliegue | Recomendaciones en Docker Compose y `/actuator/health` | Contenedor activo, `UP` |
 
 ## 3. Testing automatizado
 
-El proyecto incluye `RecomendacionesServiceTest`, implementado con JUnit y Mockito. El caso `recomiendaEventoPorHistorialAunqueNoCoincidaConPreferencias` construye un escenario en el que Compras proporciona un identificador de evento recomendado por historial que no coincide con el tipo, artista ni ciudad preferidos. La verificación se realiza sobre la lista combinada que devuelve el servicio, sin depender de bases de datos ni servicios externos reales.
+El proyecto incluye `RecomendacionesServiceTest`, implementado con JUnit y Mockito. Se ejecutó `mvn clean test` con resultado `BUILD SUCCESS`.
+
+- `recomiendaEventoPorHistorialAunqueNoCoincidaConPreferencias`: Compras devuelve un evento sugerido que no coincide con las preferencias explícitas; el servicio lo incluye en la respuesta.
+- `noRecomiendaEventosVencidosNiNoPublicados`: un evento publicado con fecha pasada y otro evento futuro suspendido se excluyen de las recomendaciones, incluso cuando coinciden con preferencias e historial.
+
+Estas pruebas aíslan la lógica de selección mediante dobles de prueba de repositorio y clientes Feign.
 
 ## 4. Regla de recomendación colaborativa
 

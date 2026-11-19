@@ -56,7 +56,8 @@ class EventoServiceTest {
                 eventoRepository, sectorRepository, asientoRepository,
                 precioSectorRepository, eventoParticipanteRepository,
                 notificacionRepository, lugarService, organizadorService,
-                participanteService, asientoService, clock, avisosClientes, entityManager
+                participanteService, asientoService, clock, avisosClientes, entityManager,
+                new CatalogoCacheService(30)
         );
     }
 

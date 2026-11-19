@@ -1,25 +1,50 @@
 package ar.edu.unicen.ticketya.eventos.security;
 
-import java.util.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
-import ar.edu.unicen.ticketya.eventos.controller.*;
-import ar.edu.unicen.ticketya.eventos.model.*;
-import ar.edu.unicen.ticketya.eventos.service.*;
-import ar.edu.unicen.ticketya.eventos.repository.*;
-import ar.edu.unicen.ticketya.eventos.feign.ReservasFeignClient;
-import org.junit.jupiter.api.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.*;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.*;
-import org.springframework.test.context.*;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import ar.edu.unicen.ticketya.eventos.controller.AsientoController;
+import ar.edu.unicen.ticketya.eventos.controller.EventoController;
+import ar.edu.unicen.ticketya.eventos.controller.LugarController;
+import ar.edu.unicen.ticketya.eventos.controller.OrganizadorController;
+import ar.edu.unicen.ticketya.eventos.controller.ParticipanteController;
+import ar.edu.unicen.ticketya.eventos.controller.SectorController;
+import ar.edu.unicen.ticketya.eventos.feign.ReservasFeignClient;
+import ar.edu.unicen.ticketya.eventos.model.EstadoEvento;
+import ar.edu.unicen.ticketya.eventos.model.Evento;
+import ar.edu.unicen.ticketya.eventos.model.Organizador;
+import ar.edu.unicen.ticketya.eventos.repository.EventoRepository;
+import ar.edu.unicen.ticketya.eventos.repository.OrganizadorRepository;
+import ar.edu.unicen.ticketya.eventos.service.AsientoService;
+import ar.edu.unicen.ticketya.eventos.service.CatalogoCacheService;
+import ar.edu.unicen.ticketya.eventos.service.EventoService;
+import ar.edu.unicen.ticketya.eventos.service.LugarService;
+import ar.edu.unicen.ticketya.eventos.service.OrganizadorService;
+import ar.edu.unicen.ticketya.eventos.service.ParticipanteService;
+import ar.edu.unicen.ticketya.eventos.service.SectorService;
 
 @WebMvcTest({EventoController.class, OrganizadorController.class, LugarController.class,
     SectorController.class, AsientoController.class, ParticipanteController.class})
@@ -27,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ServiceSecurityIntegrationTest {
     @Autowired MockMvc mvc;
     @MockitoBean EventoService service;
+    @MockitoBean CatalogoCacheService catalogoCache;
     @MockitoBean OrganizadorService organizers;
     @MockitoBean LugarService places;
     @MockitoBean SectorService sectors;

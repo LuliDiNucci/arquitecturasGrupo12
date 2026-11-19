@@ -36,6 +36,8 @@ springdoc:
     path: /swagger-ui.html
 
 app:
+  catalogo:
+    cache-ttl-segundos: ${CATALOGO_CACHE_TTL_SEGUNDOS:30}
   integraciones:
     habilitadas: ${INTEGRACIONES_HABILITADAS:true}
 

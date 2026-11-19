@@ -51,6 +51,7 @@ import ar.edu.unicen.ticketya.eventos.repository.PrecioSectorRepository;
 import ar.edu.unicen.ticketya.eventos.repository.SectorRepository;
 import ar.edu.unicen.ticketya.eventos.service.AsientoService;
 import ar.edu.unicen.ticketya.eventos.service.EventoService;
+import ar.edu.unicen.ticketya.eventos.service.CatalogoCacheService;
 import ar.edu.unicen.ticketya.eventos.service.LugarService;
 import ar.edu.unicen.ticketya.eventos.service.OrganizadorService;
 import ar.edu.unicen.ticketya.eventos.service.ParticipanteService;
@@ -77,6 +78,7 @@ public class EventoServiceImpl implements EventoService {
     private final Clock clock;
     private final AvisoEventoPendienteRepository avisosClientes;
     private final EntityManager entityManager;
+    private final CatalogoCacheService catalogoCache;
 
     public EventoServiceImpl(EventoRepository eventoRepository,
             SectorRepository sectorRepository,
@@ -90,7 +92,8 @@ public class EventoServiceImpl implements EventoService {
             AsientoService asientoService,
             Clock clock,
             AvisoEventoPendienteRepository avisosClientes,
-            EntityManager entityManager) {
+            EntityManager entityManager,
+            CatalogoCacheService catalogoCache) {
 
         this.eventoRepository = eventoRepository;
         this.sectorRepository = sectorRepository;
@@ -105,6 +108,7 @@ public class EventoServiceImpl implements EventoService {
         this.clock = clock;
         this.avisosClientes = avisosClientes;
         this.entityManager = entityManager;
+        this.catalogoCache = catalogoCache;
     }
 
     // Cuando se crea un evento queda en borrador hasta que se carguen los precios.
@@ -128,6 +132,9 @@ public class EventoServiceImpl implements EventoService {
         for (Participante participante : participantes) {
             eventoParticipanteRepository.save(new EventoParticipante(evento, participante));
         }
+
+        // Evita que un listado público ya cargado omita el nuevo evento al publicarse.
+        catalogoCache.invalidarDespuesDeConfirmar();
 
         return detalle(evento);
     }
@@ -213,6 +220,7 @@ public class EventoServiceImpl implements EventoService {
         }
 
         eventoRepository.saveAndFlush(evento);
+        catalogoCache.invalidarDespuesDeConfirmar();
         if (estaPublicado && !cambios.isEmpty()) {
             if (!cambianDatosDelEvento) {
                 // Cambiar solo la tabla de participantes no actualiza la versión de Evento.
@@ -270,6 +278,8 @@ public class EventoServiceImpl implements EventoService {
 
             precioSectorRepository.save(precioSector);
         }
+
+        catalogoCache.invalidarDespuesDeConfirmar();
 
         return detalle(evento);
     }
@@ -344,6 +354,7 @@ public class EventoServiceImpl implements EventoService {
         evento.setEstado(nuevoEstado);
         evento.setEstadoPrevioSuspension(null);
         eventoRepository.saveAndFlush(evento);
+        catalogoCache.invalidarDespuesDeConfirmar();
         return detalle(evento);
     }
 
@@ -361,6 +372,7 @@ public class EventoServiceImpl implements EventoService {
         evento.setEstadoPrevioSuspension(evento.getEstado());
         evento.setEstado(EstadoEvento.SUSPENDIDO);
         eventoRepository.saveAndFlush(evento);
+        catalogoCache.invalidarDespuesDeConfirmar();
         return detalle(evento);
     }
 
@@ -378,6 +390,7 @@ public class EventoServiceImpl implements EventoService {
         if (evento.getEstado() != EstadoEvento.CANCELADO) {
             evento.setEstado(EstadoEvento.CANCELADO);
             eventoRepository.saveAndFlush(evento);
+            catalogoCache.invalidarDespuesDeConfirmar();
 
             // Se guarda en la misma transaccion para no perder la cancelacion.
             NotificacionCancelacion aviso = new NotificacionCancelacion(
@@ -397,6 +410,7 @@ public class EventoServiceImpl implements EventoService {
 
         evento.setEstado(EstadoEvento.AGOTADO);
         eventoRepository.saveAndFlush(evento);
+        catalogoCache.invalidarDespuesDeConfirmar();
         return detalle(evento);
     }
 
@@ -412,6 +426,7 @@ public class EventoServiceImpl implements EventoService {
 
         evento.setEstado(EstadoEvento.PUBLICADO);
         eventoRepository.saveAndFlush(evento);
+        catalogoCache.invalidarDespuesDeConfirmar();
         return detalle(evento);
     }
 
@@ -433,6 +448,7 @@ public class EventoServiceImpl implements EventoService {
 
         evento.setEstado(EstadoEvento.FINALIZADO);
         eventoRepository.saveAndFlush(evento);
+        catalogoCache.invalidarDespuesDeConfirmar();
         return detalle(evento);
     }
 

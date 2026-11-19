@@ -71,6 +71,8 @@ class EventoApiIntegrationTest {
     private record Registro(long eventoId, long sectorId, boolean numerado) {}
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void listadoPublicoSeparaEstadosSinRomperAdministracion() throws Exception {
         Registro registro = crearBase(false);
         cargarPrecios(registro);
@@ -81,12 +83,31 @@ class EventoApiIntegrationTest {
         mvc.perform(get("/eventos/buscar").param("incluirNoPublicados", "true"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(1)));
         mvc.perform(patch("/eventos/{id}/publicar", registro.eventoId)).andExpect(status().isOk());
+        JsonNode publicado = mapper.readTree(mvc.perform(get("/eventos/{id}", registro.eventoId))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        mvc.perform(get("/eventos/publicados")).andExpect(jsonPath("$[0].nombre", is("Recital")));
+        mvc.perform(get("/eventos/buscar").param("q", "Recital")).andExpect(jsonPath("$", hasSize(1)));
+        String cambio = """
+                {"nombre":"Concierto actualizado","descripcion":"Musica en vivo","tipo":"RECITAL",
+                 "organizadorId":%d,"lugarId":%d,"fechaHora":"%s","participantesIds":[%d],"altaDemanda":false}
+                """.formatted(publicado.path("organizador").path("id").asLong(),
+                publicado.path("lugar").path("id").asLong(), publicado.path("fechaHora").asText(),
+                publicado.path("participantes").get(0).path("id").asLong());
+        mvc.perform(put("/eventos/{id}", registro.eventoId).contentType(MediaType.APPLICATION_JSON).content(cambio))
+                .andExpect(status().isOk());
+        mvc.perform(get("/eventos/{id}", registro.eventoId))
+                .andExpect(jsonPath("$.nombre", is("Concierto actualizado")));
+        mvc.perform(get("/eventos/publicados"))
+                .andExpect(jsonPath("$[0].nombre", is("Concierto actualizado")));
+        mvc.perform(get("/eventos/buscar").param("q", "Recital")).andExpect(jsonPath("$", hasSize(0)));
         mvc.perform(patch("/eventos/{id}/agotar", registro.eventoId)).andExpect(status().isOk());
         mvc.perform(get("/eventos/publicados")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].estado", is("AGOTADO")));
         mvc.perform(patch("/eventos/{id}/suspender", registro.eventoId)).andExpect(status().isOk());
         mvc.perform(get("/eventos/publicados")).andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
+        mvc.perform(patch("/eventos/{id}/publicar", registro.eventoId)).andExpect(status().isOk());
+        mvc.perform(get("/eventos/publicados")).andExpect(jsonPath("$", hasSize(1)));
         mvc.perform(patch("/eventos/{id}/cancelar", registro.eventoId)).andExpect(status().isOk());
         mvc.perform(get("/eventos/publicados")).andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));

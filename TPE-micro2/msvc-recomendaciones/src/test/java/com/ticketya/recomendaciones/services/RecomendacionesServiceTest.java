@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import static org.mockito.Mockito.when;
 
+import feign.FeignException;
+
 import com.ticketya.recomendaciones.clients.CompraClient;
 import com.ticketya.recomendaciones.clients.EventoClient;
 import com.ticketya.recomendaciones.dtos.EventoDetalleDTO;
@@ -65,5 +67,31 @@ public class RecomendacionesServiceTest {
 
         assertEquals(1, resultado.size());
         assertEquals(2L, resultado.get(0).getId());
+    }
+
+    @Test
+    void conservaRecomendacionesPorPreferenciasSiFallaHistorialDeCompras() {
+        PreferenciasRepository repository = Mockito.mock(PreferenciasRepository.class);
+        EventoClient eventoClient = Mockito.mock(EventoClient.class);
+        CompraClient compraClient = Mockito.mock(CompraClient.class);
+        RecomendacionesService service = new RecomendacionesService(repository, eventoClient, compraClient);
+        Preferencias preferencias = new Preferencias();
+        preferencias.setClienteId(3L);
+        preferencias.setTiposEventos(List.of("RECITAL"));
+        preferencias.setArtistasFavoritos(List.of());
+        preferencias.setCiudad("Otra ciudad");
+        EventoResumenDTO evento = new EventoResumenDTO();
+        evento.setId(2L); evento.setNombre("Recital"); evento.setTipo("RECITAL");
+        evento.setEstado("PUBLICADO"); evento.setCiudad("Tandil");
+        evento.setFechaHora(LocalDateTime.now().plusDays(1));
+
+        when(repository.findByClienteId(3L)).thenReturn(Optional.of(preferencias));
+        when(eventoClient.listarEventosPublicados()).thenReturn(List.of(evento));
+        FeignException error = Mockito.mock(FeignException.class);
+        when(error.status()).thenReturn(503);
+        when(compraClient.obtenerEventosRecomendados(3L)).thenThrow(error);
+        when(eventoClient.obtenerEvento(2L)).thenReturn(new EventoDetalleDTO(2L, List.of()));
+
+        assertEquals(1, service.obtenerRecomendaciones(3L).size());
     }
 }

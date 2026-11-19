@@ -1,19 +1,5 @@
 package com.ticketya.notificaciones;
 
-import com.ticketya.notificaciones.dtos.ArtistaFavoritoRequestDTO;
-import com.ticketya.notificaciones.dtos.CompraConfirmadaRequestDTO;
-import com.ticketya.notificaciones.dtos.DestinatarioDTO;
-import com.ticketya.notificaciones.dtos.EventoModificadoRequestDTO;
-import com.ticketya.notificaciones.entities.EstadoNotificacion;
-import com.ticketya.notificaciones.entities.Notificacion;
-import com.ticketya.notificaciones.entities.TipoNotificacion;
-import com.ticketya.notificaciones.repositories.NotificacionRepository;
-import com.ticketya.notificaciones.services.impl.NotificacionServiceImpl;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.springframework.dao.DataIntegrityViolationException;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -23,12 +9,26 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import org.springframework.dao.DataIntegrityViolationException;
+
+import com.ticketya.notificaciones.dtos.ArtistaFavoritoRequestDTO;
+import com.ticketya.notificaciones.dtos.CompraConfirmadaRequestDTO;
+import com.ticketya.notificaciones.dtos.DestinatarioDTO;
+import com.ticketya.notificaciones.dtos.EventoModificadoRequestDTO;
+import com.ticketya.notificaciones.entities.EstadoNotificacion;
+import com.ticketya.notificaciones.entities.Notificacion;
+import com.ticketya.notificaciones.entities.TipoNotificacion;
+import com.ticketya.notificaciones.repositories.NotificacionRepository;
+import com.ticketya.notificaciones.services.impl.NotificacionServiceImpl;
 
 class NotificacionServiceTest {
 
@@ -98,19 +98,27 @@ class NotificacionServiceTest {
 
     @Test
     void registraAlArtistaFavoritoSiCoincideLaCiudad() {
-        var respuesta = service.registrarArtistaFavorito(publicacion(" tandil ", Set.of(8L, 10L)));
+        var respuesta = service.registrarArtistaFavorito(
+                publicacion(" tandil ", Set.of("Los Viajeros", "Otra Banda")));
+
         var captor = ArgumentCaptor.forClass(Notificacion.class);
         verify(repository).saveAndFlush(captor.capture());
 
-        assertThat(respuesta).hasValueSatisfying(aviso ->
-                assertThat(aviso.tipo()).isEqualTo(TipoNotificacion.ARTISTA_FAVORITO));
-        assertThat(captor.getValue().getMensaje()).contains("Los Viajeros", "Tandil", "05/12/2026 21:00");
+        assertThat(respuesta).hasValueSatisfying(aviso -> assertThat(aviso.tipo())
+                .isEqualTo(TipoNotificacion.ARTISTA_FAVORITO));
+
+        assertThat(captor.getValue().getMensaje())
+                .contains("Los Viajeros", "Tandil", "05/12/2026 21:00");
     }
 
     @Test
     void omiteLaPublicacionSiFaltaAlgunaCoincidencia() {
-        assertThat(service.registrarArtistaFavorito(publicacion("Azul", Set.of(8L)))).isEmpty();
-        assertThat(service.registrarArtistaFavorito(publicacion("Tandil", Set.of(5L)))).isEmpty();
+        assertThat(service.registrarArtistaFavorito(
+                publicacion("Azul", Set.of("Los Viajeros")))).isEmpty();
+
+        assertThat(service.registrarArtistaFavorito(
+                publicacion("Tandil", Set.of("Otra Banda")))).isEmpty();
+
         verifyNoInteractions(repository);
     }
 
@@ -119,9 +127,52 @@ class NotificacionServiceTest {
                 CLIENTE.email(), "Compra confirmada", "Compra #101", AHORA.minusSeconds(60));
     }
 
-    private ArtistaFavoritoRequestDTO publicacion(String ciudadCliente, Set<Long> favoritos) {
-        return new ArtistaFavoritoRequestDTO(CLIENTE, 45L, "Recital en Tandil",
-                LocalDateTime.parse("2026-12-05T21:00:00"), "Tandil", 8L, "Los Viajeros",
-                ciudadCliente, favoritos);
+    private ArtistaFavoritoRequestDTO publicacion(
+            String ciudadCliente,
+            Set<String> favoritos) {
+
+        return new ArtistaFavoritoRequestDTO(
+                CLIENTE,
+                45L,
+                "Recital en Tandil",
+                LocalDateTime.parse("2026-12-05T21:00:00"),
+                "Tandil",
+                "Los Viajeros",
+                ciudadCliente,
+                favoritos);
+    }
+
+    @Test
+    void noDuplicaNotificacionPorArtistaFavorito() {
+
+        var solicitud = publicacion(
+                "Tandil",
+                Set.of("Los Viajeros"));
+
+        Notificacion existente = new Notificacion(
+                TipoNotificacion.ARTISTA_FAVORITO,
+                45L,
+                0L,
+                CLIENTE.clienteId(),
+                CLIENTE.email(),
+                "TicketYa | Un artista favorito toca en tu ciudad",
+                "Notificacion existente",
+                AHORA.minusSeconds(60));
+
+        when(repository.findByTipoAndReferenciaIdAndVersionEventoAndClienteId(
+                TipoNotificacion.ARTISTA_FAVORITO,
+                45L,
+                0L,
+                12L)).thenReturn(Optional.of(existente));
+
+        var respuesta = service.registrarArtistaFavorito(solicitud);
+
+        assertThat(respuesta).isPresent();
+
+        assertThat(respuesta.get().creadaEn())
+                .isEqualTo(AHORA.minusSeconds(60));
+
+        verify(repository, never())
+                .saveAndFlush(any(Notificacion.class));
     }
 }

@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import ar.edu.unicen.ticketya.eventos.dto.ApiErrorResponseDTO;
@@ -31,8 +31,9 @@ import ar.edu.unicen.ticketya.eventos.feign.ReservasFeignClient;
 import ar.edu.unicen.ticketya.eventos.model.EstadoEvento;
 import ar.edu.unicen.ticketya.eventos.model.OrdenEvento;
 import ar.edu.unicen.ticketya.eventos.model.TipoEvento;
-import ar.edu.unicen.ticketya.eventos.service.EventoService;
+import ar.edu.unicen.ticketya.eventos.service.AvisoArtistasFavoritosService;
 import ar.edu.unicen.ticketya.eventos.service.CatalogoCacheService;
+import ar.edu.unicen.ticketya.eventos.service.EventoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -55,6 +56,8 @@ public class EventoController {
     private final EventoService eventoService;
 
     private final ReservasFeignClient reservasFeignClient;
+
+    private final AvisoArtistasFavoritosService avisoArtistasFavoritosService;
     private final CatalogoCacheService catalogoCache;
 
     @Value("${app.integraciones.habilitadas:false}")
@@ -63,11 +66,13 @@ public class EventoController {
     public EventoController(
             EventoService eventoService,
             ReservasFeignClient reservasFeignClient,
-            CatalogoCacheService catalogoCache) {
+            CatalogoCacheService catalogoCache,
+            AvisoArtistasFavoritosService avisoArtistasFavoritosService) {
 
         this.eventoService = eventoService;
         this.reservasFeignClient = reservasFeignClient;
         this.catalogoCache = catalogoCache;
+        this.avisoArtistasFavoritosService = avisoArtistasFavoritosService;
     }
 
     @Operation(summary = "Crear un evento en estado BORRADOR")
@@ -154,12 +159,15 @@ public class EventoController {
     @PatchMapping("/{id}/publicar")
     @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.event(#id)")
     public EventoResponseDTO publicar(@PathVariable Long id) {
+
         EventoResponseDTO publicado = eventoService.publicar(id);
 
         if (integracionesHabilitadas
                 && publicado.getEstado() == EstadoEvento.PUBLICADO) {
 
             reservasFeignClient.habilitarEvento(id);
+
+            avisoArtistasFavoritosService.notificarPublicacion(publicado);
         }
 
         return publicado;

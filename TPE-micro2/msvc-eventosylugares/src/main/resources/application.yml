@@ -47,6 +47,7 @@ app:
     entradas-base-url: ${ENTRADAS_URL:http://localhost:8083}
     compras-base-url: ${COMPRAS_URL:http://localhost:8082}
     usuarios-base-url: ${USUARIOS_URL:http://localhost:8085}
+    recomendaciones-base-url: ${RECOMENDACIONES_URL:http://localhost:8086}
     notificaciones-base-url: ${NOTIFICACIONES_URL:http://localhost:8087}
 
     entradas-habilitadas: ${ENTRADAS_HABILITADAS:true}

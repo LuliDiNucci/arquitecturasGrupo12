@@ -1,0 +1,471 @@
+{
+    "date":  "2026-11-19",
+    "timezone":  "America/Buenos_Aires",
+    "baseCommit":  "30f40ea61117d6ff2e70d327fd36bb054a310510",
+    "buildCommand":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\Verify-Security.ps1 -Service todos -MavenRepository C:\\Users\\usuario\\.m2\\repository -Offline",
+    "builds":  [
+                   {
+                       "service":  "observability",
+                       "command":  "mvn clean install",
+                       "exitCode":  0
+                   },
+                   {
+                       "service":  "msvc-usuarios",
+                       "command":  "mvn clean install",
+                       "exitCode":  0
+                   },
+                   {
+                       "service":  "msvc-eventosylugares",
+                       "command":  "mvn clean install",
+                       "exitCode":  0
+                   },
+                   {
+                       "service":  "msvc-reservas",
+                       "command":  "mvn clean install",
+                       "exitCode":  0
+                   },
+                   {
+                       "service":  "msvc-compras",
+                       "command":  "mvn clean install",
+                       "exitCode":  0
+                   },
+                   {
+                       "service":  "msvc-entradas",
+                       "command":  "mvn clean install",
+                       "exitCode":  0
+                   },
+                   {
+                       "service":  "msvc-gateway",
+                       "command":  "mvn clean install",
+                       "exitCode":  0
+                   },
+                   {
+                       "service":  "msvc-notificaciones",
+                       "command":  "mvn clean install",
+                       "exitCode":  0
+                   },
+                   {
+                       "service":  "msvc-fila-virtual",
+                       "command":  "mvn clean install",
+                       "exitCode":  0
+                   },
+                   {
+                       "service":  "msvc-recomendaciones",
+                       "command":  "mvn clean install",
+                       "exitCode":  0
+                   }
+               ],
+    "tests":  [
+                  {
+                      "module":  "observability",
+                      "suites":  [
+                                     {
+                                         "name":  "com.ticketya.observability.HttpClientCorrelationTest",
+                                         "tests":  2,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.429
+                                     },
+                                     {
+                                         "name":  "com.ticketya.observability.HttpLoggingTest",
+                                         "tests":  18,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.113
+                                     },
+                                     {
+                                         "name":  "com.ticketya.observability.ReactiveHttpLoggingTest",
+                                         "tests":  2,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.373
+                                     }
+                                 ]
+                  },
+                  {
+                      "module":  "msvc-compras",
+                      "suites":  [
+                                     {
+                                         "name":  "com.ticketya.compras.security.InternalCredentialsTest",
+                                         "tests":  3,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  1
+                                     },
+                                     {
+                                         "name":  "com.ticketya.compras.security.ServiceSecurityIntegrationTest",
+                                         "tests":  70,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  29.773
+                                     },
+                                     {
+                                         "name":  "com.ticketya.compras.services.CompraServiceImplTest",
+                                         "tests":  3,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  1.638
+                                     },
+                                     {
+                                         "name":  "com.ticketya.compras.services.PagoServiceImplTest",
+                                         "tests":  4,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.4
+                                     },
+                                     {
+                                         "name":  "com.ticketya.compras.services.ReintegroServiceImplTest",
+                                         "tests":  4,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.269
+                                     }
+                                 ]
+                  },
+                  {
+                      "module":  "msvc-entradas",
+                      "suites":  [
+                                     {
+                                         "name":  "com.ticketya.entradas.EntradaServiceTest",
+                                         "tests":  3,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  1.336
+                                     },
+                                     {
+                                         "name":  "com.ticketya.entradas.MsvcEntradasApplicationTests",
+                                         "tests":  2,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  33.937
+                                     },
+                                     {
+                                         "name":  "com.ticketya.entradas.security.InternalCredentialsTest",
+                                         "tests":  3,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.689
+                                     },
+                                     {
+                                         "name":  "com.ticketya.entradas.security.ServiceSecurityIntegrationTest",
+                                         "tests":  55,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  6.365
+                                     },
+                                     {
+                                         "name":  "com.ticketya.entradas.services.DevolucionServiceImplTest",
+                                         "tests":  6,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.4
+                                     },
+                                     {
+                                         "name":  "com.ticketya.entradas.services.impl.EntradaServiceImplTest",
+                                         "tests":  14,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.228
+                                     },
+                                     {
+                                         "name":  "com.ticketya.entradas.services.impl.QrCodeServiceImplTest",
+                                         "tests":  2,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.166
+                                     }
+                                 ]
+                  },
+                  {
+                      "module":  "msvc-eventosylugares",
+                      "suites":  [
+                                     {
+                                         "name":  "ar.edu.unicen.ticketya.eventos.integration.EventoApiIntegrationTest",
+                                         "tests":  7,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  14.814
+                                     },
+                                     {
+                                         "name":  "ar.edu.unicen.ticketya.eventos.integration.OrganizadorUsuarioIntegrationTest",
+                                         "tests":  16,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  3.275
+                                     },
+                                     {
+                                         "name":  "ar.edu.unicen.ticketya.eventos.security.InternalCredentialsTest",
+                                         "tests":  3,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.111
+                                     },
+                                     {
+                                         "name":  "ar.edu.unicen.ticketya.eventos.security.ServiceSecurityIntegrationTest",
+                                         "tests":  124,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  4.683
+                                     },
+                                     {
+                                         "name":  "ar.edu.unicen.ticketya.eventos.service.AsientoServiceTest",
+                                         "tests":  5,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.179
+                                     },
+                                     {
+                                         "name":  "ar.edu.unicen.ticketya.eventos.service.EventoServiceTest",
+                                         "tests":  10,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.517
+                                     },
+                                     {
+                                         "name":  "ar.edu.unicen.ticketya.eventos.service.NotificadorCancelacionesTest",
+                                         "tests":  4,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.13
+                                     },
+                                     {
+                                         "name":  "ar.edu.unicen.ticketya.eventos.service.SectorServiceTest",
+                                         "tests":  2,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.007
+                                     }
+                                 ]
+                  },
+                  {
+                      "module":  "msvc-fila-virtual",
+                      "suites":  [
+                                     {
+                                         "name":  "com.ticketya.msvc_fila_virtual.FilaVirtualConcurrenciaTest",
+                                         "tests":  2,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  11.365
+                                     },
+                                     {
+                                         "name":  "com.ticketya.msvc_fila_virtual.FilaVirtualSecurityTest",
+                                         "tests":  8,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  1.842
+                                     },
+                                     {
+                                         "name":  "com.ticketya.msvc_fila_virtual.FilaVirtualServiceImplTest",
+                                         "tests":  10,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.126
+                                     },
+                                     {
+                                         "name":  "com.ticketya.msvc_fila_virtual.MsvcFilaVirtualApplicationTests",
+                                         "tests":  1,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  2.698
+                                     }
+                                 ]
+                  },
+                  {
+                      "module":  "msvc-gateway",
+                      "suites":  [
+                                     {
+                                         "name":  "com.ticketya.gateway.MsvcGatewayApplicationTests",
+                                         "tests":  14,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  10.734
+                                     }
+                                 ]
+                  },
+                  {
+                      "module":  "msvc-notificaciones",
+                      "suites":  [
+                                     {
+                                         "name":  "com.ticketya.notificaciones.NotificacionApiIntegrationTest",
+                                         "tests":  6,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  8.527
+                                     },
+                                     {
+                                         "name":  "com.ticketya.notificaciones.NotificacionServiceTest",
+                                         "tests":  7,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.141
+                                     },
+                                     {
+                                         "name":  "com.ticketya.notificaciones.ProcesadorNotificacionesIntegrationTest",
+                                         "tests":  3,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.816
+                                     },
+                                     {
+                                         "name":  "com.ticketya.notificaciones.security.NotificationSecurityIntegrationTest",
+                                         "tests":  15,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.893
+                                     }
+                                 ]
+                  },
+                  {
+                      "module":  "msvc-recomendaciones",
+                      "suites":  [
+                                     {
+                                         "name":  "com.ticketya.recomendaciones.security.RecommendationSecurityTest",
+                                         "tests":  3,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  6.167
+                                     },
+                                     {
+                                         "name":  "com.ticketya.recomendaciones.services.RecomendacionesServiceTest",
+                                         "tests":  1,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.214
+                                     }
+                                 ]
+                  },
+                  {
+                      "module":  "msvc-reservas",
+                      "suites":  [
+                                     {
+                                         "name":  "com.ticketya.reservas.security.InternalCredentialsTest",
+                                         "tests":  3,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  1.116
+                                     },
+                                     {
+                                         "name":  "com.ticketya.reservas.security.ServiceSecurityIntegrationTest",
+                                         "tests":  51,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  29.839
+                                     },
+                                     {
+                                         "name":  "com.ticketya.reservas.services.ReservaServiceImplTest",
+                                         "tests":  10,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  2.742
+                                     }
+                                 ]
+                  },
+                  {
+                      "module":  "msvc-usuarios",
+                      "suites":  [
+                                     {
+                                         "name":  "com.ticketya.usuarios.AuthSecurityIntegrationTest",
+                                         "tests":  14,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  9.036
+                                     },
+                                     {
+                                         "name":  "com.ticketya.usuarios.security.JwtValidationTest",
+                                         "tests":  16,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.184
+                                     },
+                                     {
+                                         "name":  "com.ticketya.usuarios.security.LoginAttemptLimiterTest",
+                                         "tests":  1,
+                                         "failures":  0,
+                                         "errors":  0,
+                                         "skipped":  0,
+                                         "seconds":  0.294
+                                     }
+                                 ]
+                  }
+              ],
+    "smokeCommand":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\Smoke-Security.ps1 -MavenRepository C:\\Users\\usuario\\.m2\\repository",
+    "smokeRun":  ".local-security-smoke/run-20261119-174937",
+    "smoke":  {
+                  "servicesInTrace":  [
+                                          "msvc-compras",
+                                          "msvc-entradas",
+                                          "msvc-eventos-lugares",
+                                          "msvc-gateway",
+                                          "msvc-notificaciones",
+                                          "msvc-reservas",
+                                          "msvc-usuarios"
+                                      ],
+                  "result":  "PASS",
+                  "flow":  "registro-login-gateway-publicacion-reserva-pago-emision-devolucion-cancelacion-qr-notificaciones-error",
+                  "errorCorrelationId":  "smoke-error-892b168c-a16c-4fea-bc25-c531ec865d03",
+                  "database":  "H2 en memoria, una por servicio",
+                  "loki":  "NO EJECUTADO",
+                  "correlationId":  "smoke-ab57f78e-07da-4cc6-b266-69d0b00be945",
+                  "checks":  69
+              },
+    "compose":  {
+                    "command":  "docker compose --env-file .local-observability/compose-validation/.env -f docker-compose.yml -f docker-compose.observability.yml config --quiet",
+                    "exitCode":  0
+                },
+    "diffCheck":  {
+                      "command":  "git diff --check",
+                      "exitCode":  0
+                  },
+    "centralization":  {
+                           "status":  "NO EJECUTADA",
+                           "reason":  "Docker Desktop Linux Engine no iniciado; pipe dockerDesktopLinuxEngine ausente",
+                           "validator":  "scripts/Verify-CentralizedLogs.ps1"
+                       },
+    "notExecuted":  [
+                        "Loki/Alloy native configuration validation",
+                        "Loki ingestion and cross-service query",
+                        "Docker image builds and MySQL/MariaDB/Mongo deployments",
+                        "ConcurrenciaMySQLIT",
+                        "PagoConcurrenciaMySQLIT",
+                        "Fila Virtual concurrency on actual MySQL"
+                    ]
+}

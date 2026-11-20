@@ -3,7 +3,18 @@ x-jwt: &jwt
   JWT_PUBLIC_KEY: file:/run/secrets/jwt-public.pem
   JWT_ISSUER: ticketya-usuarios
   JWT_AUDIENCE: ticketya-api
+  TICKETYA_LOG_DIR: /var/log/ticketya
 services:
+  # El colector puede montar primero el volumen vacío. Fijar su propietario antes
+  # de iniciar Java evita depender del orden de creación de los contenedores.
+  logs-init:
+    image: eclipse-temurin:21-jre
+    user: "0:0"
+    entrypoint: ["sh", "-c"]
+    command: ["chown -R 10001:10001 /var/log/ticketya && chmod 0755 /var/log/ticketya"]
+    volumes:
+      - application-logs:/var/log/ticketya
+    restart: "no"
   db-usuarios:
     image: mysql:8.4
     environment:
@@ -121,7 +132,9 @@ services:
       timeout: 5s
       retries: 5
   usuarios:
-    build: ./msvc-usuarios
+    build:
+      context: .
+      dockerfile: msvc-usuarios/Dockerfile
     environment:
       <<: *jwt
       PORT: 8085
@@ -145,12 +158,17 @@ services:
     ports: ["8085:8085"]
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+      - application-logs:/var/log/ticketya
       - ./.secrets/jwt-private.pem:/run/secrets/jwt-private.pem:ro
     depends_on:
+      logs-init:
+        condition: service_completed_successfully
       db-usuarios:
         condition: service_healthy
   eventos:
-    build: ./msvc-eventosylugares
+    build:
+      context: .
+      dockerfile: msvc-eventosylugares/Dockerfile
     environment:
       <<: *jwt
       PORT: 8081
@@ -166,16 +184,22 @@ services:
       COMPRAS_URL: http://compras:8082
       ENTRADAS_URL: http://entradas:8083
       NOTIFICACIONES_URL: http://notificaciones:8087
+      RECOMENDACIONES_URL: http://recomendaciones:8086
     ports: ["8081:8081"]
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+      - application-logs:/var/log/ticketya
     depends_on:
+      logs-init:
+        condition: service_completed_successfully
       db-eventos:
         condition: service_healthy
       usuarios:
         condition: service_started
   reservas:
-    build: ./msvc-reservas
+    build:
+      context: .
+      dockerfile: msvc-reservas/Dockerfile
     environment:
       <<: *jwt
       PORT: 8080
@@ -194,13 +218,18 @@ services:
     ports: ["8080:8080"]
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+      - application-logs:/var/log/ticketya
     depends_on:
+      logs-init:
+        condition: service_completed_successfully
       db-reservas:
         condition: service_healthy
       usuarios:
         condition: service_started
   recomendaciones:
-    build: ./msvc-recomendaciones
+    build:
+      context: .
+      dockerfile: msvc-recomendaciones/Dockerfile
     environment:
       <<: *jwt
       PORT: 8086
@@ -211,13 +240,18 @@ services:
       - "8086:8086"
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+      - application-logs:/var/log/ticketya
     depends_on:
+      logs-init:
+        condition: service_completed_successfully
       db-recomendaciones:
         condition: service_healthy
       eventos:
         condition: service_started
   fila-virtual:
-    build: ./msvc-fila-virtual
+    build:
+      context: .
+      dockerfile: msvc-fila-virtual/Dockerfile
     environment:
       <<: *jwt
       PORT: 8088
@@ -229,13 +263,18 @@ services:
       - "8088:8088"
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+      - application-logs:/var/log/ticketya
     depends_on:
+      logs-init:
+        condition: service_completed_successfully
       db-fila-virtual:
         condition: service_healthy
       eventos:
         condition: service_started
   compras:
-    build: ./msvc-compras
+    build:
+      context: .
+      dockerfile: msvc-compras/Dockerfile
     environment:
       <<: *jwt
       PORT: 8082
@@ -255,14 +294,20 @@ services:
     ports: ["8082:8082"]
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+      - application-logs:/var/log/ticketya
     depends_on:
+      logs-init:
+        condition: service_completed_successfully
       db-compras:
         condition: service_healthy
       usuarios:
         condition: service_started
   notificaciones:
-    build: ./msvc-notificaciones
+    build:
+      context: .
+      dockerfile: msvc-notificaciones/Dockerfile
     environment:
+      <<: *jwt
       PORT: 8087
       DB_URL: jdbc:mysql://db-notificaciones:3306/ticketya_notificaciones?allowPublicKeyRetrieval=true&useSSL=false
       DB_USER: ticketya
@@ -271,13 +316,20 @@ services:
       SMTP_PORT: 1025
       MAIL_FROM: notificaciones@ticketya.test
     ports: ["8087:8087"]
+    volumes:
+      - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+      - application-logs:/var/log/ticketya
     depends_on:
+      logs-init:
+        condition: service_completed_successfully
       db-notificaciones:
         condition: service_healthy
       mailpit:
         condition: service_started
   entradas:
-    build: ./msvc-entradas
+    build:
+      context: .
+      dockerfile: msvc-entradas/Dockerfile
     environment:
       <<: *jwt
       PORT: 8083
@@ -295,13 +347,18 @@ services:
     ports: ["8083:8083"]
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+      - application-logs:/var/log/ticketya
     depends_on:
+      logs-init:
+        condition: service_completed_successfully
       db-entradas:
         condition: service_healthy
       usuarios:
         condition: service_started
   gateway:
-    build: ./msvc-gateway
+    build:
+      context: .
+      dockerfile: msvc-gateway/Dockerfile
     environment:
       <<: *jwt
       PORT: 8084
@@ -312,13 +369,18 @@ services:
       ENTRADAS_URL: http://entradas:8083
       FILA_VIRTUAL_URL: http://fila-virtual:8088
       RECOMENDACIONES_URL: http://recomendaciones:8086
+      NOTIFICACIONES_URL: http://notificaciones:8087
     ports: ["8084:8084"]
     volumes:
       - ./.secrets/jwt-public.pem:/run/secrets/jwt-public.pem:ro
+      - application-logs:/var/log/ticketya
     depends_on:
+      logs-init:
+        condition: service_completed_successfully
       usuarios:
         condition: service_started
 volumes:
+  application-logs:
   db-usuarios:
   db-eventos:
   db-reservas:

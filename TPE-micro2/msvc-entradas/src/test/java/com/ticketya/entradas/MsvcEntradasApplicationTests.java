@@ -26,6 +26,43 @@ class MsvcEntradasApplicationTests {
     private org.springframework.test.web.servlet.MockMvc mvc;
 
     @Test
+    void qrRequiresStaffAssignedToThisEventAndCannotBeUsedTwice() throws Exception {
+        var ticket = new com.ticketya.entradas.entities.Entrada();
+        ticket.setCompraId(2L); ticket.setReservaId(2L); ticket.setDetalleReservaId(2L);
+        ticket.setIndiceLugar(1); ticket.setClienteId(7L); ticket.setEventoId(21L); ticket.setSectorId(1L);
+        ticket.setCodigoQr(java.util.UUID.randomUUID().toString()); ticket.setEstado("EMITIDA");
+        ticket.setFechaEmision(java.time.LocalDateTime.now()); repository.saveAndFlush(ticket);
+        String body = "{\"codigoQr\":\"" + ticket.getCodigoQr() + "\",\"eventoId\":21}";
+        String staff = "Bearer " + com.ticketya.entradas.security.TestTokens.user(10, "PERSONAL_ACCESO");
+        String client = "Bearer " + com.ticketya.entradas.security.TestTokens.user(7, "CLIENTE");
+        String admin = "Bearer " + com.ticketya.entradas.security.TestTokens.user(1, "ADMINISTRADOR");
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/entradas/validar")
+            .contentType("application/json").content(body))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnauthorized());
+        for (String token : java.util.List.of(client, staff)) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/entradas/validar")
+                .header("Authorization", token).contentType("application/json").content(body))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
+        }
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/entradas/accesos/eventos/21/personal/10")
+            .header("Authorization", client)).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/entradas/accesos/eventos/21/personal/10")
+            .header("Authorization", admin)).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNoContent());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/entradas/validar")
+            .header("Authorization", staff).contentType("application/json").content(body))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.estado").value("UTILIZADA"));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/entradas/validar")
+            .header("Authorization", staff).contentType("application/json").content(body))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isConflict());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/entradas/accesos/eventos/21/personal/10")
+            .header("Authorization", admin)).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNoContent());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/entradas/validar")
+            .header("Authorization", staff).contentType("application/json").content(body))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
+    }
+
+    @Test
     void ownershipIsEnforcedAgainstPersistedTicket() throws Exception {
         var ticket = new com.ticketya.entradas.entities.Entrada();
         ticket.setCompraId(1L); ticket.setReservaId(1L); ticket.setDetalleReservaId(1L);

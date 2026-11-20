@@ -207,12 +207,62 @@ class MsvcGatewayApplicationTests {
             .exchange().expectStatus().isOk();
     }
 
+    @Test
+    void preservesCorrelationInDownstreamAndAllHttpResponses() {
+        String id = "compra-123.gateway";
+        webClient.get().uri("/eventos/publicados")
+            .header("X-Correlation-ID", id).exchange().expectStatus().isOk()
+            .expectHeader().valueEquals("X-Correlation-ID", id);
+        assertEquals(id, eventos.correlation.get());
+        for (int status : java.util.List.of(400, 401, 403, 500)) {
+            compras.status = status;
+            webClient.post().uri("/compras").header("Authorization", "Bearer " + TestTokens.user(10, "CLIENTE"))
+                .header("X-Correlation-ID", id).exchange().expectStatus().isEqualTo(status)
+                .expectHeader().valueEquals("X-Correlation-ID", id);
+            assertEquals(id, compras.correlation.get());
+        }
+        webClient.get().uri("/usuarios/me").header("X-Correlation-ID", id).exchange()
+            .expectStatus().isUnauthorized().expectHeader().valueEquals("X-Correlation-ID", id);
+        webClient.post().uri("/entradas/validar").header("Authorization", "Bearer " + TestTokens.user(10, "CLIENTE"))
+            .header("X-Correlation-ID", id).exchange().expectStatus().isForbidden()
+            .expectHeader().valueEquals("X-Correlation-ID", id);
+    }
+
+    @Test
+    void generatesAndSanitizesCorrelationBeforeRoutingIncludingConnectionFailures() {
+        for (String[] incoming : java.util.List.of(new String[]{}, new String[]{"invalid value"},
+                new String[]{"a".repeat(65)}, new String[]{"one", "two"})) {
+            String id = webClient.get().uri("/eventos/publicados").headers(headers -> {
+                for (String value : incoming) headers.add("X-Correlation-ID", value);
+            }).exchange().expectStatus().isOk().returnResult(String.class).getResponseHeaders().getFirst("X-Correlation-ID");
+            java.util.UUID.fromString(id);
+            assertEquals(id, eventos.correlation.get());
+        }
+        entradas.stop();
+        webClient.get().uri("/entradas/1").header("Authorization", "Bearer " + TestTokens.user(10, "CLIENTE"))
+            .header("X-Correlation-ID", "connection-failure").exchange().expectStatus().is5xxServerError()
+            .expectHeader().valueEquals("X-Correlation-ID", "connection-failure");
+    }
+
+    @Test
+    void routesQrForStaffButDeniesNotificationWritesForHumanTokens() {
+        webClient.post().uri("/entradas/validar").header("Authorization", "Bearer " + TestTokens.user(10, "PERSONAL_ACCESO"))
+            .bodyValue("{\"eventoId\":1,\"codigoQr\":\"code\"}").exchange().expectStatus().isOk();
+        assertEquals("/entradas/validar", entradas.path());
+        for (String role : java.util.List.of("CLIENTE", "ADMINISTRADOR", "ORGANIZADOR", "PERSONAL_ACCESO")) {
+            webClient.post().uri("/notificaciones/compras-confirmadas")
+                .header("Authorization", "Bearer " + TestTokens.user(10, role)).bodyValue("{}")
+                .exchange().expectStatus().isForbidden();
+        }
+    }
+
     private static final class StubService {
         private final String response;
         private final AtomicReference<String> method = new AtomicReference<>();
         private final AtomicReference<String> path = new AtomicReference<>();
         private final AtomicReference<String> body = new AtomicReference<>();
         private final AtomicReference<String> authorization = new AtomicReference<>();
+        private final AtomicReference<String> correlation = new AtomicReference<>();
         private final int port;
         private volatile HttpServer server;
         private volatile int status = 200;
@@ -281,6 +331,7 @@ class MsvcGatewayApplicationTests {
             public void handle(HttpExchange exchange) throws IOException {
                 method.set(exchange.getRequestMethod());
                 authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+                correlation.set(exchange.getRequestHeaders().getFirst("X-Correlation-ID"));
                 path.set(exchange.getRequestURI().toString());
                 try (InputStream input = exchange.getRequestBody()) {
                     body.set(new String(input.readAllBytes(), StandardCharsets.UTF_8));

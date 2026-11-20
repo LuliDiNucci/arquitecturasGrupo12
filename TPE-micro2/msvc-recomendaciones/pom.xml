@@ -37,6 +37,9 @@
     </dependencyManagement>
 
     <dependencies>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webmvc-test</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-test</artifactId><scope>test</scope></dependency>
+      <dependency><groupId>com.ticketya</groupId><artifactId>ticketya-observability</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
         <!-- Seguridad JWT -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

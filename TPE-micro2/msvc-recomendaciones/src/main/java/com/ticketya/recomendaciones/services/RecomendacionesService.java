@@ -8,6 +8,9 @@ import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
+import feign.FeignException;
+import feign.RetryableException;
+
 import com.ticketya.recomendaciones.clients.CompraClient;
 import com.ticketya.recomendaciones.clients.EventoClient;
 import com.ticketya.recomendaciones.dtos.EventoDetalleDTO;
@@ -46,7 +49,7 @@ public class RecomendacionesService {
         List<EventoResumenDTO> eventos = eventoClient.listarEventosPublicados();
 
         // Obtener sugerencias basadas en compras confirmadas
-        List<Long> historial = compraClient.obtenerEventosRecomendados(clienteId);
+        List<Long> historial = obtenerHistorialSiDisponible(clienteId);
 
         Set<Long> eventosPorHistorial = new HashSet<>();
 
@@ -144,6 +147,19 @@ public class RecomendacionesService {
 
         return evento.getFechaHora() != null
                 && evento.getFechaHora().isAfter(LocalDateTime.now());
+    }
+
+    private List<Long> obtenerHistorialSiDisponible(Long clienteId) {
+        try {
+            return compraClient.obtenerEventosRecomendados(clienteId);
+        } catch (RetryableException ex) {
+            return List.of();
+        } catch (FeignException ex) {
+            if (ex.status() >= 500 && ex.status() <= 599) {
+                return List.of();
+            }
+            throw ex;
+        }
     }
 
     private boolean coincideEnLista(

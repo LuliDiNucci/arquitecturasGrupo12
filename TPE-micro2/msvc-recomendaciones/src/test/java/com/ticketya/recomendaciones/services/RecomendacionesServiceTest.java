@@ -18,6 +18,8 @@ import com.ticketya.recomendaciones.dtos.EventoResumenDTO;
 import com.ticketya.recomendaciones.models.Preferencias;
 import com.ticketya.recomendaciones.repositories.PreferenciasRepository;
 
+import feign.FeignException;
+
 public class RecomendacionesServiceTest {
 
     @Test
@@ -65,5 +67,81 @@ public class RecomendacionesServiceTest {
 
         assertEquals(1, resultado.size());
         assertEquals(2L, resultado.get(0).getId());
+    }
+
+    @Test
+    void noRecomiendaEventosVencidosNiNoPublicados() {
+
+        PreferenciasRepository repository = Mockito.mock(PreferenciasRepository.class);
+
+        EventoClient eventoClient = Mockito.mock(EventoClient.class);
+
+        CompraClient compraClient = Mockito.mock(CompraClient.class);
+
+        RecomendacionesService service = new RecomendacionesService(
+                repository, eventoClient, compraClient);
+
+        Preferencias preferencias = new Preferencias();
+        preferencias.setClienteId(6L);
+        preferencias.setTiposEventos(List.of("RECITAL"));
+        preferencias.setArtistasFavoritos(List.of());
+        preferencias.setCiudad("Tandil");
+
+        // Evento publicado, pero con fecha pasada
+        EventoResumenDTO vencido = new EventoResumenDTO();
+        vencido.setId(10L);
+        vencido.setNombre("Recital vencido");
+        vencido.setTipo("RECITAL");
+        vencido.setEstado("PUBLICADO");
+        vencido.setCiudad("Tandil");
+        vencido.setFechaHora(LocalDateTime.now().minusDays(5));
+
+        // Evento futuro, pero suspendido
+        EventoResumenDTO suspendido = new EventoResumenDTO();
+        suspendido.setId(11L);
+        suspendido.setNombre("Recital suspendido");
+        suspendido.setTipo("RECITAL");
+        suspendido.setEstado("SUSPENDIDO");
+        suspendido.setCiudad("Tandil");
+        suspendido.setFechaHora(LocalDateTime.now().plusDays(30));
+
+        when(repository.findByClienteId(6L))
+                .thenReturn(Optional.of(preferencias));
+
+        when(eventoClient.listarEventosPublicados())
+                .thenReturn(List.of(vencido, suspendido));
+
+        when(compraClient.obtenerEventosRecomendados(6L))
+                .thenReturn(List.of(10L, 11L));
+
+        List<EventoRecomendadoDTO> resultado = service.obtenerRecomendaciones(6L);
+
+        assertEquals(0, resultado.size());
+    }
+
+    @Test
+    void conservaRecomendacionesPorPreferenciasSiFallaHistorialDeCompras() {
+        PreferenciasRepository repository = Mockito.mock(PreferenciasRepository.class);
+        EventoClient eventoClient = Mockito.mock(EventoClient.class);
+        CompraClient compraClient = Mockito.mock(CompraClient.class);
+        RecomendacionesService service = new RecomendacionesService(repository, eventoClient, compraClient);
+        Preferencias preferencias = new Preferencias();
+        preferencias.setClienteId(3L);
+        preferencias.setTiposEventos(List.of("RECITAL"));
+        preferencias.setArtistasFavoritos(List.of());
+        preferencias.setCiudad("Otra ciudad");
+        EventoResumenDTO evento = new EventoResumenDTO();
+        evento.setId(2L); evento.setNombre("Recital"); evento.setTipo("RECITAL");
+        evento.setEstado("PUBLICADO"); evento.setCiudad("Tandil");
+        evento.setFechaHora(LocalDateTime.now().plusDays(1));
+
+        when(repository.findByClienteId(3L)).thenReturn(Optional.of(preferencias));
+        when(eventoClient.listarEventosPublicados()).thenReturn(List.of(evento));
+        FeignException error = Mockito.mock(FeignException.class);
+        when(error.status()).thenReturn(503);
+        when(compraClient.obtenerEventosRecomendados(3L)).thenThrow(error);
+        when(eventoClient.obtenerEvento(2L)).thenReturn(new EventoDetalleDTO(2L, List.of()));
+
+        assertEquals(1, service.obtenerRecomendaciones(3L).size());
     }
 }

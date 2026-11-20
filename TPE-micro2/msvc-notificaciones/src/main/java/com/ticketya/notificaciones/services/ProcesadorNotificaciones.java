@@ -40,21 +40,24 @@ public class ProcesadorNotificaciones {
     }
 
     private void enviar(Notificacion notificacion) {
-        SimpleMailMessage correo = new SimpleMailMessage();
-        correo.setFrom(configuracion.remitente());
-        correo.setTo(notificacion.getEmail());
-        correo.setSubject(notificacion.getAsunto());
-        correo.setText(notificacion.getMensaje());
+        try (var correlation = com.ticketya.observability.Correlation.open(notificacion.getCorrelationId())) {
+            SimpleMailMessage correo = new SimpleMailMessage();
+            correo.setFrom(configuracion.remitente());
+            correo.setTo(notificacion.getEmail());
+            correo.setSubject(notificacion.getAsunto());
+            correo.setText(notificacion.getMensaje());
 
-        try {
-            mailSender.send(correo);
-            notificacion.registrarEnvio(reloj.instant());
-        } catch (MailException ex) {
-            notificacion.registrarFallo(ex.getClass().getSimpleName(), reloj.instant(),
-                    configuracion.maxIntentos(), configuracion.reintentoSegundos());
-            log.warn("Falló el intento {} de la notificación {}. Estado: {}. Error: {}",
-                    notificacion.getIntentos(), notificacion.getId(),
-                    notificacion.getEstado(), notificacion.getUltimoError());
+            try {
+                mailSender.send(correo);
+                notificacion.registrarEnvio(reloj.instant());
+                log.info("Notificación {} enviada", notificacion.getId());
+            } catch (MailException ex) {
+                notificacion.registrarFallo(ex.getClass().getSimpleName(), reloj.instant(),
+                        configuracion.maxIntentos(), configuracion.reintentoSegundos());
+                log.warn("Falló el intento {} de la notificación {}. Estado: {}. Error: {}",
+                        notificacion.getIntentos(), notificacion.getId(),
+                        notificacion.getEstado(), notificacion.getUltimoError());
+            }
         }
     }
 }

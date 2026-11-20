@@ -8,3 +8,6 @@
 .local-security-smoke/
 .m2-repository/
 verification-*.json
+logs/
+.local-observability/
+.tools/

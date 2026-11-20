@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,6 +31,8 @@ import ar.edu.unicen.ticketya.eventos.feign.ReservasFeignClient;
 import ar.edu.unicen.ticketya.eventos.model.EstadoEvento;
 import ar.edu.unicen.ticketya.eventos.model.OrdenEvento;
 import ar.edu.unicen.ticketya.eventos.model.TipoEvento;
+import ar.edu.unicen.ticketya.eventos.service.AvisoArtistasFavoritosService;
+import ar.edu.unicen.ticketya.eventos.service.CatalogoCacheService;
 import ar.edu.unicen.ticketya.eventos.service.EventoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -54,15 +57,22 @@ public class EventoController {
 
     private final ReservasFeignClient reservasFeignClient;
 
+    private final AvisoArtistasFavoritosService avisoArtistasFavoritosService;
+    private final CatalogoCacheService catalogoCache;
+
     @Value("${app.integraciones.habilitadas:false}")
     private boolean integracionesHabilitadas;
 
     public EventoController(
             EventoService eventoService,
-            ReservasFeignClient reservasFeignClient) {
+            ReservasFeignClient reservasFeignClient,
+            CatalogoCacheService catalogoCache,
+            AvisoArtistasFavoritosService avisoArtistasFavoritosService) {
 
         this.eventoService = eventoService;
         this.reservasFeignClient = reservasFeignClient;
+        this.catalogoCache = catalogoCache;
+        this.avisoArtistasFavoritosService = avisoArtistasFavoritosService;
     }
 
     @Operation(summary = "Crear un evento en estado BORRADOR")
@@ -84,8 +94,8 @@ public class EventoController {
     @Operation(summary = "Listar eventos publicados y agotados (consulta publica)")
     @GetMapping("/publicados")
     public List<EventoResumenResponseDTO> listarPublicados() {
-        return eventoService.buscar(null, null, null, null, null, null,
-                null, OrdenEvento.FECHA_ASC, false);
+        return catalogoCache.publicados(() -> eventoService.buscar(null, null, null, null, null, null,
+                null, OrdenEvento.FECHA_ASC, false));
     }
 
     // Los filtros son opcionales: el cliente puede combinar los que necesite.
@@ -104,17 +114,22 @@ public class EventoController {
             @Parameter(description = "Ordenar por fecha, precio o relevancia", example = "PRECIO_ASC") @RequestParam(defaultValue = "FECHA_ASC") OrdenEvento ordenar,
             @Parameter(description = "Incluir borradores y cancelados (uso administrativo provisional)", example = "false") @RequestParam(defaultValue = "false") boolean incluirNoPublicados) {
 
-        return eventoService.buscar(
-                tipo, organizadorId, participanteId, ciudad,
-                desde, hasta, texto, ordenar, incluirNoPublicados);
+        if (incluirNoPublicados) {
+            return eventoService.buscar(tipo, organizadorId, participanteId, ciudad,
+                    desde, hasta, texto, ordenar, true);
+        }
+        return catalogoCache.buscar(tipo, organizadorId, participanteId, ciudad, desde, hasta, texto, ordenar,
+                () -> eventoService.buscar(tipo, organizadorId, participanteId, ciudad,
+                        desde, hasta, texto, ordenar, false));
     }
 
     @Operation(summary = "Obtener detalle de evento")
     @ApiResponse(responseCode = "200", description = "Operacion exitosa")
     @GetMapping("/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.read(#id)")
-    public EventoResponseDTO obtener(@PathVariable Long id) {
-        return eventoService.obtener(id);
+    public EventoResponseDTO obtener(@PathVariable Long id,
+            @RequestHeader(value = "X-Consulta-Fresca", defaultValue = "false") boolean consultaFresca) {
+        return catalogoCache.detalle(id, consultaFresca, () -> eventoService.obtener(id));
     }
 
     @Operation(summary = "Modificar un evento segun su estado")
@@ -144,12 +159,15 @@ public class EventoController {
     @PatchMapping("/{id}/publicar")
     @org.springframework.security.access.prepost.PreAuthorize("@eventAccess.event(#id)")
     public EventoResponseDTO publicar(@PathVariable Long id) {
+
         EventoResponseDTO publicado = eventoService.publicar(id);
 
         if (integracionesHabilitadas
                 && publicado.getEstado() == EstadoEvento.PUBLICADO) {
 
             reservasFeignClient.habilitarEvento(id);
+
+            avisoArtistasFavoritosService.notificarPublicacion(publicado);
         }
 
         return publicado;

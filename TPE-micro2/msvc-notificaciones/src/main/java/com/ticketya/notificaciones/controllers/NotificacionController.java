@@ -91,6 +91,7 @@ public class NotificacionController {
         }
 
         @GetMapping("/{id}")
+        @org.springframework.security.access.prepost.PreAuthorize("#id <= 0 or @notificationAccess.read(#id)")
         @Operation(summary = "Consultar el estado de una notificación")
         @ApiResponse(responseCode = "200", description = "Estado de la notificación")
         @ApiResponse(responseCode = "400", description = "ID inválido", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))

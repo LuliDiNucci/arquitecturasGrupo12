@@ -21,7 +21,7 @@ public class InternalCredentials {
         var factory = new JdkClientHttpRequestFactory(java.net.http.HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(3)).build());
         factory.setReadTimeout(Duration.ofSeconds(5));
-        this.tokenClient = RestClient.builder().requestFactory(factory).baseUrl(tokenUrl).build();
+        this.tokenClient = RestClient.builder().requestInterceptor(new com.ticketya.observability.CorrelationHttpInterceptor("msvc-reservas")).requestFactory(factory).baseUrl(tokenUrl).build();
     }
     public String authorization(String method) {
         var auth = CurrentIdentity.authentication();

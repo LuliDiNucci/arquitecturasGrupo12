@@ -1,4 +1,4 @@
-param([string]$MavenRepository)
+﻿param([string]$MavenRepository, [switch]$VerifyLoki, [string]$LokiUrl = 'http://localhost:3100')
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $runRoot = Join-Path $repoRoot ('.local-security-smoke/run-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
@@ -15,18 +15,23 @@ $services = @(
     @{ id = 'reservas'; dir = 'msvc-reservas'; main = 'com.ticketya.reservas.ReservasApplication'; port = 18080 },
     @{ id = 'compras'; dir = 'msvc-compras'; main = 'com.ticketya.compras.ComprasApplication'; port = 18082 },
     @{ id = 'entradas'; dir = 'msvc-entradas'; main = 'com.ticketya.entradas.EntradasApplication'; port = 18083 },
+    @{ id = 'notificaciones'; dir = 'msvc-notificaciones'; main = 'com.ticketya.notificaciones.MsvcNotificacionesApplication'; port = 18087 },
     @{ id = 'gateway'; dir = 'msvc-gateway'; main = 'com.ticketya.gateway.MsvcGatewayApplication'; port = 18084 }
 )
 $processes = @()
+$serviceProcesses = @{}
 $savedEnv = @{}
 function Set-SmokeEnv([string]$Name, [string]$Value) {
     if (-not $savedEnv.ContainsKey($Name)) { $savedEnv[$Name] = [Environment]::GetEnvironmentVariable($Name, 'Process') }
     [Environment]::SetEnvironmentVariable($Name, $Value, 'Process')
 }
 $script:checks = 0
-function Check-Http([string]$Method, [string]$Path, [int]$Expected, $Body = $null, [string]$Token = '', [hashtable]$ExtraHeaders = @{}) {
+$script:traceId = 'smoke-' + [guid]::NewGuid().ToString()
+$purchaseTraceId = $script:traceId
+function Check-Http([string]$Method, [string]$Path, [int[]]$Expected, $Body = $null, [string]$Token = '', [hashtable]$ExtraHeaders = @{}) {
     $headers = @{}
     foreach ($key in $ExtraHeaders.Keys) { $headers[$key] = $ExtraHeaders[$key] }
+    if (-not $headers.ContainsKey('X-Correlation-ID')) { $headers['X-Correlation-ID'] = $script:traceId }
     if ($Token) { $headers['Authorization'] = 'Bearer ' + $Token }
     $uri = if ($Path.StartsWith('http')) { $Path } else { 'http://localhost:18084' + $Path }
     $arguments = @{ Method = $Method; Uri = $uri; Headers = $headers; UseBasicParsing = $true; TimeoutSec = 20 }
@@ -39,11 +44,14 @@ function Check-Http([string]$Method, [string]$Path, [int]$Expected, $Body = $nul
         $response = Invoke-WebRequest @arguments
         $status = [int]$response.StatusCode
         $content = $response.Content
+        $returnedCorrelation = $response.Headers['X-Correlation-ID']
     } catch {
         if ($null -eq $_.Exception.Response) { throw }
         $status = [int]$_.Exception.Response.StatusCode
+        $returnedCorrelation = $_.Exception.Response.Headers['X-Correlation-ID']
     }
-    if ($status -ne $Expected) { throw ($Method + ' ' + $Path + ': HTTP ' + $status + ', esperado ' + $Expected) }
+    if ($status -notin $Expected) { throw ($Method + ' ' + $Path + ': HTTP ' + $status + ', esperado ' + ($Expected -join '/')) }
+    if ($returnedCorrelation -ne $headers['X-Correlation-ID']) { throw ('Correlación perdida: ' + $Method + ' ' + $Path) }
     $script:checks++
     if ($content) { return ($content | ConvertFrom-Json) }
 }
@@ -62,6 +70,8 @@ try {
             if ($LASTEXITCODE -ne 0) { throw ('Falló la preparación de ' + $service.id + '; revisar ' + $runRoot) }
         } finally { Pop-Location }
         Set-SmokeEnv 'PORT' ([string]$service.port)
+        Set-SmokeEnv 'DEBUG' 'false'
+        Set-SmokeEnv 'TICKETYA_LOG_DIR' (Join-Path $repoRoot 'logs')
         Set-SmokeEnv 'SPRING_PROFILES_ACTIVE' 'smoke'
         Set-SmokeEnv 'JWT_PUBLIC_KEY' ('file:' + (Join-Path $runRoot '.secrets/jwt-public.pem').Replace('\', '/'))
         Set-SmokeEnv 'JWT_PRIVATE_KEY' ('file:' + (Join-Path $runRoot '.secrets/jwt-private.pem').Replace('\', '/'))
@@ -76,6 +86,9 @@ try {
         Set-SmokeEnv 'SPRING_JPA_SHOW_SQL' 'false'
         Set-SmokeEnv 'APP_INTEGRACIONES_HABILITADAS' 'true'
         Set-SmokeEnv 'APP_INTEGRACIONES_REINTENTO_MS' '1000'
+        Set-SmokeEnv 'SMTP_HOST' '127.0.0.1'
+        Set-SmokeEnv 'SMTP_PORT' '18025'
+        Set-SmokeEnv 'NOTIFICACIONES_INTERVALO_MS' '200'
         foreach ($target in $services | Where-Object { $_.id -ne 'gateway' }) {
             Set-SmokeEnv ($target.id.ToUpperInvariant() + '_URL') ('http://localhost:' + $target.port)
             if ($target.id -in @('reservas', 'compras', 'entradas')) {
@@ -91,8 +104,13 @@ try {
         Set-SmokeEnv 'BOOTSTRAP_ADMIN_EMAIL' $settings['BOOTSTRAP_ADMIN_EMAIL']
         Set-SmokeEnv 'BOOTSTRAP_ADMIN_PASSWORD' $settings['BOOTSTRAP_ADMIN_PASSWORD']
         $classpath = (Join-Path $serviceRoot 'target/classes') + ';' + (Get-Content -LiteralPath (Join-Path $serviceRoot 'target/smoke-classpath.txt') -Raw).Trim()
+        if ($service.id -eq 'notificaciones') {
+            $smtp = Start-Process -FilePath 'java.exe' -ArgumentList @('-Xmx64m', '-cp', ('"' + $classpath + '"'), ('"' + (Join-Path $PSScriptRoot 'SmokeSmtp.java') + '"'), '18025') -WorkingDirectory $serviceRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $runRoot 'smtp.log') -RedirectStandardError (Join-Path $runRoot 'smtp-stderr.log')
+            $processes += $smtp
+        }
         $process = Start-Process -FilePath 'java.exe' -ArgumentList @('-Xmx192m', '-cp', ('"' + $classpath + '"'), $service.main) -WorkingDirectory $serviceRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $runRoot ($service.id + '.log')) -RedirectStandardError (Join-Path $runRoot ($service.id + '-stderr.log'))
         $processes += $process
+        $serviceProcesses[$service.id] = $process
         $started = $false
         for ($attempt = 0; $attempt -lt 90; $attempt++) {
             if ($process.HasExited) { throw ($service.id + ' terminó durante el inicio; revisar ' + $runRoot) }
@@ -159,7 +177,72 @@ try {
         Start-Sleep -Seconds 1
     }
     if (-not $completed) { throw 'No se completó la notificación programada de cancelación y reintegro' }
-    $report = @{ checks = $script:checks; result = 'PASS'; database = 'H2 en memoria, una por servicio'; flow = 'registro-login-gateway-publicacion-reserva-pago-emision-devolucion-cancelacion' }
+
+    # Otro evento permite validar QR sin alterar el circuito previo de reintegros.
+    $qrEvent = Check-Http POST '/eventos' 201 @{ nombre = 'Control de acceso smoke'; descripcion = 'QR'; tipo = 'RECITAL'; organizadorId = $business.id; lugarId = $place.id; fechaHora = (Get-Date).AddMonths(3).ToString('yyyy-MM-ddTHH:mm:ss'); participantesIds = @($participant.id); altaDemanda = $false } $orgToken
+    $null = Check-Http PUT ('/eventos/' + $qrEvent.id + '/precios') 200 @{ precios = @(@{ sectorId = $sector.id; precio = 1000 }) } $orgToken
+    $null = Check-Http PATCH ('/eventos/' + $qrEvent.id + '/publicar') 200 $null $orgToken
+    $qrReservation = Check-Http POST '/reservas' 201 @{ clienteId = $user.id; eventoId = $qrEvent.id; claveIdempotencia = 'smoke-qr-reserva'; detalles = @(@{ sectorId = $sector.id; cantidad = 1; asientoIds = @() }) } $clientToken
+    $qrPurchase = Check-Http POST '/compras' 201 @{ clienteId = $user.id; reservaId = $qrReservation.id } $clientToken
+    $null = Check-Http POST ('/compras/' + $qrPurchase.id + '/pagar') 200 @{ medioPago = 'TARJETA'; claveIdempotencia = 'smoke-qr-pago' } $clientToken
+    $null = Check-Http POST ('/compras/' + $qrPurchase.id + '/confirmar') 200 $null $clientToken
+    $qrEntries = @(Check-Http GET ('/entradas/cliente/' + $user.id) 200 $null $clientToken | Where-Object { $_.eventoId -eq $qrEvent.id })
+    if ($qrEntries.Count -ne 1) { throw 'No se encontró la entrada del evento de QR' }
+    $staff = Check-Http POST '/auth/register' 201 @{ nombre = 'Personal'; apellido = 'Acceso'; email = 'acceso@example.com'; password = $password }
+    $null = Check-Http PATCH ('/usuarios/' + $staff.id + '/roles') 200 @{ roles = @('PERSONAL_ACCESO') } $adminToken
+    $staffLogin = Check-Http POST '/auth/login' 200 @{ email = $staff.email; password = $password }
+    $qrBody = @{ codigoQr = $qrEntries[0].codigoQr; eventoId = $qrEvent.id }
+    $null = Check-Http POST '/entradas/validar' 403 $qrBody $clientToken
+    $null = Check-Http POST '/entradas/validar' 403 $qrBody $staffLogin.accessToken
+    $null = Check-Http PUT ('/entradas/accesos/eventos/' + $qrEvent.id + '/personal/' + $staff.id) 204 $null $adminToken
+    $null = Check-Http POST '/entradas/validar' 200 $qrBody $staffLogin.accessToken
+    $null = Check-Http POST '/entradas/validar' 409 $qrBody $staffLogin.accessToken
+    $null = Check-Http DELETE ('/entradas/accesos/eventos/' + $qrEvent.id + '/personal/' + $staff.id) 204 $null $adminToken
+    $null = Check-Http POST '/entradas/validar' 403 $qrBody $staffLogin.accessToken
+
+    # Credenciales de servicio reales emitidas por Usuarios, no tokens simulados.
+    $basic = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(('compras:' + $settings['SERVICE_COMPRAS_SECRET'])))
+    $serviceLogin = Check-Http POST 'http://localhost:18085/auth/service-token' 200 $null '' @{ Authorization = $basic }
+    $notification = Check-Http POST 'http://localhost:18087/notificaciones/compras-confirmadas' @(200,202) @{ destinatario = @{ clienteId = $user.id; email = $user.email }; compraId = $purchase.id; nombreEvento = $event.nombre } $serviceLogin.accessToken
+    $notificationPath = '/notificaciones/' + $notification.id
+    $null = Check-Http GET ('http://localhost:18087' + $notificationPath) 401
+    $null = Check-Http GET $notificationPath 403 $null $otherLogin.accessToken
+    $null = Check-Http GET $notificationPath 200 $null $clientToken
+    $null = Check-Http POST 'http://localhost:18087/notificaciones/compras-confirmadas' 403 @{} $clientToken
+    $null = Check-Http POST 'http://localhost:18087/notificaciones/eventos-cancelados' 403 @{} $serviceLogin.accessToken
+    $delivered = $false
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        $state = Check-Http GET $notificationPath 200 $null $clientToken
+        if ($state.estado -eq 'ENVIADA') { $delivered = $true; break }
+        Start-Sleep -Seconds 1
+    }
+    if (-not $delivered) { throw 'El SMTP de pruebas no recibió la notificación' }
+
+    # Fallo controlado de una dependencia: sólo se detiene nuestro proceso de Eventos.
+    $script:traceId = 'smoke-error-' + [guid]::NewGuid().ToString()
+    Stop-Process -Id $serviceProcesses['eventos'].Id
+    $null = Check-Http POST '/reservas' 503 @{ clienteId = $user.id; eventoId = $qrEvent.id; claveIdempotencia = 'smoke-error'; detalles = @(@{ sectorId = $sector.id; cantidad = 1; asientoIds = @() }) } $clientToken
+    $logs = @()
+    foreach ($file in Get-ChildItem -LiteralPath (Join-Path $repoRoot 'logs') -Filter '*.log') {
+        foreach ($line in Select-String -LiteralPath $file.FullName -SimpleMatch $purchaseTraceId,$script:traceId | Select-Object -ExpandProperty Line) {
+            try { $logs += $line | ConvertFrom-Json } catch { throw ('Registro JSON inválido en ' + $file.Name) }
+        }
+    }
+    $servicesInTrace = @($logs | Where-Object { $_.correlationId -eq $purchaseTraceId -and $_.evento -eq 'http_request' } | Select-Object -ExpandProperty servicio -Unique)
+    foreach ($required in @('msvc-gateway','msvc-compras','msvc-reservas','msvc-entradas','msvc-notificaciones')) {
+        if ($required -notin $servicesInTrace) { throw ('Falta el servicio en la traza: ' + $required) }
+    }
+    $errors = @($logs | Where-Object { $_.correlationId -eq $script:traceId -and $_.status -ge 500 })
+    if ($errors.Count -lt 2) { throw 'No se registró el fallo de dependencia con la misma correlación' }
+    $rawTrace = $logs | ConvertTo-Json -Depth 15
+    foreach ($privateValue in @($clientToken, $adminToken, $orgToken, $serviceLogin.accessToken, $staffLogin.accessToken, $password) + @($settings.Values)) {
+        if ($privateValue -and $privateValue.Length -ge 20 -and $rawTrace.Contains($privateValue)) {
+            throw 'Se encontró un valor sensible en los logs. No se considera pasada la prueba.'
+        }
+    }
+    $rawTrace | Set-Content -LiteralPath (Join-Path $runRoot 'trace-evidence.json') -Encoding UTF8
+    if ($VerifyLoki) { & (Join-Path $PSScriptRoot 'Verify-CentralizedLogs.ps1') -CorrelationId $purchaseTraceId -LokiUrl $LokiUrl }
+    $report = @{ checks = $script:checks; result = 'PASS'; database = 'H2 en memoria, una por servicio'; flow = 'registro-login-gateway-publicacion-reserva-pago-emision-devolucion-cancelacion-qr-notificaciones-error'; correlationId = $purchaseTraceId; errorCorrelationId = $script:traceId; servicesInTrace = $servicesInTrace; loki = $(if ($VerifyLoki) { 'PASS' } else { 'NO EJECUTADO' }) }
     $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot 'result.json') -Encoding UTF8
     Write-Output ('PASS: ' + $script:checks + ' verificaciones HTTP. Reporte: ' + $runRoot)
 } finally {

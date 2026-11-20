@@ -42,6 +42,8 @@
         </dependencies>
     </dependencyManagement>
     <dependencies>
+        <dependency><groupId>com.h2database</groupId><artifactId>h2</artifactId><scope>test</scope></dependency>
+      <dependency><groupId>com.ticketya</groupId><artifactId>ticketya-observability</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
         <!-- Seguridad -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

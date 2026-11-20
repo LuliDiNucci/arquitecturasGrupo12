@@ -1,8 +1,8 @@
 package com.ticketya.recomendaciones.config;
 
 import org.springframework.context.annotation.Bean;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import feign.RequestInterceptor;
 
@@ -13,19 +13,12 @@ public class CompraFeignConfig {
 
         return template -> {
 
-            ServletRequestAttributes atributos = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-
-            if (atributos != null) {
-
-                String authorization = atributos
-                        .getRequest()
-                        .getHeader("Authorization");
-
-                if (authorization != null
-                        && authorization.startsWith("Bearer ")) {
-
-                    template.header("Authorization", authorization);
-                }
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()
+                    && authentication.getPrincipal() instanceof Jwt jwt
+                    && "user".equals(jwt.getClaimAsString("token_use"))) {
+                template.removeHeader("Authorization");
+                template.header("Authorization", "Bearer " + jwt.getTokenValue());
             }
         };
     }

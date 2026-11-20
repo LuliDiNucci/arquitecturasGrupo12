@@ -19,7 +19,7 @@ public class GenerateDevSecrets {
         writePem(secrets.resolve("jwt-public.pem"), "PUBLIC KEY", pair.getPublic().getEncoded());
         List<String> lines = new ArrayList<>();
         lines.add("# Sólo desarrollo local. No versionar ni compartir este archivo.");
-        for (String service : List.of("USUARIOS", "EVENTOS", "RESERVAS", "COMPRAS", "ENTRADAS")) {
+        for (String service : List.of("USUARIOS", "EVENTOS", "RESERVAS", "COMPRAS", "ENTRADAS", "NOTIFICACIONES", "FILA_VIRTUAL")) {
             lines.add(service + "_DB_PASSWORD=" + secret());
         }
         lines.add("MYSQL_ROOT_PASSWORD=" + secret());
@@ -29,6 +29,8 @@ public class GenerateDevSecrets {
         lines.add("BOOTSTRAP_ADMIN_ENABLED=true");
         lines.add("BOOTSTRAP_ADMIN_EMAIL=admin@ticketya.local");
         lines.add("BOOTSTRAP_ADMIN_PASSWORD=" + secret());
+        lines.add("GRAFANA_ADMIN_USER=admin");
+        lines.add("GRAFANA_ADMIN_PASSWORD=" + secret());
         Files.write(env, lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
         System.out.println("Se generaron .secrets y .env en " + root + ". Mantenga ambos fuera de Git.");
     }

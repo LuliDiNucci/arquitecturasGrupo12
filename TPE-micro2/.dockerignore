@@ -1,7 +1,11 @@
-**/target
-**/.git
-**/*.log
+.git
 .secrets
 .env
 .env.*
-.local-security-smoke
+**/target
+**/*.log
+logs
+.local-*
+.tools
+.m2-repository
+verification-*.json

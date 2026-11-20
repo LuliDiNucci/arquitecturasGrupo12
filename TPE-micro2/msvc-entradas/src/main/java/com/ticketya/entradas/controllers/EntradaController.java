@@ -50,7 +50,7 @@ public class EntradaController {
         @ApiResponse(responseCode = "409", description = "La entrada no corresponde al evento, está invalidada o ya fue utilizada")
     })
     @PostMapping("/validar")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('PERSONAL_ACCESO')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('PERSONAL_ACCESO') and @accessEvent.puedeValidar(#request.eventoId)")
     public ResponseEntity<EntradaDTO> validarQr(
             @Valid @RequestBody ValidarQrRequestDTO request) {
 
@@ -148,10 +148,8 @@ public class EntradaController {
         entradaService.invalidarPorEvento(id);
     }
 
-
     @Operation(summary = "Obtener entradas de un evento para reportes",
-    description = "Devuelve los datos resumidos de las entradas de un evento para que el microservicio de Eventos genere los reportes."
-    )
+            description = "Devuelve los datos resumidos de las entradas de un evento para que el microservicio de Eventos genere los reportes.")
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200",

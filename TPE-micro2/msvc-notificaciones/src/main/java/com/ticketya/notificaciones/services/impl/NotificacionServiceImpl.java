@@ -1,5 +1,12 @@
 package com.ticketya.notificaciones.services.impl;
 
+import java.time.Clock;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+
 import com.ticketya.notificaciones.dtos.ArtistaFavoritoRequestDTO;
 import com.ticketya.notificaciones.dtos.CompraConfirmadaRequestDTO;
 import com.ticketya.notificaciones.dtos.DestinatarioDTO;
@@ -10,12 +17,6 @@ import com.ticketya.notificaciones.entities.Notificacion;
 import com.ticketya.notificaciones.entities.TipoNotificacion;
 import com.ticketya.notificaciones.repositories.NotificacionRepository;
 import com.ticketya.notificaciones.services.NotificacionService;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
-
-import java.time.Clock;
-import java.time.format.DateTimeFormatter;
-import java.util.Optional;
 
 @Service
 public class NotificacionServiceImpl implements NotificacionService {
@@ -65,9 +66,19 @@ public class NotificacionServiceImpl implements NotificacionService {
     }
 
     @Override
-    public Optional<NotificacionResponseDTO> registrarArtistaFavorito(ArtistaFavoritoRequestDTO solicitud) {
-        boolean mismaCiudad = solicitud.ciudadEvento().strip().equalsIgnoreCase(solicitud.ciudadCliente().strip());
-        boolean artistaFavorito = solicitud.artistasFavoritosIds().contains(solicitud.artistaId());
+    public Optional<NotificacionResponseDTO> registrarArtistaFavorito(
+            ArtistaFavoritoRequestDTO solicitud) {
+
+        boolean mismaCiudad = solicitud.ciudadEvento()
+                .trim()
+                .equalsIgnoreCase(solicitud.ciudadCliente().trim());
+
+        boolean artistaFavorito = solicitud.artistasFavoritos()
+                .stream()
+                .filter(nombre -> nombre != null)
+                .anyMatch(nombre -> nombre.trim().equalsIgnoreCase(
+                        solicitud.nombreArtista().trim()));
+
         if (!mismaCiudad || !artistaFavorito) {
             return Optional.empty();
         }
@@ -75,11 +86,19 @@ public class NotificacionServiceImpl implements NotificacionService {
         String mensaje = """
                 %s, uno de tus artistas favoritos, participa en %s.
                 El evento se realizará en %s el %s.
-                """.formatted(solicitud.nombreArtista(), solicitud.nombreEvento(),
-                solicitud.ciudadEvento().strip(), solicitud.fechaHora().format(FORMATO_FECHA));
+                """.formatted(
+                solicitud.nombreArtista(),
+                solicitud.nombreEvento(),
+                solicitud.ciudadEvento().trim(),
+                solicitud.fechaHora().format(FORMATO_FECHA));
 
-        return Optional.of(registrar(TipoNotificacion.ARTISTA_FAVORITO, solicitud.eventoId(), 0,
-                solicitud.destinatario(), "TicketYa | Un artista favorito toca en tu ciudad", mensaje));
+        return Optional.of(registrar(
+                TipoNotificacion.ARTISTA_FAVORITO,
+                solicitud.eventoId(),
+                0,
+                solicitud.destinatario(),
+                "TicketYa | Un artista favorito toca en tu ciudad",
+                mensaje));
     }
 
     @Override
@@ -88,10 +107,10 @@ public class NotificacionServiceImpl implements NotificacionService {
     }
 
     private NotificacionResponseDTO registrar(TipoNotificacion tipo, long referenciaId, long versionEvento,
-                                               DestinatarioDTO destinatario, String asunto, String mensaje) {
+            DestinatarioDTO destinatario, String asunto, String mensaje) {
         long clienteId = destinatario.clienteId();
         return repository.findByTipoAndReferenciaIdAndVersionEventoAndClienteId(
-                        tipo, referenciaId, versionEvento, clienteId)
+                tipo, referenciaId, versionEvento, clienteId)
                 .map(NotificacionResponseDTO::desde)
                 .orElseGet(() -> insertar(new Notificacion(tipo, referenciaId, versionEvento, clienteId,
                         destinatario.email(), asunto, mensaje, reloj.instant())));
@@ -101,9 +120,10 @@ public class NotificacionServiceImpl implements NotificacionService {
         try {
             return NotificacionResponseDTO.desde(repository.saveAndFlush(nueva));
         } catch (DataIntegrityViolationException ex) {
-            // La transacción de saveAndFlush ya terminó. Otra solicitud pudo registrar la misma clave.
+            // La transacción de saveAndFlush ya terminó. Otra solicitud pudo registrar la
+            // misma clave.
             return repository.findByTipoAndReferenciaIdAndVersionEventoAndClienteId(
-                            nueva.getTipo(), nueva.getReferenciaId(), nueva.getVersionEvento(), nueva.getClienteId())
+                    nueva.getTipo(), nueva.getReferenciaId(), nueva.getVersionEvento(), nueva.getClienteId())
                     .map(NotificacionResponseDTO::desde)
                     .orElseThrow(() -> ex);
         }

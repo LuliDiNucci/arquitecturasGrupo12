@@ -13,6 +13,12 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler({feign.RetryableException.class, CatalogoNoDisponibleException.class})
+    public ResponseEntity<Map<String, String>> catalogoNoDisponible(Exception ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("mensaje", "El catálogo de eventos no está disponible"));
+    }
+
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ResponseEntity<Map<String, String>> noEncontrado(
             RecursoNoEncontradoException ex) {

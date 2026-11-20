@@ -1,0 +1,68 @@
+
+services:
+  loki:
+    image: grafana/loki:3.7.0
+    command: ["-config.file=/etc/loki/ticketya.yml"]
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./observability/infra/loki.yml:/etc/loki/ticketya.yml:ro
+      - loki-data:/loki
+    networks:
+      - observability
+      - observability-access
+    mem_limit: 512m
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:v1.21.3
+    command:
+      - run
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./observability/infra/config.alloy:/etc/alloy/config.alloy:ro
+      - application-logs:/var/log/ticketya:ro
+      - ./logs:/var/log/ticketya-local:ro
+      - alloy-data:/var/lib/alloy/data
+    networks:
+      - observability
+    mem_limit: 256m
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.3.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Configure .env con GenerateDevSecrets.java}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./observability/infra/grafana-datasources.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - observability
+      - observability-access
+    mem_limit: 256m
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+volumes:
+  application-logs:
+  loki-data:
+  alloy-data:
+  grafana-data:
+
+networks:
+  observability:
+    internal: true
+
+  observability-access:
+    driver: bridge

@@ -18,6 +18,15 @@ import java.time.Instant;
         }),
         indexes = @Index(name = "idx_aviso_cliente_evento_pendiente", columnList = "entregado, intentar_en"))
 public class AvisoEventoPendiente {
+    // Nullable para registros anteriores; los nuevos capturan el contexto actual.
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId = com.ticketya.observability.Correlation.currentOrNew();
+
+    public String getCorrelationId() {
+        correlationId = com.ticketya.observability.Correlation.validateOrNew(correlationId);
+        return correlationId;
+    }
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

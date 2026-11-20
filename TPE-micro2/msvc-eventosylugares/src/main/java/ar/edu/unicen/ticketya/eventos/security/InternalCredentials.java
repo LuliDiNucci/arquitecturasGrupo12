@@ -1,4 +1,4 @@
-package ar.edu.unicen.ticketya.eventos.security;
+﻿package ar.edu.unicen.ticketya.eventos.security;
 
 import java.time.*;
 import java.util.Map;
@@ -29,6 +29,10 @@ public class InternalCredentials {
             && "user".equals(jwt.getClaimAsString("token_use"))) return "Bearer " + jwt.getTokenValue();
         return "Bearer " + serviceToken();
     }
+    public String serviceAuthorization() {
+        return "Bearer " + serviceToken();
+    }
+
     private synchronized String serviceToken() {
         if (cachedToken != null && Instant.now().isBefore(refreshAt)) return cachedToken;
         if (secret.length() < 32) throw new IllegalStateException("Configure SERVICE_CLIENT_SECRET para eventos");
@@ -36,9 +40,10 @@ public class InternalCredentials {
             .retrieve().body(Map.class);
         if (response == null || !(response.get("accessToken") instanceof String token)
             || !(response.get("expiresIn") instanceof Number expires) || expires.longValue() <= 30)
-            throw new IllegalStateException("Respuesta de credencial interna inválida");
+            throw new IllegalStateException("Respuesta de credencial interna invÃ¡lida");
         cachedToken = token;
         refreshAt = Instant.now().plusSeconds(expires.longValue() - 30);
         return token;
     }
 }
+

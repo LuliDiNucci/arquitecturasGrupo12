@@ -27,6 +27,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.ticketya.entradas.dtos.EntradaReporteDTO;
 
 @Validated
 @RestController
@@ -145,5 +146,32 @@ public class EntradaController {
     @PostMapping("/evento/{id}/invalidar")
     public void invalidarPorEvento(@PathVariable Long id) {
         entradaService.invalidarPorEvento(id);
+    }
+
+
+    @Operation(summary = "Obtener entradas de un evento para reportes",
+    description = "Devuelve los datos resumidos de las entradas de un evento para que el microservicio de Eventos genere los reportes."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Entradas encontradas",
+            content = @Content(array = @ArraySchema(
+                schema = @Schema(implementation = EntradaReporteDTO.class)
+            ))
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Identificador de evento inválido"
+        )
+    })
+    @GetMapping("/evento/{eventoId}/reporte")
+    public ResponseEntity<List<EntradaReporteDTO>> obtenerEntradasReportePorEvento(
+            @PathVariable Long eventoId) {
+
+        List<EntradaReporteDTO> entradas =
+                entradaService.obtenerEntradasReportePorEvento(eventoId);
+
+        return ResponseEntity.ok(entradas);
     }
 }

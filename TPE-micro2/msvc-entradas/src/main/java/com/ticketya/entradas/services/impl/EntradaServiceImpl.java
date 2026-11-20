@@ -27,6 +27,7 @@ import com.ticketya.entradas.entities.Entrada;
 import com.ticketya.entradas.repositories.EntradaRepository;
 import com.ticketya.entradas.services.EntradaService;
 import com.ticketya.entradas.services.QrCodeService;
+import com.ticketya.entradas.dtos.EntradaReporteDTO;
 
 @Service
 public class EntradaServiceImpl implements EntradaService {
@@ -325,16 +326,35 @@ public class EntradaServiceImpl implements EntradaService {
      * Devuelve una lista con los datos de las entradas
      * y las imagenes de sus respectivos codigos QR.
      */
-    @Transactional(readOnly = true)
     @Override
+    @Transactional(readOnly = true)
     public List<EntradaDTO> obtenerPorCliente(Long clienteId) {
+
+        if (clienteId == null || clienteId <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El identificador del cliente es inválido");
+        }
 
         return convertirTodas(
                 entradaRepository
                         .findByClienteIdOrderByFechaEmisionDescIdDesc(clienteId));
     }
 
-    /*
+    @Override
+    @Transactional(readOnly = true)
+    public List<EntradaDTO> obtenerPorEvento(Long eventoId) {
+
+        if (eventoId == null || eventoId <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El identificador del evento es inválido");
+        }
+
+        return convertirTodas(
+                entradaRepository.findByEventoId(eventoId));
+    }
+        /*
      * Convierte una lista de entidades Entrada
      * en una lista de objetos EntradaDTO.
      */
@@ -398,6 +418,28 @@ public class EntradaServiceImpl implements EntradaService {
          * No se invocan endpoints de liberación temporal ni se simulan
          * reintegros para mantener esta operación idempotente.
          */
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EntradaReporteDTO> obtenerEntradasReportePorEvento(Long eventoId) {
+
+        if (eventoId == null || eventoId <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El identificador del evento es inválido");
+        }
+
+        return entradaRepository.findByEventoId(eventoId)
+                .stream()
+                .map(e -> new EntradaReporteDTO(
+                        e.getId(),
+                        e.getCompraId(),
+                        e.getEventoId(),
+                        e.getSectorId(),
+                        e.getAsientoId(),
+                        e.getEstado()))
+                .toList();
     }
 
 }

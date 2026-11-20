@@ -1,3 +1,4 @@
+
 package com.ticketya.compras.services;
 
 import java.util.List;
@@ -13,3 +14,4 @@ public interface CompraService {
     List<Long> buscarCompradores(Long eventoId, boolean incluirReintegrados);
     ConfirmacionCompraDTO consultarConfirmacion(Long compraId);
 }
+

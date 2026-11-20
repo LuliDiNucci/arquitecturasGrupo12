@@ -13,7 +13,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.ticketya.compras.clients.EntradaClient;
 import com.ticketya.compras.clients.EventoClient;
+import com.ticketya.compras.clients.ReservaClient;
 import com.ticketya.compras.dtos.EntradaDTO;
+import com.ticketya.compras.dtos.DevolverEntradaDTO;
 import com.ticketya.compras.dtos.EventoDTO;
 import com.ticketya.compras.dtos.ReintegroDTO;
 import com.ticketya.compras.dtos.SolicitudReintegroDTO;
@@ -41,6 +43,7 @@ public class ReintegroServiceImpl implements ReintegroService {
     private final PasarelaPagoMock pasarela;
     private final TransactionTemplate transacciones;
     private final EventoClient eventoClient;
+    private final ReservaClient reservaClient;
 
     public ReintegroServiceImpl(
             CompraRepository compraRepo,
@@ -49,6 +52,7 @@ public class ReintegroServiceImpl implements ReintegroService {
             ReintegroRepository reintegroRepo,
             EntradaClient entradaClient,
             EventoClient eventoClient,
+            ReservaClient reservaClient,
             PasarelaPagoMock pasarela,
             PlatformTransactionManager transactionManager) {
 
@@ -58,6 +62,7 @@ public class ReintegroServiceImpl implements ReintegroService {
         this.reintegroRepo = reintegroRepo;
         this.entradaClient = entradaClient;
         this.eventoClient = eventoClient;
+        this.reservaClient = reservaClient;
         this.pasarela = pasarela;
         this.transacciones = new TransactionTemplate(transactionManager);
     }
@@ -86,12 +91,13 @@ public class ReintegroServiceImpl implements ReintegroService {
                 .orElseThrow(() -> new CompraNoEncontradaException(
                         "La compra no existe"));
 
-        // Idempotencia: si ya se reintegró, devolver el mismo resultado.
+        // Si el dinero ya se reintegró, reintentar la liberación del lugar.
         Reintegro anterior = buscarReintegro(item);
 
         if (anterior != null
                 && EstadoReintegro.APROBADO.name()
                         .equals(anterior.getEstado())) {
+            liberarLugarReservado(item, entradaId);
             return convertirADTO(anterior);
         }
 
@@ -236,6 +242,30 @@ public class ReintegroServiceImpl implements ReintegroService {
         actualizarEstadoDeReintegros(compra);
     }
 
+
+    /**
+     * Libera en Reservas únicamente el lugar asociado a la entrada reintegrada.
+     * El endpoint de Reservas es idempotente por entradaId, por lo que permite
+     * reintentar si el reintegro quedó aprobado pero la llamada remota falló.
+     */
+    private void liberarLugarReservado(ItemCompra item, Long entradaId) {
+        if (item == null || item.getDetalleCompra() == null
+                || item.getDetalleCompra().getCompra() == null
+                || item.getDetalleCompra().getCompra().getReservaId() == null
+                || item.getDetalleCompra().getSectorId() == null) {
+            throw new IllegalStateException(
+                    "No se pudo obtener la reserva y el sector de la entrada");
+        }
+
+        Long reservaId = item.getDetalleCompra().getCompra().getReservaId();
+        Long sectorId = item.getDetalleCompra().getSectorId();
+        Long asientoId = item.getAsientoId();
+
+        DevolverEntradaDTO solicitud =
+                new DevolverEntradaDTO(entradaId, sectorId, asientoId);
+
+        reservaClient.devolverEntrada(reservaId, solicitud);
+    }
     // HISTORIAL DE REINTEGROS
     @Override
     @Transactional(readOnly = true)

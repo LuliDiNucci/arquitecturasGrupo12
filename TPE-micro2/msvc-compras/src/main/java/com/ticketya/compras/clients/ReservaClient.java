@@ -5,8 +5,10 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import com.ticketya.compras.dtos.ReservaDTO;
+import com.ticketya.compras.dtos.DevolverEntradaDTO;
 
 @FeignClient(name = "reservasClient", url = "${msvc.reservas.url}")
 public interface ReservaClient {
@@ -22,4 +24,9 @@ public interface ReservaClient {
     // Liberar cuando el pago sea rechazado
     @PostMapping("/reservas/{id}/liberar")
     ReservaDTO liberarReserva(@PathVariable("id") Long id);
+
+    @PostMapping("/reservas/{id}/devolver-entrada")
+    ReservaDTO devolverEntrada(
+            @PathVariable("id") Long reservaId,
+            @RequestBody DevolverEntradaDTO solicitud);
 }

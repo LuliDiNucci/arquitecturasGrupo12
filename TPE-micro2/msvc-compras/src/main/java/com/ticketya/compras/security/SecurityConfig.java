@@ -1,4 +1,4 @@
-package com.ticketya.compras.security;
+﻿package com.ticketya.compras.security;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -40,6 +40,7 @@ public class SecurityConfig {
                                 "/compras/*/reintentar-liberacion")
                         .hasRole("CLIENTE")
                         .requestMatchers(HttpMethod.POST, "/compras/reintegros").hasAuthority("SERVICE_entradas")
+                        .requestMatchers(HttpMethod.GET, "/compras/evento/*/reporte").hasAuthority("SERVICE_eventos")
                         .requestMatchers(HttpMethod.GET, "/compras/evento/*/compradores")
                         .hasAuthority("SERVICE_eventos")
                         .requestMatchers(HttpMethod.POST, "/compras/evento/*/cancelar").hasAuthority("SERVICE_eventos")
@@ -54,3 +55,4 @@ public class SecurityConfig {
                 .build();
     }
 }
+

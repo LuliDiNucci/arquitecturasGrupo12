@@ -5,7 +5,10 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import com.ticketya.compras.dtos.ReportePagosEventoProjection;
 import com.ticketya.compras.entities.Pago;
 
 public interface PagoRepository extends JpaRepository<Pago, Long> {
@@ -22,4 +25,13 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
     Optional<Pago> findFirstByCompra_IdAndEstadoOrderByFechaSolicitudDesc(
             Long compraId,
             String estado);
+
+   @Query("""
+    SELECT SUM(p.importe) AS importePagado
+    FROM Pago p
+    WHERE p.compra.eventoId = :eventoId
+      AND p.estado = 'APROBADO'
+    """)
+   ReportePagosEventoProjection obtenerPagosAprobadosPorEvento(
+        @Param("eventoId") Long eventoId);
 }

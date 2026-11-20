@@ -1,4 +1,4 @@
-package ar.edu.unicen.ticketya.eventos.feign;
+﻿package ar.edu.unicen.ticketya.eventos.feign;
 
 import java.util.List;
 
@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
+import ar.edu.unicen.ticketya.eventos.dto.ReporteComprasDTO;
 
 @FeignClient(name = "msvc-compras", url = "${app.integraciones.compras-base-url}")
 public interface ComprasFeignClient {
@@ -19,4 +20,7 @@ public interface ComprasFeignClient {
     @PostMapping("/compras/evento/{id}/cancelar")
     void cancelarEvento(@PathVariable("id") Long eventoId,
                         @RequestHeader("X-Operacion-Id") String operacionId);
+
+    @GetMapping("/compras/evento/{id}/reporte")
+    ReporteComprasDTO obtenerReporte(@PathVariable("id") Long eventoId);
 }

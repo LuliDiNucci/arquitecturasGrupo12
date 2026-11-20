@@ -16,4 +16,7 @@ public interface ItemCompraRepository
 
     // Obtener todas las entradas individuales de una compra
     List<ItemCompra> findByDetalleCompra_Compra_Id(Long compraId);
+
+    // Obtener los ítems de compra asociados a un evento.
+    List<ItemCompra> findByDetalleCompra_EventoId(Long eventoId);
 }

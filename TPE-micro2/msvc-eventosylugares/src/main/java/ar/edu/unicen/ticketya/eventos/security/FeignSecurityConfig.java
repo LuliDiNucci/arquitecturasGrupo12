@@ -1,4 +1,4 @@
-package ar.edu.unicen.ticketya.eventos.security;
+﻿package ar.edu.unicen.ticketya.eventos.security;
 
 import feign.RequestInterceptor;
 import org.springframework.context.annotation.*;
@@ -8,7 +8,15 @@ public class FeignSecurityConfig {
     @Bean RequestInterceptor bearerForwarding(InternalCredentials credentials) {
         return template -> {
             template.removeHeader("Authorization");
-            template.header("Authorization", credentials.authorization(template.method()));
+            String url = template.url();
+            boolean reporteComprasInterno = url != null
+                    && url.contains("/compras/evento/")
+                    && url.contains("/reporte");
+            String autorizacion = reporteComprasInterno
+                    ? credentials.serviceAuthorization()
+                    : credentials.authorization(template.method());
+            template.header("Authorization", autorizacion);
         };
     }
 }
+

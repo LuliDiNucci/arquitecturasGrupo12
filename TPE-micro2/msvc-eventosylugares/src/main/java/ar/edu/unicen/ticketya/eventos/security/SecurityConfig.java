@@ -26,6 +26,7 @@ public class SecurityConfig {
                 .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                 .requestMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/health").permitAll()
                 .requestMatchers(HttpMethod.GET, "/eventos", "/organizadores", "/eventos/*/notificaciones-cancelacion").hasRole("ADMINISTRADOR")
+                .requestMatchers(HttpMethod.GET, "/eventos/*/reporte", "/eventos/*/reporte/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/eventos/**", "/lugares/**", "/sectores/**", "/asientos/**", "/participantes").permitAll()
                 .requestMatchers(HttpMethod.PATCH, "/organizadores/*/usuario", "/eventos/*/suspender", "/eventos/*/cancelar").hasRole("ADMINISTRADOR")
                 .requestMatchers(HttpMethod.POST, "/eventos").hasAnyRole("ORGANIZADOR", "ADMINISTRADOR")

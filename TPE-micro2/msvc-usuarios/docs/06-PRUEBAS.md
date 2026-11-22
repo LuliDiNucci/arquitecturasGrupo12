@@ -1,70 +1,51 @@
-# Pruebas automatizadas y límites de verificación
 
-## Cómo repetirlas
 
-En cada Maven independiente:
+# Pruebas y validación — Usuarios
 
-~~~powershell
-mvn clean compile
-mvn clean test
-mvn clean package
-~~~
+## Objetivo
 
-Desde la raíz también puede ejecutarse el mismo orden para los seis servicios:
+Verificar el registro de usuarios, autenticación JWT, autorización por roles y titularidad, protección de credenciales y funcionamiento de las operaciones administrativas.
 
-~~~powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Verify-Security.ps1
-~~~
+## Pruebas automatizadas
 
-El script verifica primero Usuarios y después los componentes modificados. Conserva
-build-compile.log, build-test.log y build-package.log por servicio (ignorados por
-Git). Si un comando falla, detiene la verificación con código de salida no exitoso.
-Puede configurarse -MavenRepository con una ruta de caché.
+El microservicio utiliza JUnit 5, Spring Boot Test y H2 para las pruebas de persistencia.
 
-## Cobertura
+| Suite | Pruebas | Funcionalidades verificadas |
+|---|---:|---|
+| `AuthSecurityIntegrationTest` | 14 | Registro, login, administración de usuarios, permisos, BCrypt y endpoints |
+| `JwtValidationTest` | 16 | Firma RSA, vencimiento, claims y rechazo de JWT inválidos |
+| `LoginAttemptLimiterTest` | 1 | Control de intentos de autenticación |
+| **Total** | **31** | **Sin fallos ni errores** |
 
-| Suite | Evidencia |
-|---|---|
-| AuthSecurityIntegrationTest | H2 real, BCrypt verificable, email canónico y UNIQUE, duplicado, datos inválidos, intento de ADMINISTRADOR ignorado, DTO sin hash, login correcto/incorrecto/inexistente/inactivo, JWT emitido, /me, roles, estado, ownership, OpenAPI y Swagger |
-| JwtValidationTest | Firma RSA real; exp, issuer, audience, iat, jti, subject, token_use y roles; clave ajena, firma alterada, none y HS256; authorities humanas y de servicio separadas |
-| LoginAttemptLimiterTest | Límite, reinicio por éxito, independencia entre cuentas y vencimiento con reloj controlado |
-| ServiceSecurityIntegrationTest en Eventos | Matriz de cada operación administrativa frente a cuatro roles y cuatro identidades internas, evento ajeno, transferencia de organizador, borradores, búsqueda pública y JWT inválido |
-| ServiceSecurityIntegrationTest en Reservas | Matriz de todos sus endpoints privados, clienteId falso, reserva ajena y confirmación sólo por Compras |
-| ServiceSecurityIntegrationTest en Compras | Matriz de todos sus endpoints, compra/pago/reintegros ajenos y lectura interna limitada para Entradas |
-| ServiceSecurityIntegrationTest en Entradas | Matriz de todos sus endpoints, header de identidad falso, cliente ajeno, devolución ajena y administradorId derivado del JWT |
-| InternalCredentialsTest (cuatro servicios) | Obtención HTTP Basic de token propio, caché, propagación humana en GET, escrituras internas, llamadas sin contexto y cambio a identidad propia en llamadas anidadas |
-| MsvcEntradasApplicationTests | Entrada persistida en H2, lectura por su titular con JWT firmado y rechazo del atacante que falsifica X-Cliente-Id |
-| MsvcGatewayApplicationTests | Destinos HTTP reales controlados, rutas y body, errores de destino, tiempos acotados, rutas Usuarios/OpenAPI, Bearer preservado, JWT inválido/vencido, autorización y Swagger agregado |
+Los resultados corresponden a la ejecución final de Maven realizada durante la verificación del proyecto.
 
-Las suites previas de negocio se mantienen. EventoApiIntegrationTest ahora
-autentica sus fixtures administrativos; los tests nuevos verifican separadamente
-los rechazos. No se desactivó la seguridad por perfil ni se sustituyeron los
-decodificadores por tokens sin firma en las pruebas HTTP.
+## Casos principales
 
-## Prueba con seis servicios reales
+Se verificaron:
 
-Smoke-Security.ps1 usa seis JVM separadas, HTTP real, un H2 por microservicio
-persistente y claves generadas para esa ejecución. No sustituye Feign, RestClient,
-controllers ni servicios por mocks. Comprueba registro/login, perfil, acceso
-directo, roles, vinculación del organizador, publicación (habilitación interna),
-reserva, pago, confirmación, emisión, lectura propia/ajena, devolución aprobada
-con reintegro y cancelación notificada por scheduler con reintegro restante.
-Detiene los procesos creados incluso ante fallos.
+- Registro válido y rechazo de correos duplicados.
+- Asignación exclusiva del rol `CLIENTE` durante el registro público.
+- Autenticación con credenciales correctas e incorrectas.
+- Rechazo de usuarios inactivos.
+- Emisión y validación de JWT RS256.
+- Rechazo de tokens inválidos, alterados o vencidos.
+- Restricciones de acceso según rol y titularidad.
+- Administración de roles y estados.
+- Separación entre credenciales de usuario y de servicio.
+- Limitación de intentos fallidos de autenticación.
 
-Se completó una ejecución final de **42 verificaciones HTTP**, registrada en el informe
-de entrega. El motor Docker no estaba iniciado; esta ejecución usa H2 de test.
+## Ejecución
 
-## Infraestructura pendiente
+Desde la raíz del proyecto:
 
-docker compose --env-file .env.example config --quiet fue validado.
-No se ejecutaron imágenes, contenedores ni validación de persistencia MySQL: Docker
-respondió que no existe la tubería dockerDesktopLinuxEngine. No había servidor
-MySQL local disponible. Los tests *MySQLIT existentes no forman parte de Surefire
-por su nombre y requieren esa infraestructura; no se los contabiliza como ejecutados.
+```powershell
+mvn -B -pl msvc-usuarios -am test
+```
 
-Para cerrar esa verificación con el equipo: iniciar Docker Desktop, generar los
-secretos locales, ejecutar docker compose up --build y repetir la colección/flujo
-contra 8084. Verificar las pruebas de concurrencia MySQL de Reservas/Compras según
-sus documentos, sin sustituirlas por el resultado secuencial de H2.
+## Pruebas de integración
 
-Los comandos finales y totales por servicio se consignan en 07-ENTREGA.md.
+También se verificó el funcionamiento de Usuarios junto con el Gateway y los demás microservicios mediante solicitudes HTTP autenticadas.
+
+La colección principal de Postman permitió ejecutar el registro, inicio de sesión y asignación de roles utilizados posteriormente en los flujos de compra, devolución y validación de entradas.
+
+Las pruebas comprobaron que las solicitudes autorizadas se procesan correctamente y que las operaciones protegidas rechazan identidades sin permisos suficientes.

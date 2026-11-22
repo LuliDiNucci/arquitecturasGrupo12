@@ -1,144 +1,60 @@
-# 03 — Modelo de datos de Entradas
+# 03 — Modelo de datos
 
-## 1. Descripción general
+## Descripción
 
-El microservicio `msvc-entradas` utiliza una base de datos MySQL propia, denominada `ticketya_entradas`.
+El microservicio utiliza la base de datos MySQL `ticketya_entradas`, administrada mediante JPA.
 
-El modelo de datos está compuesto por dos entidades principales:
+El modelo contiene tres entidades persistentes:
 
-- `Entrada`: representa una entrada emitida para un evento.
-- `SolicitudDevolucion`: representa una solicitud de devolución asociada a una entrada.
+### Entrada
 
-La persistencia se implementa mediante JPA y Spring Data JPA.
+Representa cada lugar adquirido por un cliente.
 
-## 2. Entidad Entrada
+**Atributos principales:**
 
-La entidad `Entrada` representa cada uno de los lugares adquiridos por un cliente para asistir a un evento.
+- `id`: identificador de entrada.
+- `compraId`, `reservaId`, `detalleReservaId`: identificadores de la operación de origen.
+- `indiceLugar`: posición del lugar dentro del detalle reservado.
+- `clienteId`, `eventoId`, `sectorId`: identificadores del titular y del evento.
+- `asientoId`: asiento asignado, nulo en sectores no numerados.
+- `codigoQr`: código único de validación.
+- `estado`: `EMITIDA`, `UTILIZADA` o `INVALIDADA`.
+- `fechaEmision`, `fechaUso`: fechas de emisión y utilización.
 
-Se encuentra asociada a una compra, una reserva y un detalle específico de esa reserva.
+Existe una restricción de unicidad sobre `reserva_id`, `detalle_reserva_id` e `indice_lugar`, además de la unicidad del código QR.
 
-### 2.1. Atributos
+### SolicitudDevolucion
 
-| Atributo Java | Columna en la base de datos | Tipo | Restricciones |
-|---|---|---|---|
-| `id` | `id` | Long | Clave primaria autogenerada. |
-| `compraId` | `compra_id` | Long | Obligatorio. |
-| `reservaId` | `reserva_id` | Long | Obligatorio. |
-| `detalleReservaId` | `detalle_reserva_id` | Long | Obligatorio. |
-| `indiceLugar` | `indice_lugar` | Integer | Obligatorio. |
-| `clienteId` | `cliente_id` | Long | Obligatorio. |
-| `eventoId` | `evento_id` | Long | Obligatorio. |
-| `sectorId` | `sector_id` | Long | Obligatorio. |
-| `asientoId` | `asiento_id` | Long | Opcional. |
-| `codigoQr` | `codigo_qr` | String | Obligatorio, único y longitud máxima de 64 caracteres. |
-| `estado` | `estado` | String | Obligatorio, longitud máxima de 32 caracteres. |
-| `fechaEmision` | `fecha_emision` | LocalDateTime | Obligatorio. |
-| `fechaUso` | `fecha_uso` | LocalDateTime | Opcional. |
+Registra las solicitudes realizadas por los clientes.
 
-### 2.2. Descripción de los atributos
+**Atributos principales:**
 
-- **id:** identificador único de la entrada.
-- **compraId:** identifica la compra que originó la entrada.
-- **reservaId:** identifica la reserva asociada.
-- **detalleReservaId:** identifica el detalle de reserva al que pertenece el lugar.
-- **indiceLugar:** indica la posición del lugar dentro del detalle de reserva.
-- **clienteId:** identifica al cliente titular de la entrada.
-- **eventoId:** identifica el evento al que corresponde.
-- **sectorId:** identifica el sector del evento.
-- **asientoId:** identifica el asiento cuando el sector es numerado. Puede ser nulo cuando el sector no tiene asientos numerados.
-- **codigoQr:** código único utilizado para generar la imagen QR.
-- **estado:** indica el estado actual de la entrada. Entre sus estados se encuentran:
-  - `EMITIDA`: entrada disponible para su utilización.
-  - `UTILIZADA`: entrada cuyo código QR ya fue validado correctamente.
-  - `INVALIDADA`: entrada que ya no permite el ingreso, por ejemplo, debido a la cancelación del evento.
-- **fechaEmision:** fecha y hora en que se emitió la entrada.
-- **fechaUso:** registra la fecha y hora en que se validó correctamente el código QR. Permanece nula mientras la entrada no haya sido utilizada.
+- `id`: identificador.
+- `entrada`: entrada asociada.
+- `motivo`: motivo informado.
+- `estado`: `PENDIENTE`, `APROBADA` o `RECHAZADA`.
+- `fechaSolicitud`, `fechaResolucion`: fechas del trámite.
+- `administradorId`: usuario que resolvió la solicitud.
 
-### 2.3. Restricciones e índices
+Cada solicitud corresponde a una entrada. Una entrada puede tener varias solicitudes históricas, pero la lógica de negocio impide registrar dos solicitudes pendientes simultáneas.
 
-**Restricción de unicidad del lugar**
+### AsignacionPersonalAcceso
 
-Se define una restricción única denominada `uk_entrada_lugar_reservado` sobre las columnas:
+Registra los usuarios autorizados para validar entradas de un evento.
 
-- `reserva_id`
-- `detalle_reserva_id`
-- `indice_lugar`
+**Atributos:**
 
-Esto evita que se registren dos entradas para la misma posición dentro de un mismo detalle de reserva.
+- `id`: identificador.
+- `eventoId`: evento al que se asigna el personal.
+- `usuarioId`: usuario autorizado.
 
-**Código QR único**
+La combinación de `evento_id` y `usuario_id` tiene una restricción única.
 
-El atributo `codigoQr` tiene una restricción de unicidad, por lo que no pueden existir dos entradas con el mismo código.
-
-**Índices**
-
-Se definen dos índices para mejorar las consultas:
-
-- `idx_entrada_compra`: sobre `compra_id`.
-- `idx_entrada_cliente`: sobre `cliente_id`.
-
-Estos índices permiten optimizar las búsquedas de entradas por compra y por cliente.
-
-**Validación y utilización de entradas**
-
-La validación del código QR permite comprobar que la entrada exista, corresponda al evento indicado y se encuentre en estado `EMITIDA`.
-
-Cuando la validación es correcta, el estado cambia a `UTILIZADA` y se registra la fecha y hora en `fecha_uso`.
-
-Las entradas `UTILIZADA` o `INVALIDADA` no pueden volver a validarse para permitir el ingreso al evento. 
-
-## 3. Entidad SolicitudDevolucion
-
-La entidad `SolicitudDevolucion` representa una solicitud de devolución realizada sobre una entrada.
-
-Se almacena en la tabla `solicitud_devolucion`.
-
-### 3.1. Atributos
-
-| Atributo Java | Columna en la base de datos | Tipo | Restricciones |
-|---|---|---|---|
-| `id` | `id` | Long | Clave primaria autogenerada. |
-| `entrada` | `entrada_id` | Entrada | Relación obligatoria con Entrada. |
-| `fechaSolicitud` | `fecha_solicitud` | LocalDateTime | Obligatorio. |
-| `motivo` | `motivo` | String | Opcional. |
-| `estado` | `estado` | String | Obligatorio. |
-| `fechaResolucion` | `fecha_resolucion` | LocalDateTime | Opcional. |
-| `administradorId` | `administrador_id` | Long | Opcional. |
-
-### 3.2. Descripción de los atributos
-
-- **id:** identificador único de la solicitud.
-- **entrada:** entrada sobre la que se realiza la solicitud de devolución.
-- **fechaSolicitud:** fecha y hora en que se registró la solicitud.
-- **motivo:** descripción del motivo de devolución.
-- **estado:** estado actual de la solicitud.
-- **fechaResolucion:** fecha y hora en que fue aprobada o rechazada.
-- **administradorId:** identificador del administrador que resolvió la solicitud.
-
-### 3.3. Relación con Entrada
-
-La solicitud de devolución tiene una relación `ManyToOne` con la entidad `Entrada`.
-
-Cada solicitud está asociada obligatoriamente a una entrada, mientras que una entrada puede estar relacionada con varias solicitudes a lo largo del tiempo.
-
-La relación se implementa mediante la columna `entrada_id`, definida como obligatoria.
-
-No se define una restricción única sobre `entrada_id`, por lo que la base de datos permite almacenar más de una solicitud para una misma entrada. La lógica del servicio impide que existan dos solicitudes pendientes simultáneamente para la misma entrada.
-
-## 4. Relaciones entre las entidades
-
-Las dos entidades persistentes del microservicio se relacionan de la siguiente manera:
-
-- Una `Entrada` puede estar asociada a varias `SolicitudDevolucion`.
-- Cada `SolicitudDevolucion` debe estar asociada a una única `Entrada`.
-
-Las relaciones con Compras, Reservas, Clientes, Eventos y Sectores se representan mediante identificadores (`Long`) y no mediante relaciones JPA entre entidades, debido a que esos datos pertenecen a otros microservicios.
-
-## 5. Diagrama del modelo de datos
+## Diagrama entidad-relación
 
 ```mermaid
 erDiagram
-    ENTRADA ||--o{ SOLICITUD_DEVOLUCION : "tiene"
+    ENTRADA ||--o{ SOLICITUD_DEVOLUCION : tiene
 
     ENTRADA {
         Long id PK
@@ -159,58 +75,27 @@ erDiagram
     SOLICITUD_DEVOLUCION {
         Long id PK
         Long entrada_id FK
-        LocalDateTime fecha_solicitud
         String motivo
         String estado
+        LocalDateTime fecha_solicitud
         LocalDateTime fecha_resolucion
         Long administrador_id
     }
+
+    ASIGNACION_PERSONAL_ACCESO {
+        Long id PK
+        Long evento_id
+        Long usuario_id
+    }
 ```
 
-## 6. Repositorios
+`AsignacionPersonalAcceso` es independiente de las entradas. Su relación con eventos y usuarios se representa mediante identificadores externos.
 
-El acceso a las entidades se realiza mediante interfaces que extienden `JpaRepository`.
+## Persistencia y restricciones
 
-### 6.1. EntradaRepository
+- `EntradaRepository` permite consultar entradas por compra, cliente, evento y código QR.
+- La búsqueda por QR utiliza bloqueo pesimista para controlar el acceso concurrente.
+- `SolicitudDevolucionRepository` permite consultar solicitudes por estado y detectar solicitudes pendientes de una entrada.
+- `AsignacionPersonalAccesoRepository` administra las asignaciones de personal a eventos.
 
-Permite realizar operaciones de persistencia y búsqueda sobre las entradas.
-
-**Métodos personalizados:**
-
-| Método | Función |
-|---|---|
-| `findByCompraIdOrderByIdAsc(Long compraId)` | Busca las entradas de una compra, ordenadas por identificador ascendente. |
-| `findByClienteIdOrderByFechaEmisionDescIdDesc(Long clienteId)` | Busca las entradas de un cliente, ordenadas desde las más recientes. |
-| `findByClienteId(Long clienteId)` | Busca las entradas de un cliente. |
-| `findByEventoId(Long eventoId)` | Busca las entradas de un evento. |
-| `findByEventoIdAndEstado(Long eventoId, String estado)` | Busca las entradas de un evento que tienen un estado determinado. |
-| `findByCodigoQrForUpdate(String codigoQr)` | Busca una entrada por su código QR y bloquea el registro para evitar validaciones simultáneas. |
-
-El método utiliza un bloqueo pesimista (`PESSIMISTIC_WRITE`) para impedir que dos operaciones simultáneas validen y utilicen la misma entrada. La operación se ejecuta dentro de una transacción.
-
-Además, hereda las operaciones habituales de `JpaRepository`, como buscar por ID, guardar, eliminar y listar registros.
-
-### 6.2. SolicitudDevolucionRepository
-
-Permite realizar operaciones de persistencia y búsqueda sobre las solicitudes de devolución.
-
-**Métodos personalizados:**
-
-| Método | Función |
-|---|---|
-| `findByEstado(String estado)` | Busca las solicitudes que tienen un estado determinado. |
-| `findByEntrada_IdAndEstado(Long entradaId, String estado)` | Busca una solicitud asociada a una entrada específica y con un estado determinado. Devuelve un `Optional<SolicitudDevolucion>`, ya que puede existir o no una solicitud que cumpla las condiciones. |
-
-El segundo método permite consultar si una entrada tiene una solicitud pendiente. La lógica del servicio evita que existan dos solicitudes pendientes simultáneamente para la misma entrada.
-
-## 7. Consideraciones del modelo
-
-- Cada entrada representa un lugar adquirido dentro de una reserva.
-- Los sectores no numerados pueden tener `asientoId` nulo.
-- El código QR se almacena como texto único; la imagen se genera cuando se construye el DTO de respuesta.
-- Las solicitudes de devolución conservan su historial mediante su estado, fecha de resolución y administrador.
-- Los identificadores de entidades pertenecientes a otros microservicios se almacenan como valores simples, sin relaciones JPA.
-- La prevención de solicitudes de devolución pendientes duplicadas se realiza mediante lógica de negocio y no mediante una restricción única en la base de datos.
-- La validación de una entrada mediante QR registra su utilización y actualiza su estado a `UTILIZADA`.
-- Una entrada utilizada no puede volver a validarse.
-- El bloqueo pesimista sobre la entrada evita que dos escaneos simultáneos permitan más de un ingreso.
+Los identificadores de entidades pertenecientes a otros microservicios se almacenan como valores simples, sin relaciones JPA distribuidas.

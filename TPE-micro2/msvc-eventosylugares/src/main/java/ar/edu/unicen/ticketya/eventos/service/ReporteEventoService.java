@@ -1,4 +1,4 @@
-﻿package ar.edu.unicen.ticketya.eventos.service;
+package ar.edu.unicen.ticketya.eventos.service;
 
 import ar.edu.unicen.ticketya.eventos.dto.ReporteEventoDTO;
 import ar.edu.unicen.ticketya.eventos.dto.ReporteOcupacionDTO;

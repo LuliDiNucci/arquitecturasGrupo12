@@ -1,157 +1,160 @@
-# 01 — Funcionalidades y user stories de Eventos y Lugares
+# Funcionalidades y user stories — Eventos y Lugares
 
-## US01 — Crear un lugar
+## 1. Responsabilidad del microservicio
 
-**Como administrador**, quiero registrar un lugar con su nombre, dirección, ciudad y coordenadas geográficas, para utilizarlo al crear eventos.
+Eventos y Lugares administra los espectáculos publicados en TicketYa, sus organizadores, participantes, lugares, sectores, asientos y precios.
 
-**Criterios de aceptación:**
+También gestiona el ciclo de vida de los eventos, ofrece búsquedas públicas, genera reportes para organizadores y coordina notificaciones relacionadas con publicaciones, modificaciones y cancelaciones.
 
-- El lugar debe registrarse con un nombre, dirección, ciudad y coordenadas válidas.
-- Cuando se crea correctamente, el sistema debe responder `201 Created` y devolver su identificador.
-- Si las coordenadas están fuera de rango o existen campos obligatorios vacíos, debe responder `400 Bad Request`.
-- Se debe permitir consultar un lugar existente, devolviendo sus datos con `200 OK`.
-- Si el lugar solicitado no existe, debe responder `404 Not Found`.
+## 2. Funcionalidades e historias de usuario
 
-## US02 — Crear sectores
+### US01 — Registrar lugares
 
-**Como administrador u organizador**, quiero definir sectores numerados o de capacidad general dentro de un lugar, para organizar los espacios disponibles para los eventos.
+**Como administrador**, quiero registrar lugares con su dirección, ciudad y coordenadas, para utilizarlos en la organización de eventos.
 
 **Criterios de aceptación:**
+- Los datos obligatorios y las coordenadas deben ser válidos.
+- El lugar creado recibe un identificador único.
+- Los lugares registrados pueden consultarse mediante la API.
 
-- El sector debe estar asociado a un lugar existente.
-- Debe indicarse si el sector es numerado y establecerse una capacidad positiva.
-- No se deben permitir sectores con el mismo nombre dentro de un lugar.
-- Si se intenta repetir un nombre de sector en el mismo lugar, debe responder `409 Conflict`.
-- No se deben permitir nuevos sectores cuando el lugar tenga eventos publicados, agotados o suspendidos.
+### US02 — Administrar sectores
 
-## US03 — Registrar asientos numerados
-
-**Como administrador**, quiero registrar la fila y el número de cada asiento de un sector numerado, para identificar los lugares disponibles.
+**Como administrador**, quiero definir sectores numerados o de capacidad general dentro de un lugar.
 
 **Criterios de aceptación:**
+- Cada sector pertenece a un lugar existente y tiene capacidad positiva.
+- No pueden repetirse nombres de sectores dentro del mismo lugar.
+- No se permite modificar la estructura de sectores de un lugar con eventos activos.
 
-- Los asientos deben pertenecer a un sector numerado.
-- Al registrar correctamente una lista de asientos, deben generarse identificadores únicos y responder `201 Created`.
-- No se debe permitir repetir la combinación de fila y número dentro del mismo sector, sin distinguir mayúsculas y minúsculas.
-- Los asientos duplicados deben rechazarse con `409 Conflict`.
-- No se deben registrar asientos en sectores no numerados, respondiendo `400 Bad Request`.
-- No debe permitirse superar la capacidad máxima del sector, respondiendo `409 Conflict`.
+### US03 — Registrar asientos
 
-## US04 — Registrar organizadores y participantes
-
-**Como organizador**, quiero registrar organizadores y participantes, para asociarlos a los eventos correspondientes.
+**Como administrador**, quiero identificar los asientos de los sectores numerados mediante fila y número.
 
 **Criterios de aceptación:**
+- Los asientos solo pueden registrarse en sectores numerados.
+- No se permiten posiciones duplicadas ni superar la capacidad del sector.
+- Los sectores numerados deben tener todos sus asientos registrados antes de publicar un evento.
 
-- El sistema debe permitir registrar organizadores y participantes con nombres válidos.
-- Los participantes deben tener un tipo válido según los valores definidos por el sistema.
-- Al crear un evento, los identificadores de organizador y participantes deben existir.
-- No se debe permitir asociar participantes repetidos a un mismo evento.
+### US04 — Registrar organizadores y participantes
 
-## US05 — Crear un evento en borrador
-
-**Como organizador**, quiero crear un evento en estado borrador, para configurar sus datos antes de habilitar la venta de entradas.
+**Como administrador**, quiero registrar organizadores y participantes para asociarlos a los eventos.
 
 **Criterios de aceptación:**
+- Los registros deben cumplir las validaciones de sus datos.
+- Los participantes tienen un tipo definido.
+- No pueden asociarse participantes inexistentes o duplicados a un mismo evento.
 
-- El evento debe contener nombre, descripción, tipo, organizador, participantes, lugar y fecha.
-- Al crearse correctamente, debe registrarse en estado `BORRADOR`.
-- La creación exitosa debe responder `201 Created`.
-- Los eventos en estado `BORRADOR` no deben aparecer en las búsquedas públicas por defecto.
+### US05 — Crear eventos
 
-## US06 — Configurar precios por sector
-
-**Como organizador**, quiero definir el precio de cada sector para un evento, para establecer el valor de las entradas disponibles.
+**Como organizador**, quiero crear eventos en estado `BORRADOR` para configurar su información antes de publicarlos.
 
 **Criterios de aceptación:**
+- Deben indicarse nombre, descripción, tipo, organizador, lugar, fecha y participantes.
+- El organizador debe estar autorizado para administrar el evento.
+- Los borradores no aparecen en las búsquedas públicas.
 
-- Los precios deben configurarse mientras el evento se encuentre en estado `BORRADOR`.
-- Debe definirse exactamente un precio por cada sector del lugar asociado al evento.
-- Los precios deben ser mayores o iguales a cero.
-- No debe permitirse repetir un mismo sector dentro de una solicitud de configuración.
-- Un mismo sector puede tener diferentes precios para distintos eventos.
-- Los precios deben asociarse mediante la relación entre evento y sector.
-- No se deben permitir modificaciones de precios cuando el evento no esté en estado `BORRADOR`, respondiendo `409 Conflict`.
+### US06 — Configurar precios
 
-## US07 — Publicar un evento
-
-**Como organizador**, quiero publicar un evento cuando su configuración esté completa, para habilitar la venta de entradas.
+**Como organizador**, quiero establecer precios por sector para cada evento.
 
 **Criterios de aceptación:**
+- Los precios se configuran mientras el evento está en `BORRADOR`.
+- Cada sector del lugar debe tener un precio válido.
+- Un mismo sector puede tener precios diferentes en distintos eventos.
 
-- El evento debe encontrarse en estado `BORRADOR` o `SUSPENDIDO`.
-- La fecha del evento debe ser futura.
-- El evento debe tener participantes, sectores y precios correctamente configurados.
-- Los sectores numerados deben contar con sus asientos registrados.
-- Cuando se cumplen las condiciones, el evento debe pasar a estado `PUBLICADO` o recuperar el estado `AGOTADO` cuando corresponda.
-- Si faltan participantes, sectores, precios o asientos obligatorios, debe responder `409 Conflict`.
-- Si la fecha del evento ya pasó, debe responder `409 Conflict`.
-- Ante un error de validación, el estado del evento no debe modificarse.
+### US07 — Publicar eventos
 
-## US08 — Modificar un evento
-
-**Como organizador**, quiero modificar la información de un evento, para mantener sus datos actualizados sin afectar las reservas existentes.
+**Como organizador**, quiero publicar un evento cuando su configuración esté completa.
 
 **Criterios de aceptación:**
+- La fecha debe ser futura.
+- Deben existir participantes, sectores, precios y asientos requeridos.
+- La publicación habilita el evento para las operaciones de reserva.
+- Una configuración incompleta impide la publicación.
 
-- Los eventos en estado `BORRADOR` deben permitir modificar nombre, descripción, tipo, fecha, lugar, organizador y participantes.
-- Los eventos en estado `PUBLICADO`, `AGOTADO` o `SUSPENDIDO` deben permitir modificar nombre, descripción, tipo y participantes.
-- En los estados `PUBLICADO`, `AGOTADO` o `SUSPENDIDO` no se debe permitir modificar fecha, lugar, organizador ni la propiedad `altaDemanda`.
-- Los eventos en estado `CANCELADO` o `FINALIZADO` no deben permitir modificaciones, respondiendo `409 Conflict`.
+### US08 — Modificar eventos
 
-## US09 — Buscar eventos por múltiples criterios
-
-**Como cliente**, quiero buscar eventos por tipo, organizador, participante, ciudad, rango de fechas y texto, para encontrar eventos de mi interés.
-
-**Criterios de aceptación:**
-
-- Los filtros deben ser opcionales y permitir combinarse entre sí.
-- El sistema debe permitir ordenar los resultados por fecha, precio o relevancia.
-- Por defecto, las búsquedas públicas deben incluir únicamente eventos en estado `PUBLICADO` o `AGOTADO`.
-- Los eventos en estado `BORRADOR`, `SUSPENDIDO`, `CANCELADO` o `FINALIZADO` no deben aparecer en las búsquedas públicas por defecto.
-- Para ordenar por precio, debe utilizarse el menor precio configurado para el evento, identificado como `precioDesde`.
-- El valor `precioDesde` representa el menor precio configurado y no la disponibilidad real de entradas.
-- Si la fecha inicial del rango es posterior a la fecha final, debe responder `400 Bad Request`.
-- El parámetro `incluirNoPublicados=true` debe permitir incluir otros estados en las consultas correspondientes.
-
-## US10 — Consultar información de eventos para Reservas y Compras
-
-**Como microservicio Reservas o Compras**, quiero consultar la información de un evento, sus sectores y sus precios, para validar las operaciones de reserva y compra.
+**Como organizador**, quiero actualizar los datos permitidos de mis eventos.
 
 **Criterios de aceptación:**
+- Un borrador admite cambios en su configuración.
+- En eventos publicados, agotados o suspendidos pueden modificarse nombre, descripción, tipo y participantes.
+- No se permite cambiar fecha, lugar, organizador o condición de alta demanda una vez publicado.
+- Las modificaciones relevantes generan avisos para los compradores.
+- Los eventos cancelados o finalizados no pueden modificarse.
 
-- El sistema debe permitir consultar la información de un evento mediante su identificador.
-- `GET /eventos/{id}/habilitado` debe indicar si el evento permite realizar nuevas reservas.
-- Un evento debe estar en estado `PUBLICADO` y tener fecha futura para estar habilitado para reservar.
-- `GET /eventos/{id}/sectores` debe devolver la configuración y los precios de los sectores correspondientes.
-- La información de los sectores no debe representar la ocupación ni el stock restante de lugares.
-- Reservas debe validar la existencia y correspondencia del evento, sector y asiento antes de crear una reserva.
-- La disponibilidad y ocupación de lugares deben ser administradas por el microservicio Reservas.
+### US09 — Buscar eventos
 
-## US11 — Suspender un evento
-
-**Como administrador**, quiero suspender un evento publicado o agotado, para impedir que se realicen nuevas reservas mientras se encuentre suspendido.
+**Como cliente**, quiero buscar espectáculos por distintos criterios.
 
 **Criterios de aceptación:**
+- Se pueden combinar filtros por tipo, organizador, participante, ciudad, fechas y texto.
+- Los resultados pueden ordenarse por fecha, precio o relevancia.
+- Las consultas públicas muestran eventos `PUBLICADO` y `AGOTADO`.
+- Los administradores pueden consultar también los demás estados.
 
-- Se debe permitir suspender eventos en estado `PUBLICADO` o `AGOTADO`.
-- Al suspenderse, el evento debe pasar a estado `SUSPENDIDO`.
-- Un evento suspendido debe informar `habilitadoParaReservar=false`.
-- La republicación debe validar nuevamente la configuración completa del evento.
-- Si cumple las condiciones de publicación, debe recuperar el estado `PUBLICADO` o `AGOTADO`, según corresponda.
+### US10 — Consultar información para otros servicios
 
-## US12 — Cancelar un evento y notificar a otros microservicios
-
-**Como administrador**, quiero cancelar un evento y comunicar la cancelación a los demás microservicios, para detener las ventas y gestionar las reservas, entradas y reintegros correspondientes.
+**Como microservicio Reservas o Compras**, quiero consultar eventos, sectores y precios para validar operaciones.
 
 **Criterios de aceptación:**
+- La API permite consultar la configuración y el estado del evento.
+- Un evento solo está habilitado para nuevas reservas cuando está `PUBLICADO` y su fecha es futura.
+- La ocupación real y el stock disponible son responsabilidad de Reservas.
 
-- Al cancelar un evento, su estado debe cambiar a `CANCELADO` y persistirse en la base de datos.
-- Un evento cancelado no debe permitir nuevas reservas.
-- La actualización del estado y la creación de la notificación de cancelación deben realizarse dentro de la misma transacción.
-- La cancelación debe comunicarse a Reservas, Entradas y Compras mediante las integraciones configuradas.
-- Las notificaciones deben poder reintentarse cuando alguna comunicación no se completa.
-- Repetir la cancelación del mismo evento no debe generar una segunda notificación.
-- Las solicitudes de cancelación deben incluir el identificador de operación `X-Operacion-Id`.
-- Los servicios receptores deben evitar duplicar los efectos de una cancelación repetida.
-- Eventos y Lugares debe coordinar las notificaciones, mientras que Reservas administra sus lugares, Entradas invalida las entradas y Compras procesa los reintegros correspondientes.
+### US11 — Suspender y reactivar eventos
+
+**Como administrador**, quiero suspender temporalmente un evento y permitir su posterior reactivación.
+
+**Criterios de aceptación:**
+- Pueden suspenderse eventos publicados o agotados.
+- Mientras estén suspendidos no admiten nuevas reservas.
+- Para republicarlos se valida nuevamente su configuración.
+- El sistema conserva el estado anterior cuando corresponde.
+
+### US12 — Cancelar eventos
+
+**Como administrador**, quiero cancelar un evento y comunicarlo a los servicios involucrados.
+
+**Criterios de aceptación:**
+- El evento pasa a `CANCELADO` y deja de admitir reservas.
+- Se registra persistentemente la operación de cancelación.
+- Reservas, Entradas y Compras reciben las comunicaciones correspondientes.
+- Los avisos pueden reintentarse y la cancelación repetida no duplica sus efectos.
+
+### US13 — Vincular organizadores con usuarios
+
+**Como administrador**, quiero asociar un organizador con una cuenta de usuario para controlar quién puede gestionar sus eventos.
+
+**Criterios de aceptación:**
+- El usuario debe existir, estar activo y tener rol `ORGANIZADOR`.
+- La validación se realiza mediante el microservicio Usuarios.
+- Un organizador solamente puede administrar sus propios eventos.
+- Un administrador puede gestionar cualquier evento.
+
+### US14 — Notificar publicaciones y cambios
+
+**Como cliente**, quiero recibir avisos relacionados con eventos de mi interés.
+
+**Criterios de aceptación:**
+- Al publicar un evento se pueden notificar artistas favoritos que actúen en la ciudad del cliente.
+- Se consulta a Recomendaciones para identificar clientes interesados.
+- Los compradores reciben avisos por modificaciones y cancelaciones.
+- Los avisos pendientes por cambios y cancelaciones se conservan para su procesamiento posterior.
+
+### US15 — Consultar reportes
+
+**Como organizador**, quiero conocer las ventas y la ocupación de mis eventos.
+
+**Criterios de aceptación:**
+- Se ofrecen reportes generales, por sector, de recaudación y de ocupación.
+- Los resultados incluyen ventas, devoluciones, importes y porcentajes de ocupación.
+- Los datos se obtienen mediante integración con Compras y Reservas.
+- Solo el administrador o el organizador propietario pueden consultar estos reportes.
+
+## 3. Reglas generales
+
+- Los estados de un evento son `BORRADOR`, `PUBLICADO`, `AGOTADO`, `SUSPENDIDO`, `CANCELADO` y `FINALIZADO`.
+- Los eventos de alta demanda se identifican mediante `altaDemanda`, utilizado por la integración con Fila Virtual.
+- Eventos y Lugares administra la configuración de los espacios; Reservas controla su ocupación.
+- Las operaciones administrativas y de organizadores requieren autenticación y autorización mediante JWT.

@@ -1,4 +1,4 @@
-﻿package ar.edu.unicen.ticketya.eventos.controller;
+package ar.edu.unicen.ticketya.eventos.controller;
 
 import java.util.List;
 

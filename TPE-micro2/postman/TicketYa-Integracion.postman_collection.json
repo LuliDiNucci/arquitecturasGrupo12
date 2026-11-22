@@ -1,87 +1,509 @@
-﻿{
-  "variable": [
-    {
-      "key": "compraId",
-      "value": ""
-    },
-    {
-      "key": "organizadorId",
-      "value": ""
-    },
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:8084"
-    },
-    {
-      "key": "eventoId",
-      "value": ""
-    },
-    {
-      "key": "lugarId",
-      "value": ""
-    },
-    {
-      "key": "fechaEvento",
-      "value": "2026-12-15T20:00:00"
-    },
-    {
-      "key": "administradorId",
-      "value": "1"
-    },
-    {
-      "key": "sectorCampoId",
-      "value": ""
-    },
-    {
-      "key": "devolucionId",
-      "value": ""
-    },
-    {
-      "key": "sectorNumeradoId",
-      "value": ""
-    },
-    {
-      "key": "participanteId",
-      "value": ""
-    },
-    {
-      "key": "reservaId",
-      "value": ""
-    },
-    {
-      "key": "entradaId",
-      "value": ""
-    },
-    {
-      "key": "medioPago",
-      "value": "TARJETA"
-    },
-    {
-      "key": "clienteId",
-      "value": "1"
-    },
-    {
-      "key": "compraIdRechazada",
-      "type": "string",
-      "value": ""
-    },
-    {
-      "key": "reservaIdEntrada",
-      "value": ""
-    }
-  ],
+{
   "info": {
-    "description": "Orden recomendado con bases vacias: carpeta 01, 02, 03; 06 habilitar + disponibilidad + crear reserva; 07 iniciar compra (01) a confirmar (05); 09 consultar entrada y cliente; 10 solicitar y aprobar devolucion; 08 consultar reintegros; 06 disponibilidad Campo; crear reserva separada y liberar; crear otra reserva y ejecutar 07 01b + 06 pago rechazado + 07 reintentar liberacion; finalmente 04 cancelacion y 05 errores. Las peticiones internas y alternativas son opcionales y requieren estados especificos. Gateway: localhost:8084.",
-    "name": "TicketYa - Integracion completa",
+    "name": "TicketYa - Integración Entrega 2 (JWT, 8 servicios + Gateway)",
+    "description": "Colección integrada para ejecutar desde Postman contra el API Gateway en localhost:8084. Requisitos: Docker Compose levantado y administrador configurado. ANTES DE EMPEZAR completar Variables adminEmail/adminPassword SOLO EN POSTMAN; nunca publicar una exportación con claves o tokens. Ejecutar 00 -> 01 -> 02 -> 03 -> 04, carpeta por carpeta, respetando el orden. 02 debe correrse de inmediato porque Reservas vence en 10 minutos. 90/91 son opcionales y NO deben ejecutarse con Run Collection general. Las llamadas internas con JWT service:* no se invocan artificialmente desde Postman: se comprueban a través de compras, reintegros, cancelaciones y avisos; el envío de emails se observa en Mailpit http://localhost:8025. La misma compra usa 2 entradas para probar QR utilizado y devolución sin chocar las reglas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "01 - Carga y publicacion (ejecutar en orden)",
+      "name": "00 - Preparar identidades y JWT",
+      "description": "Ejecutar EN ORDEN. Primero cargar adminEmail y adminPassword localmente en Variables; no exportar secretos. Los clientes/usuarios de prueba son nuevos cada vez.",
+      "item": [
+        {
+          "name": "00 - Inicializar corrida (datos únicos)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/publicados"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);",
+                  "pm.collectionVariables.set('qaId', id);",
+                  "const datos = {",
+                  " clienteEmail: `cliente-${id}@ticketya.test`,",
+                  " clientePassword: `TicketYa-${id}-Cliente2026!`,",
+                  " organizadorEmail: `organizador-${id}@ticketya.test`,",
+                  " organizadorPassword: `TicketYa-${id}-Organizador2026!`,",
+                  " personalEmail: `acceso-${id}@ticketya.test`,",
+                  " personalPassword: `TicketYa-${id}-Personal2026!`,",
+                  " artistaNombre: `Banda Prueba ${id}`",
+                  "};",
+                  "Object.entries(datos).forEach(([k,v]) => pm.collectionVariables.set(k,v));",
+                  "const d = new Date(Date.now() + 60*24*60*60*1000);",
+                  "d.setUTCHours(21,0,0,0);",
+                  "pm.collectionVariables.set('fechaEvento', d.toISOString().slice(0,19));",
+                  "d.setUTCDate(d.getUTCDate()+1);",
+                  "pm.collectionVariables.set('fechaAltaDemanda', d.toISOString().slice(0,19));",
+                  "['adminToken','clienteToken','organizadorToken','personalToken','reservaId','compraId','entradaQrId','entradaDevolucionId','devolucionId'].forEach(k => pm.collectionVariables.unset(k));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"00 - Inicializar corrida (datos únicos): HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01 - Login administrador",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{adminEmail}}\",\"password\":\"{{adminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"01 - Login administrador: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('adminToken', data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Registrar cliente",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nombre\":\"Cliente\",\"apellido\":\"QA\",\"email\":\"{{clienteEmail}}\",\"password\":\"{{clientePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"02 - Registrar cliente: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('clienteId', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Login cliente",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{clienteEmail}}\",\"password\":\"{{clientePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"03 - Login cliente: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('clienteToken', data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Consultar mi perfil CLIENTE",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/usuarios/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"04 - Consultar mi perfil CLIENTE: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.id.toString()).to.eql(pm.collectionVariables.get('clienteId').toString());",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Registrar usuario organizador",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nombre\":\"Organizador\",\"apellido\":\"QA\",\"email\":\"{{organizadorEmail}}\",\"password\":\"{{organizadorPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"05 - Registrar usuario organizador: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('organizadorUsuarioId', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Administrador asigna ORGANIZADOR",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios/{{organizadorUsuarioId}}/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roles\":[\"ORGANIZADOR\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"06 - Administrador asigna ORGANIZADOR: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 - Login ORGANIZADOR con rol actualizado",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{organizadorEmail}}\",\"password\":\"{{organizadorPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"07 - Login ORGANIZADOR con rol actualizado: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('organizadorToken', data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 - Registrar usuario personal",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nombre\":\"Personal\",\"apellido\":\"QA\",\"email\":\"{{personalEmail}}\",\"password\":\"{{personalPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"08 - Registrar usuario personal: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('personalId', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 - Administrador asigna PERSONAL_ACCESO",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios/{{personalId}}/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roles\":[\"PERSONAL_ACCESO\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"09 - Administrador asigna PERSONAL_ACCESO: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 - Login PERSONAL_ACCESO",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{personalEmail}}\",\"password\":\"{{personalPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"10 - Login PERSONAL_ACCESO: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('personalToken', data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 - Consultar perfil del administrador",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/usuarios/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"11 - Consultar perfil del administrador: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Catálogo y preparación del evento",
+      "description": "Datos de prueba aislados por qaId. Todo se crea con ADMINISTRADOR. Se vincula el usuario ORGANIZADOR para comprobar sus reportes.",
       "item": [
         {
           "name": "01 - Crear organizador",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
@@ -90,10 +512,9 @@
               }
             ],
             "url": "{{baseUrl}}/organizadores",
-            "description": "POST /organizadores",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Producciones Sierra\",\n  \"email\": \"contacto@ejemplo.com\"\n}",
+              "raw": "{\"nombre\":\"Producciones QA {{qaId}}\",\"email\":\"{{organizadorEmail}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -101,44 +522,78 @@
               }
             }
           },
-          "response": [],
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"HTTP 201 Created\", function () { pm.response.to.have.status(201); });",
-                  "pm.collectionVariables.set('organizadorId', pm.response.json().id);"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "name": "02 - Listar organizadores",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/organizadores",
-            "description": "GET /organizadores"
-          },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"01 - Crear organizador: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('organizadorId', data.id);",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "03 - Crear participante",
+          "name": "02 - Vincular organizador al usuario",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/organizadores/{{organizadorId}}/usuario",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"usuarioId\":{{organizadorUsuarioId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"02 - Vincular organizador al usuario: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Crear artista",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
@@ -147,10 +602,9 @@
               }
             ],
             "url": "{{baseUrl}}/participantes",
-            "description": "POST /participantes",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Banda Ejemplo\",\n  \"tipo\": \"ARTISTA\"\n}",
+              "raw": "{\"nombre\":\"{{artistaNombre}}\",\"tipo\":\"ARTISTA\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -158,44 +612,35 @@
               }
             }
           },
-          "response": [],
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"HTTP 201 Created\", function () { pm.response.to.have.status(201); });",
-                  "pm.collectionVariables.set('participanteId', pm.response.json().id);"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "name": "04 - Listar participantes",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/participantes",
-            "description": "GET /participantes"
-          },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"03 - Crear artista: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('participanteId', data.id);",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "05 - Crear lugar",
+          "name": "04 - Crear lugar",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
@@ -204,10 +649,9 @@
               }
             ],
             "url": "{{baseUrl}}/lugares",
-            "description": "POST /lugares",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Estadio Municipal\",\n  \"direccion\": \"Av. Central 150\",\n  \"ciudad\": \"Tandil\",\n  \"latitud\": -37.321,\n  \"longitud\": -59.137\n}",
+              "raw": "{\"nombre\":\"Estadio QA {{qaId}}\",\"direccion\":\"Av. Pruebas 123\",\"ciudad\":\"Tandil\",\"latitud\":-37.321,\"longitud\":-59.137}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -215,65 +659,35 @@
               }
             }
           },
-          "response": [],
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"HTTP 201 Created\", function () { pm.response.to.have.status(201); });",
-                  "pm.collectionVariables.set('lugarId', pm.response.json().id);"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "name": "06 - Listar lugares",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/lugares",
-            "description": "GET /lugares"
-          },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"04 - Crear lugar: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('lugarId', data.id);",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "07 - Obtener lugar",
+          "name": "05 - Crear platea numerada",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/lugares/{{lugarId}}",
-            "description": "GET /lugares/{{lugarId}}"
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "08 - Crear Platea numerada",
-          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
@@ -282,10 +696,9 @@
               }
             ],
             "url": "{{baseUrl}}/lugares/{{lugarId}}/sectores",
-            "description": "POST /lugares/{{lugarId}}/sectores",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Platea\",\n  \"numerado\": true,\n  \"capacidad\": 2\n}",
+              "raw": "{\"nombre\":\"Platea QA\",\"numerado\":true,\"capacidad\":2}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -293,23 +706,35 @@
               }
             }
           },
-          "response": [],
           "event": [
             {
+              "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 201 Created\", function () { pm.response.to.have.status(201); });",
-                  "pm.collectionVariables.set('sectorNumeradoId', pm.response.json().id);"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
+                  "pm.test(\"05 - Crear platea numerada: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('sectorNumeradoId', data.id);",
+                  "}"
+                ]
+              }
             }
           ]
         },
         {
-          "name": "09 - Crear Campo no numerado",
+          "name": "06 - Crear campo no numerado",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
@@ -318,10 +743,9 @@
               }
             ],
             "url": "{{baseUrl}}/lugares/{{lugarId}}/sectores",
-            "description": "POST /lugares/{{lugarId}}/sectores",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Campo\",\n  \"numerado\": false,\n  \"capacidad\": 500\n}",
+              "raw": "{\"nombre\":\"Campo QA\",\"numerado\":false,\"capacidad\":20}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -329,44 +753,35 @@
               }
             }
           },
-          "response": [],
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"HTTP 201 Created\", function () { pm.response.to.have.status(201); });",
-                  "pm.collectionVariables.set('sectorCampoId', pm.response.json().id);"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "name": "10 - Ver sectores del lugar",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/lugares/{{lugarId}}/sectores",
-            "description": "GET /lugares/{{lugarId}}/sectores"
-          },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"06 - Crear campo no numerado: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('sectorCampoId', data.id);",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "11 - Cargar 2 asientos",
+          "name": "07 - Crear asientos numerados",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
@@ -375,10 +790,9 @@
               }
             ],
             "url": "{{baseUrl}}/sectores/{{sectorNumeradoId}}/asientos",
-            "description": "POST /sectores/{{sectorNumeradoId}}/asientos",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"asientos\": [\n    {\n      \"fila\": \"A\",\n      \"numero\": 1\n    },\n    {\n      \"fila\": \"A\",\n      \"numero\": 2\n    }\n  ]\n}",
+              "raw": "{\"asientos\":[{\"fila\":\"A\",\"numero\":1},{\"fila\":\"A\",\"numero\":2}]}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -386,43 +800,173 @@
               }
             }
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 201 Created\", function () { pm.response.to.have.status(201); });"
+                  "pm.test(\"07 - Crear asientos numerados: HTTP 201\", () => pm.response.to.have.status(201));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "12 - Ver asientos",
+          "name": "08 - Consultar asientos",
           "request": {
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/sectores/{{sectorNumeradoId}}/asientos",
-            "description": "GET /sectores/{{sectorNumeradoId}}/asientos"
+            "url": "{{baseUrl}}/sectores/{{sectorNumeradoId}}/asientos"
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"08 - Consultar asientos: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  if (Array.isArray(data) && data[0]) pm.collectionVariables.set('asientoId', data[0].id);",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "13 - Crear evento en borrador",
+          "name": "09 - Listar lugares",
           "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/lugares"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"09 - Listar lugares: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 - Listar participantes",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/participantes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"10 - Listar participantes: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 - Listar organizadores",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/organizadores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"11 - Listar organizadores: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 - Crear preferencias del cliente",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/preferencias/{{clienteId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tiposEventos\":[\"RECITAL\"],\"artistasFavoritos\":[\"{{artistaNombre}}\"],\"ciudad\":\"Tandil\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"12 - Crear preferencias del cliente: HTTP 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 - Crear evento normal con ORGANIZADOR",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
@@ -431,10 +975,9 @@
               }
             ],
             "url": "{{baseUrl}}/eventos",
-            "description": "POST /eventos",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Recital de prueba\",\n  \"descripcion\": \"Evento para probar la entrega 1\",\n  \"tipo\": \"RECITAL\",\n  \"organizadorId\": {{organizadorId}},\n  \"lugarId\": {{lugarId}},\n  \"fechaHora\": \"{{fechaEvento}}\",\n  \"participantesIds\": [\n    {{participanteId}}\n  ],\n  \"altaDemanda\": false\n}",
+              "raw": "{\"nombre\":\"Recital QA {{qaId}}\",\"descripcion\":\"Compra, devolución y acceso QR\", \"tipo\":\"RECITAL\",\"organizadorId\":{{organizadorId}},\"lugarId\":{{lugarId}},\"fechaHora\":\"{{fechaEvento}}\",\"participantesIds\":[{{participanteId}}],\"altaDemanda\":false}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -442,38 +985,35 @@
               }
             }
           },
-          "response": [],
           "event": [
             {
-              "listen": "prerequest",
+              "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Mantiene la fecha configurada mientras sea futura; evita una fecha vencida en otra computadora.",
-                  "const fecha = pm.collectionVariables.get(\"fechaEvento\");",
-                  "if (!fecha || new Date(fecha).getTime() <= Date.now() + 24 * 60 * 60 * 1000) {",
-                  "    const futura = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000);",
-                  "    futura.setUTCHours(20, 0, 0, 0);",
-                  "    pm.collectionVariables.set(\"fechaEvento\", futura.toISOString().slice(0, 19));",
+                  "pm.test(\"13 - Crear evento normal con ORGANIZADOR: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('eventoId', data.id);",
                   "}"
                 ]
               }
-            },
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"HTTP 201 Created\", function () { pm.response.to.have.status(201); });",
-                  "pm.collectionVariables.set('eventoId', pm.response.json().id);"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
             }
           ]
         },
         {
-          "name": "14 - Configurar precio por sector",
+          "name": "14 - Precios por sector",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "PUT",
             "header": [
               {
@@ -482,10 +1022,9 @@
               }
             ],
             "url": "{{baseUrl}}/eventos/{{eventoId}}/precios",
-            "description": "PUT /eventos/{{eventoId}}/precios",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"precios\": [\n    {\n      \"sectorId\": {{sectorNumeradoId}},\n      \"precio\": 35000.0\n    },\n    {\n      \"sectorId\": {{sectorCampoId}},\n      \"precio\": 20000.0\n    }\n  ]\n}",
+              "raw": "{\"precios\":[{\"sectorId\":{{sectorNumeradoId}},\"precio\":35000.00},{\"sectorId\":{{sectorCampoId}},\"precio\":20000.00}]}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -493,36 +1032,277 @@
               }
             }
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"14 - Precios por sector: HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "15 - Publicar evento",
+          "name": "15 - Publicar evento (genera aviso artista favorito)",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/publicar",
-            "description": "PATCH /eventos/{{eventoId}}/publicar"
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/publicar"
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-                  "pm.test(\"Estado PUBLICADO\", () => pm.expect(pm.response.json().estado).to.eql(\"PUBLICADO\"));"
+                  "pm.test(\"15 - Publicar evento (genera aviso artista favorito): HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().estado).to.eql('PUBLICADO');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 - Catálogo publicado",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/publicados"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"16 - Catálogo publicado: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 - Buscar por filtros",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/buscar?tipo=RECITAL&ciudad=Tandil&ordenar=PRECIO_ASC"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"17 - Buscar por filtros: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 - Buscar por organizador y participante",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/buscar?organizadorId={{organizadorId}}&participanteId={{participanteId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"18 - Buscar por organizador y participante: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 - Buscar por rango de fechas",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/buscar?desde=2026-01-01T00:00:00&hasta=2035-01-01T00:00:00"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"19 - Buscar por rango de fechas: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 - Detalle del evento",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"20 - Detalle del evento: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 - Precios y sectores",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/sectores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"21 - Precios y sectores: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 - Consultar disponibilidad campo",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/disponibilidad?eventoId={{eventoId}}&sectorId={{sectorCampoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"22 - Consultar disponibilidad campo: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 - Consultar disponibilidad platea",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/disponibilidad?eventoId={{eventoId}}&sectorId={{sectorNumeradoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"23 - Consultar disponibilidad platea: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 - Consultar preferencias",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/preferencias/{{clienteId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"24 - Consultar preferencias: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 - Obtener recomendaciones",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/recomendaciones/{{clienteId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"25 - Obtener recomendaciones: HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -531,179 +1311,1324 @@
       ]
     },
     {
-      "name": "02 - Consultas y actualizaciones",
+      "name": "02 - COMPRA COMPLETA (ejecutar de corrido)",
+      "description": "Ejecutar esta carpeta inmediatamente después de 01. La reserva vence a los 10 minutos. Compra de DOS entradas: una para validar QR y otra para devolución.",
       "item": [
         {
-          "name": "16 - Listar eventos",
+          "name": "01 - Reservar 2 lugares de Campo",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"clienteId\":{{clienteId}},\"eventoId\":{{eventoId}},\"claveIdempotencia\":\"RES-{{qaId}}\",\"detalles\":[{\"sectorId\":{{sectorCampoId}},\"cantidad\":2,\"asientoIds\":[]}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"01 - Reservar 2 lugares de Campo: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('reservaId', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Consultar reserva",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
             "header": [],
+            "url": "{{baseUrl}}/reservas/{{reservaId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"02 - Consultar reserva: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Iniciar compra",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/compras",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"clienteId\":{{clienteId}},\"reservaId\":{{reservaId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"03 - Iniciar compra: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('compraId', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Consultar compra",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/compras/{{compraId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"04 - Consultar compra: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Pagar con tarjeta (mock)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/compras/{{compraId}}/pagar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"medioPago\":\"TARJETA\",\"claveIdempotencia\":\"PAGO-{{qaId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"05 - Pagar con tarjeta (mock): HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().estado).to.eql('APROBADO');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Consultar confirmación de pago",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/compras/{{compraId}}/confirmacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"06 - Consultar confirmación de pago: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 - Confirmar compra y emitir entradas",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/compras/{{compraId}}/confirmar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"07 - Confirmar compra y emitir entradas: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  const entradas = (data.detalles || []).flatMap(d => d.items || []).filter(i => i.entradaId != null);",
+                  "  if (entradas[0]) pm.collectionVariables.set('entradaQrId', entradas[0].entradaId);",
+                  "  if (entradas[1]) pm.collectionVariables.set('entradaDevolucionId', entradas[1].entradaId);",
+                  "}",
+                  "pm.expect(pm.response.json().estado).to.eql('CONFIRMADA');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 - Consultar entradas propias",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/entradas/cliente/{{clienteId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"08 - Consultar entradas propias: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  const lista = Array.isArray(data) ? data : data.value || [];",
+                  "  const actuales = lista.filter(e => String(e.compraId) === String(pm.collectionVariables.get('compraId'))).sort((a,b) => a.id-b.id);",
+                  "  if (actuales[0]) { pm.collectionVariables.set('entradaQrId', actuales[0].id); pm.collectionVariables.set('codigoQr', actuales[0].codigoQr); }",
+                  "  if (actuales[1]) pm.collectionVariables.set('entradaDevolucionId', actuales[1].id);",
+                  "}",
+                  "pm.test('Dos entradas de esta compra', () => { const a=pm.response.json(); const lista=Array.isArray(a)?a:a.value||[]; pm.expect(lista.filter(e=>String(e.compraId)===String(pm.collectionVariables.get('compraId'))).length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 - Consultar QR de entrada",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Cliente-Id",
+                "value": "{{clienteId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/entradas/{{entradaQrId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"09 - Consultar QR de entrada: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().codigoQr).to.be.a('string');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 - Consultar compra confirmada",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/compras/{{compraId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"10 - Consultar compra confirmada: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().estado).to.eql('CONFIRMADA');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Acceso QR, devolución y reportes",
+      "description": "Para esta carpeta, la compra de 02 debe tener dos entradas. El personal valida una; el cliente devuelve la otra. Luego se revisan reportes y reintegros.",
+      "item": [
+        {
+          "name": "01 - Admin asigna personal al evento",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/entradas/accesos/eventos/{{eventoId}}/personal/{{personalId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"01 - Admin asigna personal al evento: HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Personal valida QR",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{personalToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/entradas/validar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"eventoId\":{{eventoId}},\"codigoQr\":\"{{codigoQr}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"02 - Personal valida QR: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().estado).to.eql('UTILIZADA');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Impedir segundo uso del mismo QR",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{personalToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/entradas/validar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"eventoId\":{{eventoId}},\"codigoQr\":\"{{codigoQr}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"03 - Impedir segundo uso del mismo QR: HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Cliente solicita devolución de otra entrada",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/devoluciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entradaId\":{{entradaDevolucionId}},\"motivo\":\"DEVOLUCION_CLIENTE\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"04 - Cliente solicita devolución de otra entrada: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('devolucionId', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Administrador consulta pendientes",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/devoluciones/pendientes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"05 - Administrador consulta pendientes: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Administrador aprueba devolución",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/devoluciones/{{devolucionId}}/aprobar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"06 - Administrador aprueba devolución: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.estado).to.eql('APROBADA');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 - Cliente consulta reintegros",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/compras/{{compraId}}/reintegros"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"07 - Cliente consulta reintegros: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 - Entrada devuelta está INVALIDADA",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Cliente-Id",
+                "value": "{{clienteId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/entradas/{{entradaDevolucionId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"08 - Entrada devuelta está INVALIDADA: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().estado).to.eql('INVALIDADA');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 - QR utilizado sigue UTILIZADA",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Cliente-Id",
+                "value": "{{clienteId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/entradas/{{entradaQrId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"09 - QR utilizado sigue UTILIZADA: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().estado).to.eql('UTILIZADA');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 - Reporte del organizador",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/reporte"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"10 - Reporte del organizador: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 - Reporte por sectores",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/reporte/sectores"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"11 - Reporte por sectores: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 - Reporte de recaudación",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/reporte/recaudacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"12 - Reporte de recaudación: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 - Reporte de ocupación",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/reporte/ocupacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"13 - Reporte de ocupación: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Fila virtual alta demanda",
+      "description": "Crear un evento distinto para la fila. Ingresar como CLIENTE, habilitar como ADMINISTRADOR y comprobar la reserva en la carpeta opcional posterior.",
+      "item": [
+        {
+          "name": "01 - Crear evento de alta demanda",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/eventos",
-            "description": "GET /eventos"
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nombre\":\"Alta demanda QA {{qaId}}\",\"descripcion\":\"Fila virtual para controlar turnos\",\"tipo\":\"RECITAL\",\"organizadorId\":{{organizadorId}},\"lugarId\":{{lugarId}},\"fechaHora\":\"{{fechaAltaDemanda}}\",\"participantesIds\":[{{participanteId}}],\"altaDemanda\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"01 - Crear evento de alta demanda: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('eventoAltaDemandaId', data.id);",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "17 - Obtener evento",
+          "name": "02 - Configurar precios alta demanda",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/eventos/{{eventoAltaDemandaId}}/precios",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"precios\":[{\"sectorId\":{{sectorNumeradoId}},\"precio\":35000.00},{\"sectorId\":{{sectorCampoId}},\"precio\":20000.00}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"02 - Configurar precios alta demanda: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Publicar alta demanda",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/{{eventoAltaDemandaId}}/publicar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"03 - Publicar alta demanda: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Cliente ingresa a la fila",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/filas/{{eventoAltaDemandaId}}/ingresar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"clienteId\":{{clienteId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"04 - Cliente ingresa a la fila: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('filaEstado', data.estado);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Cliente consulta su posición",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}",
-            "description": "GET /eventos/{{eventoId}}"
+            "url": "{{baseUrl}}/filas/{{eventoAltaDemandaId}}/clientes/{{clienteId}}"
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"05 - Cliente consulta su posición: HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "18 - Buscar por tipo, ciudad y precio",
+          "name": "06 - Admin habilita primera tanda",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/filas/{{eventoAltaDemandaId}}/habilitar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"cantidad\":1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"06 - Admin habilita primera tanda: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 - Cliente consulta turno habilitado",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/eventos/buscar?tipo=RECITAL&ciudad=Tandil&ordenar=PRECIO_ASC",
-            "description": "GET /eventos/buscar?tipo=RECITAL&ciudad=Tandil&ordenar=PRECIO_ASC"
+            "url": "{{baseUrl}}/filas/{{eventoAltaDemandaId}}/clientes/{{clienteId}}"
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"07 - Cliente consulta turno habilitado: HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "19 - Buscar por organizador y participante",
+          "name": "08 - Reservar con turno habilitado",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"clienteId\":{{clienteId}},\"eventoId\":{{eventoAltaDemandaId}},\"claveIdempotencia\":\"FILA-{{qaId}}\",\"detalles\":[{\"sectorId\":{{sectorCampoId}},\"cantidad\":1,\"asientoIds\":[]}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"08 - Reservar con turno habilitado: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('reservaAltaDemandaId', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 - Ver estado de fila después de reservar",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/eventos/buscar?organizadorId={{organizadorId}}&participanteId={{participanteId}}",
-            "description": "GET /eventos/buscar?organizadorId={{organizadorId}}&participanteId={{participanteId}}"
+            "url": "{{baseUrl}}/filas/{{eventoAltaDemandaId}}/clientes/{{clienteId}}"
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"09 - Ver estado de fila después de reservar: HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "name": "90 - Opcionales: actualización, cancelación y rechazos",
+      "description": "NO ejecutar esta carpeta como parte de la compra principal; son pruebas individuales que alteran estado. Requieren las variables creadas antes.",
+      "item": [
         {
-          "name": "20 - Buscar por rango de fechas",
+          "name": "00a - Nueva reserva para pago rechazado",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/eventos/buscar?desde=2026-01-01T00:00:00&hasta=2035-01-01T00:00:00",
-            "description": "GET /eventos/buscar?desde=2026-01-01T00:00:00&hasta=2035-01-01T00:00:00"
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reservas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"clienteId\":{{clienteId}},\"eventoId\":{{eventoId}},\"claveIdempotencia\":\"RES-RECHAZO-{{qaId}}\",\"detalles\":[{\"sectorId\":{{sectorCampoId}},\"cantidad\":1,\"asientoIds\":[]}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"00a - Nueva reserva para pago rechazado: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('reservaRechazoId', data.id);",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "21 - Buscar texto y relevancia",
+          "name": "00b - Compra para pago rechazado",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/eventos/buscar?q=Recital&ordenar=RELEVANCIA",
-            "description": "GET /eventos/buscar?q=Recital&ordenar=RELEVANCIA"
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/compras",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"clienteId\":{{clienteId}},\"reservaId\":{{reservaRechazoId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"00b - Compra para pago rechazado: HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('compraRechazadaId', data.id);",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "22 - Consultar ofertas para Reservas",
+          "name": "00c - Pasarela simula rechazo",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/sectores",
-            "description": "GET /eventos/{{eventoId}}/sectores"
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/compras/{{compraRechazadaId}}/pagar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"medioPago\":\"TARJETA_RECHAZADA\",\"claveIdempotencia\":\"RECHAZO-{{qaId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"00c - Pasarela simula rechazo: HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().estado).to.eql('RECHAZADO');"
                 ]
               }
             }
           ]
         },
         {
-          "name": "23 - Consultar habilitacion",
+          "name": "01 - Modificar descripción y generar aviso",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/habilitado",
-            "description": "GET /eventos/{{eventoId}}/habilitado"
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "24 - Cambiar descripcion de evento publicado",
-          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "PUT",
             "header": [
               {
@@ -712,10 +2637,9 @@
               }
             ],
             "url": "{{baseUrl}}/eventos/{{eventoId}}",
-            "description": "PUT /eventos/{{eventoId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Recital de prueba\",\n  \"descripcion\": \"Modificado sin cambiar fecha ni lugar\",\n  \"tipo\": \"RECITAL\",\n  \"organizadorId\": {{organizadorId}},\n  \"lugarId\": {{lugarId}},\n  \"fechaHora\": \"{{fechaEvento}}\",\n  \"participantesIds\": [\n    {{participanteId}}\n  ],\n  \"altaDemanda\": false\n}",
+              "raw": "{\"nombre\":\"Recital QA {{qaId}}\",\"descripcion\":\"Actualización de prueba {{qaId}}\",\"tipo\":\"RECITAL\",\"organizadorId\":{{organizadorId}},\"lugarId\":{{lugarId}},\"fechaHora\":\"{{fechaEvento}}\",\"participantesIds\":[{{participanteId}}],\"altaDemanda\":false}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -723,351 +2647,349 @@
               }
             }
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "03 - Ciclo de estados sin cancelar",
-      "item": [
-        {
-          "name": "25 - Suspender",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/suspender",
-            "description": "PATCH /eventos/{{eventoId}}/suspender"
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"01 - Modificar descripción y generar aviso: HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "26 - Ver que no esta habilitado",
+          "name": "02 - Admin suspende evento",
           "request": {
-            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/habilitado",
-            "description": "GET /eventos/{{eventoId}}/habilitado"
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/suspender"
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-                  "pm.test(\"No habilitado\", () => pm.expect(pm.response.json().habilitadoParaReservar).to.eql(false));"
+                  "pm.test(\"02 - Admin suspende evento: HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "27 - Republicar",
+          "name": "03 - Organizador vuelve a publicar",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizadorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/publicar",
-            "description": "PATCH /eventos/{{eventoId}}/publicar"
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/publicar"
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"03 - Organizador vuelve a publicar: HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "28 - Marcar agotado",
+          "name": "04 - Admin cancela evento (irreversible)",
           "request": {
-            "method": "PATCH",
-            "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/agotar",
-            "description": "PATCH /eventos/{{eventoId}}/agotar"
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "29 - Reabrir",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/reabrir",
-            "description": "PATCH /eventos/{{eventoId}}/reabrir"
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "04 - Cancelacion (ejecutar al final)",
-      "item": [
-        {
-          "name": "30 - Cancelar evento",
-          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "PATCH",
             "header": [],
             "url": "{{baseUrl}}/eventos/{{eventoId}}/cancelar",
-            "description": "PATCH /eventos/{{eventoId}}/cancelar"
+            "description": "EJECUTAR ÚLTIMO. Provoca reintegros y avisos de cancelación; no hay que usarlo antes de las demás pruebas."
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"04 - Admin cancela evento (irreversible): HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "31 - Ver avisos pendientes",
+          "name": "05 - Admin consulta avisos cancelación",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/notificaciones-cancelacion",
-            "description": "GET /eventos/{{eventoId}}/notificaciones-cancelacion"
+            "url": "{{baseUrl}}/eventos/{{eventoId}}/notificaciones-cancelacion"
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"05 - Admin consulta avisos cancelación: HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "32 - Cancelar nuevamente (idempotente)",
+          "name": "06 - Cambiar preferencias",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/preferencias/{{clienteId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tiposEventos\":[\"RECITAL\",\"TEATRO\"],\"artistasFavoritos\":[\"{{artistaNombre}}\"],\"ciudad\":\"Tandil\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"06 - Cambiar preferencias: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 - Revocar permiso del personal",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/entradas/accesos/eventos/{{eventoId}}/personal/{{personalId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"07 - Revocar permiso del personal: HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 - Consultar usuario por ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/usuarios/{{clienteId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"08 - Consultar usuario por ID: HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "91 - Seguridad y errores (opcionales)",
+      "description": "No modifican datos salvo las llamadas expresamente indicadas. Cada código HTTP esperado verifica una restricción real.",
+      "item": [
+        {
+          "name": "01 - Sin JWT: compras denegado",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/compras/{{compraId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"01 - Sin JWT: compras denegado: HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - CLIENTE no aprueba devoluciones",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "PATCH",
             "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/cancelar",
-            "description": "PATCH /eventos/{{eventoId}}/cancelar"
+            "url": "{{baseUrl}}/devoluciones/{{devolucionId}}/aprobar"
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"02 - CLIENTE no aprueba devoluciones: HTTP 403\", () => pm.response.to.have.status(403));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "33 - Buscar evento cancelado no aparece",
+          "name": "03 - CLIENTE no administra roles",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/eventos/buscar?ciudad=Tandil",
-            "description": "GET /eventos/buscar?ciudad=Tandil"
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-                  "pm.test(\"Evento cancelado no aparece\", () => pm.expect(pm.response.json().find(e => e.id == pm.collectionVariables.get(\"eventoId\"))).to.equal(undefined));"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "05 - Errores (ejecutar despues de cancelar)",
-      "item": [
-        {
-          "name": "34 - ID inexistente -> 404",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/lugares/99999999",
-            "description": "GET /lugares/99999999"
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "35 - Coordenadas invalidas -> 400",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/lugares",
-            "description": "POST /lugares",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Lugar malo\",\n  \"direccion\": \"A\",\n  \"ciudad\": \"Tandil\",\n  \"latitud\": 100,\n  \"longitud\": -59\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
                 }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "36 - Fechas invertidas -> 400",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/eventos/buscar?desde=2027-12-20T22:00:00&hasta=2027-01-01T12:00:00",
-            "description": "GET /eventos/buscar?desde=2027-12-20T22:00:00&hasta=2027-01-01T12:00:00"
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "37 - Publicar cancelado -> 409",
-          "request": {
+              ]
+            },
             "method": "PATCH",
-            "header": [],
-            "url": "{{baseUrl}}/eventos/{{eventoId}}/publicar",
-            "description": "PATCH /eventos/{{eventoId}}/publicar"
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios/{{clienteId}}/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roles\":[\"ADMINISTRADOR\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });"
+                  "pm.test(\"03 - CLIENTE no administra roles: HTTP 403\", () => pm.response.to.have.status(403));"
                 ]
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "name": "06 - Reservas",
-      "item": [
-        {
-          "name": "Habilitar evento (interno)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/reservas/evento/{{eventoId}}/habilitar",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "reservas",
-                "evento",
-                "{{eventoId}}",
-                "habilitar"
-              ]
-            },
-            "description": "Habilita reservas para un evento PUBLICADO. OperaciÃ³n interna e idempotente. Respuesta exitosa: 204 No Content."
-          }
         },
         {
-          "name": "Crear reserva",
+          "name": "04 - CLIENTE no puede habilitar fila",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
@@ -1075,19 +2997,10 @@
                 "value": "application/json"
               }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/reservas",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "reservas"
-              ],
-              "query": []
-            },
+            "url": "{{baseUrl}}/filas/{{eventoAltaDemandaId}}/habilitar",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"clienteId\": {{clienteId}},\n  \"eventoId\": {{eventoId}},\n  \"claveIdempotencia\": \"REQ-{{$guid}}\",\n  \"detalles\": [\n    {\n      \"sectorId\": {{sectorCampoId}},\n      \"cantidad\": 1,\n      \"asientoIds\": []\n    }\n  ]\n}",
+              "raw": "{\"cantidad\":1}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1097,107 +3010,29 @@
           },
           "event": [
             {
+              "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Reserva creada correctamente\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
-                  "const r = pm.response.json();",
-                  "pm.collectionVariables.set(\"reservaId\", r.id || r.reservaId);"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
+                  "pm.test(\"04 - CLIENTE no puede habilitar fila: HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
             }
           ]
         },
         {
-          "name": "Consultar reserva",
+          "name": "05 - CLIENTE no emite entradas internamente",
           "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/reservas/{{reservaId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "reservas",
-                "{{reservaId}}"
-              ],
-              "query": []
-            }
-          }
-        },
-        {
-          "name": "Disponibilidad - Platea numerada",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/disponibilidad?eventoId={{eventoId}}&sectorId={{sectorNumeradoId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "disponibilidad"
-              ],
-              "query": [
+            "auth": {
+              "type": "bearer",
+              "bearer": [
                 {
-                  "key": "eventoId",
-                  "value": "{{eventoId}}"
-                },
-                {
-                  "key": "sectorId",
-                  "value": "{{sectorNumeradoId}}"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Disponibilidad - Campo (comprobar liberacion tras devolucion)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/disponibilidad?eventoId={{eventoId}}&sectorId={{sectorCampoId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "disponibilidad"
-              ],
-              "query": [
-                {
-                  "key": "eventoId",
-                  "value": "{{eventoId}}"
-                },
-                {
-                  "key": "sectorId",
-                  "value": "{{sectorCampoId}}"
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
                 }
               ]
             },
-            "description": "Ejecutar despues de aprobar una devolucion de Campo: consulta disponibilidad con el sector creado en esta ejecucion. Si la unica plaza ocupada fue devuelta, lugaresDisponibles debe volver a 500."
-          }
-        },
-        {
-          "name": "Confirmar (interno)",
-          "request": {
             "method": "POST",
             "header": [
               {
@@ -1205,541 +3040,352 @@
                 "value": "application/json"
               }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/reservas/{{reservaId}}/confirmar",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "reservas",
-                "{{reservaId}}",
-                "confirmar"
-              ],
-              "query": []
-            },
-            "description": "Solo probar con una reserva ACTIVA independiente. No confirmar la reserva usada para iniciar una compra."
-          }
-        },
-        {
-          "name": "Liberar temporal (interno)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/reservas/{{reservaId}}/liberar",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "reservas",
-                "{{reservaId}}",
-                "liberar"
-              ],
-              "query": []
-            },
-            "description": "Crear otra reserva ACTIVA justo antes. No usar la reserva ya CONFIRMADA o la destinada a una compra."
-          }
-        },
-        {
-          "name": "Devolver entrada (interno)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/reservas/{{reservaIdEntrada}}/devolver-entrada",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "reservas",
-                "{{reservaIdEntrada}}",
-                "devolver-entrada"
-              ],
-              "query": []
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"entradaId\": {{entradaId}},\n  \"sectorId\": {{sectorCampoId}},\n  \"asientoId\": null\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Operacion interna OPCIONAL para una entrada del sector Campo. Se usan los IDs reales de la compra confirmada. NO ejecutar despues de aprobar una devolucion: ese flujo ya realiza la liberacion automaticamente. Para probarla aisladamente, usar una entrada emitida que aun no haya sido devuelta."
-          }
-        },
-        {
-          "name": "Cancelar evento (interno)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/reservas/evento/{{eventoId}}/cancelar",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "reservas",
-                "evento",
-                "{{eventoId}}",
-                "cancelar"
-              ],
-              "query": []
-            },
-            "description": "Operacion interna que suele activarse desde la cancelacion de Eventos y Lugares. Evitar ejecutarla anticipadamente."
-          }
-        }
-      ]
-    },
-    {
-      "name": "07 - Compras y Pagos",
-      "item": [
-        {
-          "request": {
-            "body": {
-              "raw": "{ \"clienteId\": {{clienteId}}, \"reservaId\": {{reservaId}} }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              },
-              "mode": "raw"
-            },
-            "method": "POST",
-            "url": "{{baseUrl}}/compras",
-            "header": [
-              {
-                "key": "Content-Type",
-                "type": "text",
-                "value": "application/json"
-              }
-            ]
-          },
-          "name": "01 - Iniciar compra",
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"Compra creada\", function () { pm.response.to.have.status(201); });",
-                  "const r = pm.response.json();",
-                  "pm.collectionVariables.set(\"compraId\", r.id);"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "request": {
-            "body": {
-              "raw": "{ \"clienteId\": {{clienteId}}, \"reservaId\": {{reservaId}} }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              },
-              "mode": "raw"
-            },
-            "method": "POST",
-            "url": "{{baseUrl}}/compras",
-            "header": [
-              {
-                "key": "Content-Type",
-                "type": "text",
-                "value": "application/json"
-              }
-            ],
-            "description": "Antes de esta peticion, ejecutar 06 - Reservas > Crear reserva para obtener otra reserva ACTIVA. Guarda compraIdRechazada sin sobrescribir compraId."
-          },
-          "name": "01b - Iniciar compra para pago rechazado (con reserva ACTIVA nueva)",
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"Compra creada\", function () { pm.response.to.have.status(201); });",
-                  "const r = pm.response.json();",
-                  "pm.collectionVariables.set(\"compraIdRechazada\", r.id);"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "name": "02 - Consultar compra",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/compras/{{compraId}}",
-            "header": []
-          }
-        },
-        {
-          "request": {
-            "body": {
-              "raw": "{ \"medioPago\": \"TARJETA\", \"claveIdempotencia\": \"PAGO-{{$guid}}\" }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              },
-              "mode": "raw"
-            },
-            "method": "POST",
-            "url": "{{baseUrl}}/compras/{{compraId}}/pagar",
-            "header": [
-              {
-                "key": "Content-Type",
-                "type": "text",
-                "value": "application/json"
-              }
-            ]
-          },
-          "name": "03 - Procesar pago aprobado",
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"Pago procesado\", function () { pm.response.to.have.status(200); });"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "name": "04 - Consultar confirmacion",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/compras/{{compraId}}/confirmacion",
-            "header": []
-          }
-        },
-        {
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/compras/{{compraId}}/confirmar",
-            "header": []
-          },
-          "name": "05 - Confirmar compra y emitir entradas",
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"Compra confirmada\", function () { pm.response.to.have.status(200); });",
-                  "if (pm.response.code === 200) {",
-                  "    const compra = pm.response.json();",
-                  "    if (compra.reservaId != null) pm.collectionVariables.set(\"reservaIdEntrada\", compra.reservaId);",
-                  "    const items = (compra.detalles || []).flatMap(detalle => detalle.items || []);",
-                  "    const itemConEntrada = items.find(item => item.entradaId != null);",
-                  "    if (itemConEntrada) {",
-                  "        pm.collectionVariables.set(\"entradaId\", itemConEntrada.entradaId);",
-                  "        console.log(\"Entrada guardada:\", itemConEntrada.entradaId);",
-                  "    } else {",
-                  "        console.warn(\"La respuesta no contiene entradaId. Verificar emision de entradas.\");",
-                  "    }",
-                  "}"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "name": "06 - Procesar pago rechazado",
-          "request": {
-            "body": {
-              "raw": "{ \"medioPago\": \"TARJETA_RECHAZADA\", \"claveIdempotencia\": \"PAGO-RECHAZADO-{{$guid}}\" }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              },
-              "mode": "raw"
-            },
-            "method": "POST",
-            "url": "{{baseUrl}}/compras/{{compraIdRechazada}}/pagar",
-            "header": [
-              {
-                "key": "Content-Type",
-                "type": "text",
-                "value": "application/json"
-              }
-            ]
-          }
-        },
-        {
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/compras/{{compraIdRechazada}}/reintentar-liberacion",
-            "header": []
-          },
-          "name": "07 - Reintentar liberacion de reserva",
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"Liberacion completada\", function () { pm.response.to.have.status(204); });"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "08 - Reintegros",
-      "item": [
-        {
-          "request": {
-            "body": {
-              "raw": "{ \"entradaId\": {{entradaId}}, \"motivo\": \"DEVOLUCION_CLIENTE\" }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              },
-              "mode": "raw"
-            },
-            "method": "POST",
-            "url": "{{baseUrl}}/compras/reintegros",
-            "header": [
-              {
-                "key": "Content-Type",
-                "type": "text",
-                "value": "application/json"
-              }
-            ],
-            "description": "Operacion interna. Aprobar una devolucion ya genero un reintegro automaticamente; no usar con la misma entrada para evitar duplicados."
-          },
-          "name": "08 - Registrar reintegro de entrada",
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"Reintegro registrado\", function () { pm.response.to.have.status(200); });"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "name": "09 - Consultar reintegros de compra",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/compras/{{compraId}}/reintegros",
-            "header": []
-          }
-        },
-        {
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/compras/evento/{{eventoId}}/cancelar",
-            "header": [
-              {
-                "key": "X-Operacion-Id",
-                "type": "text",
-                "value": "CANCEL-{{eventoId}}"
-              }
-            ],
-            "description": "Operacion interna. En el flujo normal, cancelar el evento en carpeta 04 ya notifica automaticamente a Compras. Esta peticion es para probar un reintento, no para repetir el flujo principal."
-          },
-          "name": "10 - Notificar cancelacion de evento",
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"Cancelacion procesada\", function () { pm.response.to.have.status(204); });"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/compras/{{compraId}}/compensar",
-            "header": [],
-            "description": "Operacion interna solo para una compra que realmente requiera compensacion y NO tenga entradas emitidas. No usar la compra confirmada y con entrada del flujo principal."
-          },
-          "name": "11 - Compensar compra sin entradas",
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"Compensacion completada\", function () { pm.response.to.have.status(204); });"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "09 - Entradas",
-      "item": [
-        {
-          "request": {
-            "body": {
-              "raw": "{ \"compraId\": {{compraId}} }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              },
-              "mode": "raw"
-            },
-            "method": "POST",
             "url": "{{baseUrl}}/entradas/emitir",
-            "header": [
-              {
-                "key": "Content-Type",
-                "type": "text",
-                "value": "application/json"
-              }
-            ],
-            "description": "Operacion interna opcional. Confirmar la compra ya emite entradas automaticamente; no es necesario repetir su emision."
-          },
-          "name": "01 - Emitir entradas",
-          "event": [
-            {
-              "script": {
-                "exec": [
-                  "pm.test(\"Emision realizada o ya existente\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
-                  "const r = pm.response.json();",
-                  "if (Array.isArray(r) && r.length > 0) { pm.collectionVariables.set(\"entradaId\", r[0].id); }"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
-            }
-          ]
-        },
-        {
-          "name": "02 - Consultar entrada",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/entradas/{{entradaId}}",
-            "header": [
-              {
-                "key": "X-Cliente-Id",
-                "type": "text",
-                "value": "{{clienteId}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "03 - Consultar entradas de un cliente",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/entradas/cliente/{{clienteId}}",
-            "header": []
-          }
-        },
-        {
-          "name": "04 - Invalidar entradas de un evento",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/entradas/evento/{{eventoId}}/invalidar",
-            "header": [],
-            "description": "Operacion interna de cancelacion. No ejecutar antes de probar devoluciones; cancelar el evento desde Eventos y Lugares ya debe notificar a Entradas."
-          }
-        }
-      ]
-    },
-    {
-      "name": "10 - Devoluciones",
-      "item": [
-        {
-          "request": {
             "body": {
-              "raw": "{ \"entradaId\": {{entradaId}}, \"motivo\": \"DEVOLUCION_CLIENTE\" }",
+              "mode": "raw",
+              "raw": "{\"compraId\":{{compraId}}}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
-              },
-              "mode": "raw"
-            },
-            "method": "POST",
-            "url": "{{baseUrl}}/devoluciones",
-            "header": [
-              {
-                "key": "Content-Type",
-                "type": "text",
-                "value": "application/json"
               }
-            ]
+            }
           },
-          "name": "01 - Solicitar devolucion",
           "event": [
             {
+              "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Solicitud de devolucion registrada\", function () { pm.response.to.have.status(200); });",
-                  "const r = pm.response.json();",
-                  "pm.collectionVariables.set(\"devolucionId\", r.id);"
-                ],
-                "type": "text/javascript"
-              },
-              "listen": "test"
+                  "pm.test(\"05 - CLIENTE no emite entradas internamente: HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
             }
           ]
         },
         {
-          "name": "02 - Consultar devoluciones pendientes",
+          "name": "06 - CLIENTE no registra avisos internos",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notificaciones/eventos-cancelados",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"06 - CLIENTE no registra avisos internos: HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 - PERSONAL sin acceso a otro evento",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{personalToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/entradas/validar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"eventoId\":999999999,\"codigoQr\":\"{{codigoQr}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"07 - PERSONAL sin acceso a otro evento: HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 - Lugar inexistente",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
-            "url": "{{baseUrl}}/devoluciones/pendientes",
-            "header": []
-          }
-        },
-        {
-          "name": "03 - Aprobar devolucion",
-          "request": {
-            "method": "PATCH",
-            "url": "{{baseUrl}}/devoluciones/{{devolucionId}}/aprobar?administradorId={{administradorId}}",
-            "header": []
-          }
-        },
-        {
-          "name": "04 - Rechazar devolucion (alternativa)",
-          "request": {
-            "method": "PATCH",
-            "url": "{{baseUrl}}/devoluciones/{{devolucionId}}/rechazar?administradorId={{administradorId}}",
             "header": [],
-            "description": "Requiere OTRA solicitud de devolucion en estado PENDIENTE. No se puede rechazar la misma que fue aprobada."
-          }
+            "url": "{{baseUrl}}/lugares/999999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"08 - Lugar inexistente: HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 - Rango de fechas invertido",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/eventos/buscar?desde=2027-12-20T22:00:00&hasta=2027-01-01T12:00:00"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"09 - Rango de fechas invertido: HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
         }
       ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8084",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clienteToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "organizadorToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "personalToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "qaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clienteEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientePassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "organizadorEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "organizadorPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "personalEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "personalPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clienteId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "organizadorUsuarioId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "personalId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "organizadorId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "participanteId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "artistaNombre",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lugarId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sectorNumeradoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sectorCampoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fechaEvento",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fechaAltaDemanda",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "eventoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "eventoAltaDemandaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reservaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "compraId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "entradaQrId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "entradaDevolucionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "codigoQr",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "devolucionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "asientoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "correoAlternativo",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reservaAltaDemandaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reservaRechazoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "compraRechazadaId",
+      "value": "",
+      "type": "string"
     }
   ]
 }

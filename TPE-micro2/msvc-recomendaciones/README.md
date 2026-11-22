@@ -1,79 +1,48 @@
-# Microservicio de Recomendaciones - TicketYa
+# TicketYa — Microservicio de Recomendaciones
 
-## 1. Descripción general
+Microservicio encargado de administrar las preferencias de los clientes y recomendar eventos según sus intereses y el historial de compras.
 
-El microservicio `msvc-recomendaciones` forma parte del sistema TicketYa y tiene como objetivo generar recomendaciones de eventos para los clientes a partir de sus preferencias.
+## Tecnologías
 
-Permite almacenar las preferencias de cada cliente y consultar eventos publicados para identificar aquellos que pueden resultar de su interés.
+Java 21, Spring Boot, Spring Data MongoDB, MongoDB, Spring Cloud OpenFeign, Spring Security y OpenAPI.
 
-## 2. Tecnologías utilizadas
+## Configuración
 
-- Java 21.
-- Spring Boot.
-- Spring Web.
-- Spring Data MongoDB.
-- MongoDB.
-- Spring Cloud OpenFeign.
-- Springdoc OpenAPI / Swagger.
+- **Puerto:** `8086`.
+- **Base de datos:** MongoDB (`ticketya_recomendaciones`).
+- **Dependencias:** Eventos y Lugares, Compras y Pagos.
+- **Seguridad:** JWT con control de roles e identidad del cliente.
 
-## 3. Configuración
+Las conexiones se configuran mediante `MONGODB_URI`, `EVENTOS_URL` y `COMPRAS_URL`.
 
-| Propiedad | Valor |
-|---|---|
-| Nombre del servicio | msvc-recomendaciones |
-| Puerto | 8086 |
-| Base de datos | MongoDB |
-| Base de datos utilizada | ticketya_recomendaciones |
-| Servicio externo | msvc-eventosylugares |
-| Puerto de Eventos | 8081 |
+## Funcionalidades
 
-## 4. Comunicación con otros microservicios
+- Registrar, consultar y modificar preferencias.
+- Recomendar eventos publicados y futuros.
+- Combinar preferencias con sugerencias del historial de compras.
+- Identificar clientes interesados en un artista y una ciudad mediante una consulta interna.
 
-El microservicio se comunica con `msvc-eventosylugares` mediante un cliente Feign.
+## Ejecución
 
-Esta comunicación permite consultar los eventos publicados para utilizarlos como información de entrada al proceso de recomendación.
-
-La URL del servicio de Eventos se configura mediante la propiedad `EVENTOS_URL`, cuyo valor predeterminado es:
-
-`http://localhost:8081`
-
-## 5. Persistencia
-
-Las preferencias de los clientes se almacenan en MongoDB, utilizando la base de datos `ticketya_recomendaciones`.
-
-## 6. Endpoints principales
-
-- `GET /api/recomendaciones/{clienteId}`: consulta las recomendaciones correspondientes a un cliente.
-
-La documentación completa de los endpoints se encuentra en `docs/04-CONTRATOS-REST.md`.
-
-## 7. Swagger
-
-Con el microservicio en ejecución, la documentación interactiva se encuentra disponible en:
-
-`http://localhost:8086/swagger-ui.html`
-
-## 8. Ejecución
-
-Para ejecutar el microservicio se requiere Java 21, Maven y MongoDB en funcionamiento.
-
-Desde la carpeta del proyecto:
+Con MongoDB disponible y las variables de configuración establecidas:
 
 ```bash
 mvn spring-boot:run
 ```
 
-## 9. Pruebas
+## Pruebas
 
-Se realizaron pruebas de configuración y consultas del servicio. Sin embargo, quedó pendiente verificar integralmente la generación de recomendaciones con eventos reales publicados.
+```bash
+mvn clean test
+```
 
-Los resultados y las limitaciones de las pruebas se detallan en `docs/05-TESTING.md`.
+## Documentación
 
-## 10. Documentación complementaria
+- `docs/01-FUNCIONALIDADES-Y-USER-STORIES.md`
+- `docs/02-ARQUITECTURA-Y-DIAGRAMAS.md`
+- `docs/03-MODELO-DE-DATOS.md`
+- `docs/04-CONTRATOS-REST.md`
+- `docs/05-TESTING.md`
+- `docs/openapi.json` — especificación de la API
 
-- `01-FUNCIONALIDADES-Y-USER-STORIES.md`
-- `02-ARQUITECTURA-Y-DIAGRAMAS.md`
-- `03-MODELO-DE-DATOS.md`
-- `04-CONTRATOS-REST.md`
-- `05-TESTING.md`
-- `06-DECISIONES-Y-LIMITACIONES.md`
+Swagger UI: `http://localhost:8086/swagger-ui.html`.

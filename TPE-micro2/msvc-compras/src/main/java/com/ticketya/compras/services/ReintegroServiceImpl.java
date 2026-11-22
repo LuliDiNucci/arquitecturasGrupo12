@@ -1,4 +1,3 @@
-
 package com.ticketya.compras.services;
 
 import java.math.BigDecimal;
@@ -6,16 +5,20 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.ticketya.compras.clients.EntradaClient;
 import com.ticketya.compras.clients.EventoClient;
 import com.ticketya.compras.clients.ReservaClient;
-import com.ticketya.compras.dtos.EntradaDTO;
 import com.ticketya.compras.dtos.DevolverEntradaDTO;
+import com.ticketya.compras.dtos.EntradaDTO;
 import com.ticketya.compras.dtos.EventoDTO;
 import com.ticketya.compras.dtos.ReintegroDTO;
 import com.ticketya.compras.dtos.SolicitudReintegroDTO;
@@ -34,6 +37,8 @@ import com.ticketya.compras.repositories.ReintegroRepository;
 
 @Service
 public class ReintegroServiceImpl implements ReintegroService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReintegroServiceImpl.class);
 
     private final CompraRepository compraRepo;
     private final ItemCompraRepository itemRepo;
@@ -131,7 +136,6 @@ public class ReintegroServiceImpl implements ReintegroService {
 
         return resultado;
     }
-
 
     @Override
     public void reintegrarEventoCancelado(
@@ -242,7 +246,6 @@ public class ReintegroServiceImpl implements ReintegroService {
         actualizarEstadoDeReintegros(compra);
     }
 
-
     /**
      * Libera en Reservas únicamente el lugar asociado a la entrada reintegrada.
      * El endpoint de Reservas es idempotente por entradaId, por lo que permite
@@ -261,11 +264,11 @@ public class ReintegroServiceImpl implements ReintegroService {
         Long sectorId = item.getDetalleCompra().getSectorId();
         Long asientoId = item.getAsientoId();
 
-        DevolverEntradaDTO solicitud =
-                new DevolverEntradaDTO(entradaId, sectorId, asientoId);
+        DevolverEntradaDTO solicitud = new DevolverEntradaDTO(entradaId, sectorId, asientoId);
 
         reservaClient.devolverEntrada(reservaId, solicitud);
     }
+
     // HISTORIAL DE REINTEGROS
     @Override
     @Transactional(readOnly = true)
@@ -417,6 +420,29 @@ public class ReintegroServiceImpl implements ReintegroService {
         }
 
         reintegroRepo.save(reintegro);
+
+        if (respuesta.estado() == EstadoReintegro.APROBADO) {
+            Long reintegroId = reintegro.getId();
+            Long compraId = pago.getCompra().getId();
+            Long entradaId = item.getEntradaId();
+            BigDecimal importe = reintegro.getImporte();
+
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        log.atInfo()
+                                .addKeyValue("evento", "reintegro_aprobado")
+                                .addKeyValue("reintegroId", reintegroId)
+                                .addKeyValue("compraId", compraId)
+                                .addKeyValue("entradaId", entradaId)
+                                .addKeyValue("importe", importe)
+                                .addKeyValue("estado", "APROBADO")
+                                .log("reintegro_aprobado");
+                    }
+                });
+            }
+        }
 
         return convertirADTO(reintegro);
     }

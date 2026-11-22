@@ -1,4 +1,4 @@
-﻿package com.ticketya.compras.security;
+package com.ticketya.compras.security;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

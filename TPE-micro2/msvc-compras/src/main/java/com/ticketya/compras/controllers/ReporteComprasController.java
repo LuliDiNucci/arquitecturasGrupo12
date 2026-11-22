@@ -1,4 +1,4 @@
-﻿package com.ticketya.compras.controllers;
+package com.ticketya.compras.controllers;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

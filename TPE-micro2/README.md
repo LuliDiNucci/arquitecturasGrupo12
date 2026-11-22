@@ -1,377 +1,114 @@
-# TicketYa — Sistema de venta y gestión de entradas
+# TicketYa — Plataforma de venta y gestión de entradas
 
-## 1. Descripción general
+## Descripción
 
-TicketYa es una plataforma de venta y gestión de entradas para distintos tipos de eventos, como recitales, festivales, obras de teatro y conferencias.
+TicketYa es una aplicación web para consultar eventos, reservar lugares, comprar entradas digitales y administrar espectáculos.
 
-El sistema permite consultar eventos publicados, conocer la disponibilidad de sectores y asientos, realizar reservas temporales, gestionar compras y pagos, emitir entradas digitales con códigos QR y administrar devoluciones y cancelaciones.
+El sistema está desarrollado con una arquitectura de microservicios en Java y Spring Boot, y dispone de un frontend en React. La comunicación con los servicios se realiza mediante un API Gateway.
 
-El proyecto está desarrollado utilizando una arquitectura de microservicios, donde cada servicio tiene responsabilidades específicas y se comunica con los demás mediante contratos REST.
+## Funcionalidades
 
-**Trabajo Práctico Especial (TPE) — Entregas 1 y 2 (Usuarios, JWT y seguridad).**
+- Registro e inicio de sesión con JWT y roles.
+- Búsqueda y consulta de eventos.
+- Gestión de lugares, sectores, asientos y precios.
+- Reservas temporales con vencimiento de 10 minutos.
+- Fila virtual para eventos de alta demanda.
+- Compras y pagos mediante pasarela simulada.
+- Emisión y validación de entradas digitales con QR.
+- Devoluciones, reintegros y cancelaciones.
+- Recomendaciones según preferencias e historial.
+- Notificaciones por correo.
+- Administración de eventos, usuarios y reportes.
 
-La Entrega 2 se describe en [msvc-usuarios/README.md](msvc-usuarios/README.md):
-registro, BCrypt, JWT RS256 y controles de roles/titularidad en Gateway y servicios.
-Los ejemplos privados de la Entrega 1 ahora requieren Bearer y los endpoints
-internos requieren credenciales de servicio; ver la [matriz completa](msvc-usuarios/docs/03-PERMISOS.md).
-Hay un [Compose de los nueve procesos](docker-compose.yml), un generador local de
-claves y una [prueba HTTP completa](scripts/Smoke-Security.ps1).
+## Arquitectura
 
-La implementación de observabilidad y la revisión de seguridad están documentadas en:
+| Componente | Puerto | Responsabilidad |
+|---|---:|---|
+| Usuarios | 8085 | Autenticación, usuarios y roles |
+| Eventos y Lugares | 8081 | Catálogo, organización y precios |
+| Reservas | 8080 | Disponibilidad y reservas |
+| Compras y Pagos | 8082 | Compras, pagos y reintegros |
+| Entradas | 8083 | Entradas, QR y devoluciones |
+| Recomendaciones | 8086 | Preferencias y sugerencias |
+| Notificaciones | 8087 | Correos y reintentos |
+| Fila Virtual | 8088 | Control de acceso por turnos |
+| API Gateway | 8084 | Enrutamiento y seguridad |
 
-- [07 — Logging, correlación y centralización](docs/07-OBSERVABILIDAD.md).
-- [08 — Seguridad y matriz de permisos](docs/08-SEGURIDAD-Y-PERMISOS.md).
-- [09 — Ejecución con Docker y ejecución local](docs/09-EJECUCION-OBSERVABILIDAD.md).
-- [10 — Resultados y evidencia de pruebas](docs/10-EVIDENCIA-OBSERVABILIDAD.md).
-- [11 — Archivos creados y modificados](docs/11-ARCHIVOS-OBSERVABILIDAD.md).
+Cada microservicio administra sus datos y se comunica con los demás mediante APIs REST.
 
-Ahora se incluyen ocho microservicios funcionales y el Gateway. Cada módulo conserva
-su versión de Spring Boot/Cloud; el nuevo `pom.xml` raíz sólo agrega la compilación.
-El módulo `observability` debe instalarse antes de compilar un servicio por separado
-(`mvn -f observability/pom.xml install`), o compilar todos con `mvn clean install`.
-La recolección está configurada tanto para contenedores como para procesos locales.
-Consultar la evidencia: la validación real de Loki requiere un motor Docker iniciado.
+## Requisitos
 
-## 2. Funcionalidades principales
+- Docker Desktop con Docker Compose.
+- Java 21 para generar la configuración inicial.
+- Navegador web.
 
-- Gestión de eventos, lugares, sectores, asientos, organizadores y participantes.
-- Publicación, búsqueda, suspensión y cancelación de eventos.
-- Consulta de disponibilidad de lugares y asientos.
-- Creación de reservas temporales con vencimiento de 10 minutos.
-- Confirmación y liberación de reservas.
-- Prevención de reservas simultáneas incompatibles.
-- Inicio y gestión de compras.
-- Procesamiento de pagos mediante pasarela simulada.
-- Emisión de entradas digitales con códigos QR.
-- Consulta de entradas adquiridas por los clientes.
-- Solicitud, aprobación y rechazo de devoluciones.
-- Invalidación de entradas y gestión de reintegros ante cancelaciones.
+Maven y Node.js son necesarios si se desea ejecutar los servicios o el frontend fuera de Docker.
 
-## 3. Arquitectura del sistema
+## Ejecución completa
 
-TicketYa se organiza en ocho microservicios funcionales y un API Gateway.
+Abrir una terminal PowerShell en la raíz `TPE-micro2`.
 
-| Componente | Responsabilidad |
+**1. Generar la configuración local**
+
+Si todavía no existen `.env` y `.secrets/`, ejecutar:
+
+```powershell
+java scripts/GenerateDevSecrets.java
+```
+
+Este comando genera credenciales de desarrollo y las claves RSA utilizadas para JWT. Si la configuración ya existe, no debe volver a ejecutarse.
+
+**2. Iniciar backend y frontend**
+
+```powershell
+docker compose -f docker-compose.yml -f frontend/compose.frontend.yml up -d --build
+```
+
+Esperar a que los servicios finalicen el arranque.
+
+**3. Acceder**
+
+| Aplicación | Dirección |
 |---|---|
-| `msvc-usuarios` | Identidad, contraseñas seguras, login, JWT y administración de roles; puerto 8085. |
-| `msvc-eventosylugares` | Gestiona eventos, lugares, sectores, asientos, organizadores, participantes y precios. |
-| `msvc-reservas` | Administra disponibilidad, reservas temporales, confirmaciones, liberaciones y concurrencia. |
-| `msvc-compras` | Gestiona compras, pagos, confirmaciones y reintegros. |
-| `msvc-entradas` | Administra la emisión, consulta, devolución e invalidación de entradas digitales. |
-| `msvc-gateway` | Centraliza el acceso y el enrutamiento de solicitudes hacia los microservicios. |
-| `msvc-notificaciones` | Registra avisos internos autenticados, permite consultar avisos propios y procesa correos con reintentos. |
-| `msvc-fila-virtual` | Administra turnos de compra para eventos de alta demanda. |
-| `msvc-recomendaciones` | Gestiona preferencias privadas y recomendaciones. |
+| TicketYa — Frontend | http://localhost:5174 |
+| API Gateway | http://localhost:8084 |
+| Swagger UI | http://localhost:8084/swagger-ui.html |
+| Mailpit — Correos de prueba | http://localhost:8025 |
 
-Cada microservicio administra sus propios datos y se comunica con los demás mediante APIs REST y clientes de integración.
+### Cuenta administradora
 
-No se comparten entidades JPA ni se accede directamente a las bases de datos de otros microservicios.
+En una instalación nueva, el generador de configuración habilita la creación de un administrador inicial. El correo y la contraseña se encuentran en las variables `BOOTSTRAP_ADMIN_EMAIL` y `BOOTSTRAP_ADMIN_PASSWORD` del archivo local `.env`.
 
-### 3.1. Flujo general de compra
+Estas credenciales son privadas.
 
-1. El cliente consulta los eventos publicados y sus sectores.
-2. Consulta la disponibilidad de lugares o asientos.
-3. Solicita una reserva temporal con una vigencia de 10 minutos.
-4. Inicia una compra asociada a la reserva.
-5. Se procesa el pago mediante una pasarela simulada.
-6. Si el pago es aprobado y la reserva continúa vigente, se confirma la reserva.
-7. Compras solicita la emisión de las entradas correspondientes.
-8. Las entradas quedan disponibles para su consulta con sus códigos QR.
+Los usuarios pueden registrarse desde el frontend con rol `CLIENTE`. Los demás roles se asignan mediante las operaciones administrativas correspondientes.
 
-Si el pago es rechazado, se solicita la liberación de la reserva.
-
-Las reservas temporales vencidas dejan de bloquear lugares y no pueden confirmarse posteriormente.
-
-### 3.2. Devoluciones y cancelaciones
-
-El sistema permite solicitar devoluciones de entradas, sujetas a las reglas de negocio correspondientes.
-
-Las solicitudes pueden ser aprobadas o rechazadas. Cuando se aprueba una devolución, se coordina la invalidación de la entrada, la liberación del lugar y el reintegro del importe correspondiente.
-
-Ante la cancelación de un evento, Eventos y Lugares registra la cancelación y coordina las notificaciones hacia Reservas, Entradas y Compras.
-
-Las notificaciones utilizan registros persistentes y mecanismos de reintento para gestionar las comunicaciones entre servicios.
-
-## 4. Tecnologías utilizadas
-
-| Tecnología | Uso |
-|---|---|
-| Java 21 | Lenguaje y plataforma de ejecución. |
-| Spring Boot | Desarrollo de los microservicios. |
-| Spring Data JPA / Hibernate | Persistencia y acceso a datos. |
-| MySQL / MariaDB | Almacenamiento relacional utilizado por los servicios configurados con estas bases. |
-| H2 | Base de datos utilizada en configuraciones locales o de pruebas de determinados servicios. |
-| Spring Cloud OpenFeign | Comunicación HTTP entre microservicios. |
-| Spring RestClient | Consumo de APIs REST. |
-| Maven | Gestión de dependencias, compilación y ejecución. |
-| JUnit 5 y Mockito | Pruebas automatizadas. |
-| Spring Boot Test | Pruebas del contexto y de integración de componentes. |
-| Postman | Ejecución de solicitudes y pruebas de API. |
-| Swagger / OpenAPI | Documentación de los contratos REST. |
-| Git y GitHub | Control de versiones y trabajo colaborativo. |
-
-Las configuraciones de persistencia y conexión se encuentran definidas en los archivos de propiedades de cada microservicio.
-
-## 5. Estructura del repositorio
-
-```text
-TPE-micro1/
-│
-├── README.md
-│
-├── docs/
-│   ├── 01-FEATURES-Y-USER-STORIES.md
-│   ├── 02-ARQUITECTURA-GENERAL.md
-│   ├── 03-DIAGRAMA-SECUENCIA-COMPRA.md
-│   ├── 04-RELACIONES-ENTRE-MICROSERVICIOS.md
-│   ├── 05-CONTRATOS-DE-INTEGRACION.md
-│   └── 06-PLAN-DE-TESTING.md
-│
-├── msvc-eventosylugares/
-│   ├── src/
-│   ├── docs/
-│   └── pom.xml
-│
-├── msvc-reservas/
-│   ├── src/
-│   ├── docs/
-│   └── pom.xml
-│
-├── msvc-compras/
-│   ├── src/
-│   ├── docs/
-│   └── pom.xml
-│
-├── msvc-entradas/
-│   ├── src/
-│   ├── docs/
-│   └── pom.xml
-│
-└── msvc-gateway/
-    ├── src/
-    └── pom.xml
-```
-
-Cada microservicio contiene su propio código fuente, configuración y documentación técnica.
-
-## 6. Documentación del proyecto
-
-### 6.1. Documentación general
-
-La carpeta `docs/` contiene los documentos que describen el funcionamiento integral de TicketYa.
-
-| Documento | Contenido |
-|---|---|
-| [01 — Features y User Stories](docs/01-FEATURES-Y-USER-STORIES.md) | Funcionalidades e historias de usuario del sistema. |
-| [02 — Arquitectura general](docs/02-ARQUITECTURA-GENERAL.md) | Arquitectura, responsabilidades e interacciones entre servicios. |
-| [03 — Diagrama de secuencia de compra](docs/03-DIAGRAMA-SECUENCIA-COMPRA.md) | Circuito de compra, incluyendo pagos rechazados y reservas vencidas. |
-| [04 — Relaciones entre microservicios](docs/04-RELACIONES-ENTRE-MICROSERVICIOS.md) | Dependencias y comunicaciones entre servicios. |
-| [05 — Contratos de integración](docs/05-CONTRATOS-DE-INTEGRACION.md) | Endpoints utilizados en la comunicación entre microservicios. |
-| [06 — Plan de testing](docs/06-PLAN-DE-TESTING.md) | Estrategia general de pruebas del sistema. |
-
-### 6.2. Documentación por microservicio
-
-Cada microservicio funcional cuenta con una carpeta `docs/`
-que contiene su documentación técnica.
-
-Los documentos describen:
-
-- Funcionalidades e historias de usuario.
-- Arquitectura y diagramas.
-- Modelo de datos y relaciones entre entidades.
-- Contratos REST y ejemplos de solicitudes.
-- Pruebas y testing.
-
-La organización y numeración de los archivos puede variar
-según el microservicio.
-
-Los diagramas entidad-relación se incluyen como archivos
-de imagen dentro de la documentación correspondiente.
-
-Los contratos de API también se encuentran documentados
-mediante OpenAPI y Swagger.
-
-## 7. Requisitos para la ejecución
-
-Para ejecutar el sistema localmente se requiere:
-
-- JDK 21.
-- Maven.
-- MySQL o MariaDB para los microservicios que utilizan estos motores.
-- Acceso a las dependencias Maven del proyecto.
-- Postman, opcionalmente, para realizar pruebas manuales.
-- Un navegador para consultar la documentación Swagger.
-
-Cada microservicio es un proyecto Maven independiente y utiliza su propia configuración de persistencia y conexiones.
-
-## 8. Configuración y ejecución local
-
-### 8.1. Configuración de los servicios
-
-Antes de iniciar los microservicios se deben revisar los archivos `application.properties` o `application.yml` correspondientes.
-
-Se deben configurar las conexiones a las bases de datos, los puertos y las direcciones de los servicios utilizados mediante HTTP.
-
-Los puertos predeterminados de los microservicios funcionales son:
-
-| Microservicio | Puerto |
-|---|---|
-| Eventos y Lugares | `8081` |
-| Reservas | `8080` |
-| Compras y Pagos | `8082` |
-| Entradas | `8083` |
-| Api Gateway | `8084` |
-| Usuarios | `8085` |
-| Recomendaciones | `8086` |
-| Notificaciones | `8087` |
-| Fila Virtual | `8088` |
-
-
-### 8.2. Iniciar los microservicios
-
-Desde la raíz del repositorio, abrir una terminal para cada componente.
-
-**1. Eventos y Lugares**
+## Detener el sistema
 
 ```powershell
-cd msvc-eventosylugares
-mvn spring-boot:run
+docker compose -f docker-compose.yml -f frontend/compose.frontend.yml down
 ```
 
-**2. Reservas**
+Este comando detiene los contenedores sin eliminar los volúmenes de datos.
 
-```powershell
-cd msvc-reservas
-mvn spring-boot:run
-```
+## Pruebas
 
-**3. Compras y Pagos**
+- **Backend:** pruebas automatizadas con JUnit, Mockito y Spring Boot Test.
+- **Frontend:** pruebas con Vitest y Testing Library.
+- **API:** colección `postman/TicketYa-Integracion.postman_collection.json`.
+- **Carga:** plan, resultados e informe en `test-carga/`.
+- **Observabilidad:** registros correlacionados y evidencias en `docs/evidence/`.
 
-```powershell
-cd msvc-compras
-mvn spring-boot:run
-```
+La pasarela de pagos es simulada. Los correos se reciben en Mailpit durante la ejecución local; no se envían a direcciones reales.
 
-**4. Entradas**
+## Documentación
 
-```powershell
-cd msvc-entradas
-mvn spring-boot:run
-```
+- [Funcionalidades e historias de usuario](docs/01-FEATURES-Y-USER-STORIES.md)
+- [Arquitectura general](docs/02-ARQUITECTURA-GENERAL.md)
+- [Secuencia de compra](docs/03-DIAGRAMA-SECUENCIA-COMPRA.md)
+- [Contratos de integración](docs/05-CONTRATOS-DE-INTEGRACION.md)
+- [Pruebas](docs/06-PLAN-DE-TESTING.md)
+- [Observabilidad](docs/07-OBSERVABILIDAD.md)
+- [Seguridad y permisos](docs/08-SEGURIDAD-Y-PERMISOS.md)
 
-**5. API Gateway**
-
-```powershell
-cd msvc-gateway
-mvn spring-boot:run
-```
-
-Cada comando se ejecuta desde la carpeta correspondiente, manteniendo el proceso en ejecución.
-
-Para probar el circuito completo de compra, los microservicios involucrados deben encontrarse disponibles.
-
-### 8.3. Compilar el proyecto
-
-Desde el directorio de cada microservicio:
-
-```powershell
-mvn clean compile
-```
-
-Para generar el archivo ejecutable:
-
-```powershell
-mvn clean package
-```
-
-### 8.4. Ejecutar pruebas automatizadas
-
-Desde el directorio del microservicio correspondiente:
-
-```powershell
-mvn clean test
-```
-
-Este comando ejecuta las pruebas reconocidas por la configuración de Maven.
-
-Algunas pruebas de integración utilizan configuraciones y bases de datos específicas, documentadas en los archivos de testing de cada microservicio.
-
-## 9. Documentación Swagger / OpenAPI
-
-Los microservicios exponen documentación de sus endpoints mediante Swagger y OpenAPI.
-
-Con cada servicio iniciado, se pueden consultar las siguientes direcciones:
-
-| Microservicio | Swagger UI |
-|---|---|
-| Eventos y Lugares | `http://localhost:8081/swagger-ui.html` |
-| Reservas | `http://localhost:8080/swagger-ui.html` |
-| Compras y Pagos | `http://localhost:8082/swagger-ui.html` |
-| Entradas | `http://localhost:8083/swagger-ui.html` |
-
-La especificación OpenAPI generada puede consultarse en la ruta `/v3/api-docs` de cada servicio que tenga habilitada la generación mediante Springdoc.
-
-La documentación permite consultar los métodos HTTP, parámetros, esquemas de datos y respuestas de las operaciones.
-
-## 10. Pruebas del sistema
-
-### 10.1. Pruebas unitarias
-
-Los microservicios incluyen pruebas automatizadas para sus principales reglas de negocio.
-
-Entre los escenarios contemplados se encuentran:
-
-- Validaciones de publicación y configuración de eventos.
-- Prevención de sectores y asientos duplicados.
-- Creación y vencimiento de reservas.
-- Control de concurrencia sobre lugares.
-- Idempotencia de operaciones.
-- Confirmación y liberación de reservas.
-- Validación de compras y pagos.
-- Emisión de entradas.
-- Solicitudes y resolución de devoluciones.
-- Procesamiento de cancelaciones y reintegros.
-
-Las clases y escenarios correspondientes se describen en el documento de testing de cada microservicio.
-
-### 10.2. Pruebas de concurrencia
-
-Reservas incluye la prueba `ConcurrenciaMySQLIT`, que utiliza MySQL para comprobar el comportamiento ante solicitudes simultáneas sobre un mismo asiento.
-
-El escenario ejecuta diez solicitudes concurrentes y verifica que solamente una pueda reservar el lugar.
-
-La configuración y los comandos de ejecución se encuentran documentados en `msvc-reservas/docs/05-TESTING-RESERVAS.md`.
-
-### 10.3. Pruebas manuales con Postman
-
-El proyecto utiliza colecciones Postman para ejecutar y validar solicitudes HTTP.
-
-Para realizar las pruebas:
-
-1. Iniciar los microservicios necesarios para el circuito.
-2. Importar las colecciones Postman disponibles en el repositorio.
-3. Configurar las URL y variables del entorno.
-4. Ejecutar las operaciones de creación y consulta de datos.
-5. Probar los circuitos de reserva, compra, pago y emisión.
-6. Verificar los escenarios de devolución y cancelación.
-7. Consultar los estados y respuestas HTTP obtenidos.
-
-Las solicitudes permiten validar tanto operaciones exitosas como errores de negocio y conflictos de disponibilidad.
-
-## 11. Alcance de la entrega
-
-La primera entrega de TicketYa comprende:
-
-- Definición de funcionalidades e historias de usuario con criterios de aceptación.
-- Identificación de los microservicios y sus responsabilidades.
-- Diseño de la arquitectura y sus principales flujos de comunicación.
-- Diagramas de secuencia del proceso de compra.
-- Modelos de datos y diagramas entidad-relación.
-- Definición y documentación de contratos REST.
-- Implementación de APIs utilizando Spring Boot.
-- Centralización del acceso mediante API Gateway.
-- Documentación de APIs con Swagger y OpenAPI.
-- Pruebas automatizadas y manuales de los principales escenarios de negocio.
-- Configuración y documentación para la ejecución local.
-
-La documentación específica de cada microservicio complementa este README con las reglas de negocio, endpoints, modelos de datos y casos de prueba correspondientes.
+Cada microservicio incluye su documentación específica. Las APIs pueden explorarse desde el Swagger agrupado del Gateway.

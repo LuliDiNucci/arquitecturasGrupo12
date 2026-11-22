@@ -7,9 +7,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.ticketya.entradas.clients.CompraClient;
@@ -20,6 +24,7 @@ import com.ticketya.entradas.clients.ReservaFeignClient;
 import com.ticketya.entradas.dtos.CompraDTO;
 import com.ticketya.entradas.dtos.DetalleReservaDTO;
 import com.ticketya.entradas.dtos.EntradaDTO;
+import com.ticketya.entradas.dtos.EntradaReporteDTO;
 import com.ticketya.entradas.dtos.EventoDTO;
 import com.ticketya.entradas.dtos.ReservaDTO;
 import com.ticketya.entradas.dtos.ResultadoEmisionDTO;
@@ -27,10 +32,11 @@ import com.ticketya.entradas.entities.Entrada;
 import com.ticketya.entradas.repositories.EntradaRepository;
 import com.ticketya.entradas.services.EntradaService;
 import com.ticketya.entradas.services.QrCodeService;
-import com.ticketya.entradas.dtos.EntradaReporteDTO;
 
 @Service
 public class EntradaServiceImpl implements EntradaService {
+
+    private static final Logger log = LoggerFactory.getLogger(EntradaServiceImpl.class);
 
     private final EventoFeignClient eventoFeignClient;
     private final ReservaFeignClient reservaFeignClient;
@@ -227,7 +233,7 @@ public class EntradaServiceImpl implements EntradaService {
         }
     }
 
-     /*
+    /*
      * Valida un código QR para permitir el ingreso al evento.
      *
      * Comprueba que la entrada exista, corresponda al evento
@@ -290,6 +296,24 @@ public class EntradaServiceImpl implements EntradaService {
         entrada.setFechaUso(LocalDateTime.now());
 
         Entrada guardada = entradaRepository.saveAndFlush(entrada);
+
+        Long entradaUtilizadaId = guardada.getId();
+        Long eventoIngresadoId = guardada.getEventoId();
+        Long clienteIngresadoId = guardada.getClienteId();
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    log.atInfo()
+                            .addKeyValue("evento", "entrada_validada")
+                            .addKeyValue("entradaId", entradaUtilizadaId)
+                            .addKeyValue("eventoId", eventoIngresadoId)
+                            .addKeyValue("clienteId", clienteIngresadoId)
+                            .addKeyValue("estado", "UTILIZADA")
+                            .log("entrada_validada");
+                }
+            });
+        }
 
         return convertir(guardada);
     }
@@ -354,7 +378,8 @@ public class EntradaServiceImpl implements EntradaService {
         return convertirTodas(
                 entradaRepository.findByEventoId(eventoId));
     }
-        /*
+
+    /*
      * Convierte una lista de entidades Entrada
      * en una lista de objetos EntradaDTO.
      */
@@ -374,19 +399,19 @@ public class EntradaServiceImpl implements EntradaService {
     private EntradaDTO convertir(Entrada e) {
 
         EntradaDTO dto = new EntradaDTO(
-            e.getId(),
-            e.getCompraId(),
-            e.getReservaId(),
-            e.getDetalleReservaId(),
-            e.getIndiceLugar(),
-            e.getClienteId(),
-            e.getEventoId(),
-            e.getSectorId(),
-            e.getAsientoId(),
-            e.getCodigoQr(),
-            e.getEstado(),
-            e.getFechaEmision(),
-            qrCodeService.generarImagenBase64(e.getCodigoQr()));
+                e.getId(),
+                e.getCompraId(),
+                e.getReservaId(),
+                e.getDetalleReservaId(),
+                e.getIndiceLugar(),
+                e.getClienteId(),
+                e.getEventoId(),
+                e.getSectorId(),
+                e.getAsientoId(),
+                e.getCodigoQr(),
+                e.getEstado(),
+                e.getFechaEmision(),
+                qrCodeService.generarImagenBase64(e.getCodigoQr()));
 
         dto.setFechaUso(e.getFechaUso());
         return dto;

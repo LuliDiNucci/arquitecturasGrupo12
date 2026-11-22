@@ -1,0 +1,11 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "5174:80"
+    depends_on:
+      gateway:
+        condition: service_started
+    restart: unless-stopped

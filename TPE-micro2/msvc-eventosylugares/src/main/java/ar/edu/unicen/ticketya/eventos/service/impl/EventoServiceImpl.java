@@ -9,15 +9,19 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import ar.edu.unicen.ticketya.eventos.dto.AsientoResponseDTO;
 import ar.edu.unicen.ticketya.eventos.dto.EstadoNotificacionesResponseDTO;
@@ -31,8 +35,8 @@ import ar.edu.unicen.ticketya.eventos.dto.PrecioSectorRequestDTO;
 import ar.edu.unicen.ticketya.eventos.dto.PrecioSectorResponseDTO;
 import ar.edu.unicen.ticketya.eventos.dto.PreciosEventoRequestDTO;
 import ar.edu.unicen.ticketya.eventos.exception.ReglaNegocioException;
-import ar.edu.unicen.ticketya.eventos.model.AvisoEventoPendiente;
 import ar.edu.unicen.ticketya.eventos.model.Asiento;
+import ar.edu.unicen.ticketya.eventos.model.AvisoEventoPendiente;
 import ar.edu.unicen.ticketya.eventos.model.EstadoEvento;
 import ar.edu.unicen.ticketya.eventos.model.Evento;
 import ar.edu.unicen.ticketya.eventos.model.EventoParticipante;
@@ -42,16 +46,16 @@ import ar.edu.unicen.ticketya.eventos.model.Participante;
 import ar.edu.unicen.ticketya.eventos.model.PrecioSector;
 import ar.edu.unicen.ticketya.eventos.model.Sector;
 import ar.edu.unicen.ticketya.eventos.model.TipoEvento;
-import ar.edu.unicen.ticketya.eventos.repository.AvisoEventoPendienteRepository;
 import ar.edu.unicen.ticketya.eventos.repository.AsientoRepository;
+import ar.edu.unicen.ticketya.eventos.repository.AvisoEventoPendienteRepository;
 import ar.edu.unicen.ticketya.eventos.repository.EventoParticipanteRepository;
 import ar.edu.unicen.ticketya.eventos.repository.EventoRepository;
 import ar.edu.unicen.ticketya.eventos.repository.NotificacionCancelacionRepository;
 import ar.edu.unicen.ticketya.eventos.repository.PrecioSectorRepository;
 import ar.edu.unicen.ticketya.eventos.repository.SectorRepository;
 import ar.edu.unicen.ticketya.eventos.service.AsientoService;
-import ar.edu.unicen.ticketya.eventos.service.EventoService;
 import ar.edu.unicen.ticketya.eventos.service.CatalogoCacheService;
+import ar.edu.unicen.ticketya.eventos.service.EventoService;
 import ar.edu.unicen.ticketya.eventos.service.LugarService;
 import ar.edu.unicen.ticketya.eventos.service.OrganizadorService;
 import ar.edu.unicen.ticketya.eventos.service.ParticipanteService;
@@ -63,6 +67,8 @@ import jakarta.persistence.criteria.Subquery;
 
 @Service
 public class EventoServiceImpl implements EventoService {
+
+    private static final Logger log = LoggerFactory.getLogger(EventoServiceImpl.class);
 
     private final EventoRepository eventoRepository;
     private final SectorRepository sectorRepository;
@@ -289,7 +295,7 @@ public class EventoServiceImpl implements EventoService {
     @Override
     public EventoResponseDTO publicar(Long id) {
         Evento evento = buscarEvento(id);
-        
+
         if (evento.getEstado() == EstadoEvento.PUBLICADO) {
             return detalle(evento);
         }
@@ -397,6 +403,20 @@ public class EventoServiceImpl implements EventoService {
                     id, false, false, 0, LocalDateTime.now(clock), null, null);
             notificacionCancelacionRepository.save(aviso);
             avisosClientes.save(AvisoEventoPendiente.cancelacion(evento.getId(), evento.getNombre(), clock.instant()));
+
+            Long eventoCanceladoId = evento.getId();
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        log.atInfo()
+                                .addKeyValue("evento", "evento_cancelado")
+                                .addKeyValue("eventoId", eventoCanceladoId)
+                                .addKeyValue("estado", "CANCELADO")
+                                .log("evento_cancelado");
+                    }
+                });
+            }
         }
 
         return detalle(evento);

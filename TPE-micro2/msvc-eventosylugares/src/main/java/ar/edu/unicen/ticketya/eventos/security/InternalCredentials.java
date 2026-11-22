@@ -1,4 +1,4 @@
-﻿package ar.edu.unicen.ticketya.eventos.security;
+package ar.edu.unicen.ticketya.eventos.security;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -27,7 +27,9 @@ public class InternalCredentials {
         var factory = new JdkClientHttpRequestFactory(java.net.http.HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(3)).build());
         factory.setReadTimeout(Duration.ofSeconds(5));
-        this.tokenClient = RestClient.builder().requestInterceptor(new com.ticketya.observability.CorrelationHttpInterceptor("msvc-eventosylugares")).requestFactory(factory).baseUrl(tokenUrl).build();
+        this.tokenClient = RestClient.builder()
+                .requestInterceptor(new com.ticketya.observability.CorrelationHttpInterceptor("msvc-eventosylugares"))
+                .requestFactory(factory).baseUrl(tokenUrl).build();
     }
 
     public String authorization(String method) {
@@ -37,6 +39,7 @@ public class InternalCredentials {
             return "Bearer " + jwt.getTokenValue();
         return "Bearer " + serviceToken();
     }
+
     public String serviceAuthorization() {
         return "Bearer " + serviceToken();
     }
@@ -56,9 +59,4 @@ public class InternalCredentials {
         refreshAt = Instant.now().plusSeconds(expires.longValue() - 30);
         return token;
     }
-        cachedToken = token;
-        refreshAt = Instant.now().plusSeconds(expires.longValue() - 30);
-        return token;
-    }
 }
-

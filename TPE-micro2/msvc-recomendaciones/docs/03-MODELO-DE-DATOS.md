@@ -1,48 +1,41 @@
-# 03 — Modelo de Datos
+# Modelo de datos — Recomendaciones
 
-## 1. Persistencia
+## Persistencia
 
-Recomendaciones utiliza MongoDB, con base de datos `ticketya_recomendaciones` y colección `preferencias`. La entidad `Preferencias` se mapea mediante Spring Data MongoDB.
+El microservicio utiliza MongoDB con la base de datos `ticketya_recomendaciones` y la colección `preferencias`.
 
-Se seleccionó MongoDB por la naturaleza documental de las preferencias. Cada cliente posee un conjunto de atributos simples y listas de tipos de eventos y artistas favoritos que se almacenan juntos en un único documento. Esta representación evita tablas de asociación para las listas y permite ampliar los criterios de personalización manteniendo una estructura flexible. La elección se limita a las preferencias; los procesos transaccionales de compras y pagos continúan en sus respectivos microservicios y bases relacionales.
+Se eligió MongoDB para el microservicio de Recomendaciones porque las preferencias de cada cliente se representan naturalmente mediante un documento que contiene sus tipos de eventos preferidos, artistas favoritos y ciudad.
 
-## 2. Documento de preferencias
+El modelo documental permite almacenar listas de intereses dentro del mismo registro, sin necesidad de crear tablas intermedias ni relaciones adicionales. Además, ofrece flexibilidad para incorporar nuevos criterios de personalización.
 
-| Atributo | Tipo Java | Descripción |
+MongoDB se utiliza exclusivamente para las preferencias. Las compras, reservas y pagos permanecen en bases de datos relacionales, donde se requieren transacciones y controles estrictos de consistencia.
+
+## Documento Preferencias
+
+| Campo | Tipo | Descripción |
 |---|---|---|
-| `id` | `String` | Identificador del documento (`_id` en MongoDB) |
-| `clienteId` | `Long` | Identificador del cliente propietario |
-| `tiposEventos` | `List<String>` | Tipos de eventos preferidos |
-| `artistasFavoritos` | `List<String>` | Nombres de artistas favoritos |
+| `_id` | Identificador de MongoDB | Identificador del documento |
+| `clienteId` | `Long` | Identificador del cliente |
+| `tiposEventos` | Lista de textos | Tipos de eventos preferidos |
+| `artistasFavoritos` | Lista de textos | Nombres de artistas favoritos |
 | `ciudad` | `String` | Ciudad de interés |
 
-Ejemplo de estructura lógica del documento:
+Ejemplo de documento:
 
 ```json
 {
-  "clienteId": 99,
-  "tiposEventos": ["RECITAL"],
-  "artistasFavoritos": ["Banda de Prueba TicketYa"],
+  "clienteId": 15,
+  "tiposEventos": ["RECITAL", "FESTIVAL"],
+  "artistasFavoritos": ["Banda Ejemplo"],
   "ciudad": "Tandil"
 }
 ```
 
-MongoDB también asigna el campo `_id`; el documento persistido incluye metadatos de mapeo de Spring Data.
+## Reglas de persistencia
 
-## 3. Relaciones con otros servicios
+- La aplicación consulta si ya existen preferencias para el cliente antes de registrar un documento nuevo.
+- Las modificaciones actualizan el documento existente.
+- La búsqueda se realiza mediante `clienteId`.
+- Los eventos recomendados y el historial de compras no se almacenan en esta base de datos.
 
-- `clienteId` es una referencia lógica al usuario gestionado por `msvc-usuarios`.
-- Los eventos recomendados no se guardan en esta colección: se consultan en `msvc-eventosylugares`.
-- Las compras confirmadas tampoco se duplican: `msvc-compras` conserva sus tablas relacionales y expone una consulta REST de identificadores de eventos recomendados.
-
-No existen claves foráneas entre la base MongoDB de Recomendaciones y las bases de los demás microservicios.
-
-## 4. Configuración
-
-La conexión se configura mediante la propiedad de Spring Boot 4:
-
-```properties
-spring.mongodb.uri=${MONGODB_URI:mongodb://localhost:27017/ticketya_recomendaciones}
-```
-
-En Docker Compose, `MONGODB_URI` apunta al nombre de servicio `db-recomendaciones`, no a `localhost`.
+`clienteId` es una referencia lógica a un usuario de TicketYa, no una clave foránea de MongoDB. Los datos de eventos y compras permanecen en sus microservicios correspondientes.

@@ -1,111 +1,76 @@
-# msvc-gateway
+# TicketYa — API Gateway
 
-API Gateway de TicketYa para las Entregas 1 y 2. Es el único punto de entrada
-externo y reenvía las solicitudes HTTP a los microservicios responsables,
-sin conocer su lógica de negocio ni acceder a sus bases de datos.
+## Descripción
 
-Valida JWT RS256 con Spring Security reactivo y aplica permisos por método/ruta.
-Las rutas privadas requieren Bearer; los servicios vuelven a validarlo y verifican
-titularidad. La [matriz](../msvc-usuarios/docs/03-PERMISOS.md) indica roles y
-credenciales internas. /auth/** y /usuarios/** se enrutan a Usuarios (8085).
-Authorization se conserva hacia los destinos. Sin token/inválido/vencido: 401;
-sin permisos: 403. No se utilizan filtros servlet en este proceso.
+`msvc-gateway` es el punto de entrada HTTP de TicketYa. Recibe las solicitudes del frontend y las dirige al microservicio correspondiente.
 
-Generar primero las claves desde la raíz con java scripts/GenerateDevSecrets.java.
-Configurar JWT_PUBLIC_KEY (recurso file:), JWT_ISSUER y JWT_AUDIENCE iguales a
-Usuarios, y USUARIOS_URL=http://localhost:8085. Se puede iniciar desde la raíz con
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Start-TicketYaService.ps1 -Service gateway.
+Centraliza el enrutamiento y aplica controles de autenticación y autorización. Cada microservicio conserva la responsabilidad sobre su lógica de negocio, persistencia y validaciones específicas.
 
-Swagger agregado: http://localhost:8084/swagger-ui.html.
-OpenAPI Usuarios: http://localhost:8084/usuarios/v3/api-docs.
-
-## Tecnología
+## Tecnologías
 
 - Java 21
 - Spring Boot 3.5.6
-- Spring Cloud 2025.0.3
-- Spring Cloud Gateway Server WebFlux
+- Spring Cloud Gateway WebFlux
+- Spring Security y JWT
+- Springdoc OpenAPI
 - Spring Boot Actuator
 
-El Gateway es reactivo y no mezcla WebMVC. No contiene controladores,
-entidades, repositorios ni base de datos.
+El Gateway utiliza una arquitectura reactiva y no posee base de datos propia.
 
-## Microservicios y rutas
+## Configuración
 
-| Servicio | Puerto local | Prefijos enrutados |
-|---|---:|---|
-| Usuarios | 8085 | `/auth/**`, `/usuarios/**` |
-| Eventos y Lugares | 8081 | `/eventos/**`, `/lugares/**`, `/sectores/**`, `/asientos/**`, `/organizadores/**`, `/participantes/**` |
-| Reservas | 8080 | `/reservas/**`, `/disponibilidad/**` |
-| Compras y Pagos | 8082 | `/compras/**` |
-| Entradas y Devoluciones | 8083 | `/entradas/**`, `/devoluciones/**` |
+- **Puerto:** `8084`.
+- **Autenticación:** JWT firmado con RS256.
+- **Comunicación:** HTTP REST con los microservicios.
 
-Las rutas originales se conservan. Por ejemplo,
-`GET http://localhost:8084/eventos/publicados` se reenvía como
-`GET http://localhost:8081/eventos/publicados`.
+## Microservicios conectados
 
-Los servicios con Springdoc exponen su documentación mediante:
+| Microservicio | Puerto |
+|---|---:|
+| Usuarios | 8085 |
+| Eventos y Lugares | 8081 |
+| Reservas | 8080 |
+| Compras y Pagos | 8082 |
+| Entradas | 8083 |
+| Recomendaciones | 8086 |
+| Notificaciones | 8087 |
+| Fila Virtual | 8088 |
 
-- `http://localhost:8084/eventos/v3/api-docs`
-- `http://localhost:8084/reservas/v3/api-docs`
-- `http://localhost:8084/compras/v3/api-docs`
+Las direcciones se configuran mediante variables de entorno, como `USUARIOS_URL`, `EVENTOS_URL`, `RESERVAS_URL`, `COMPRAS_URL` y las correspondientes a los demás servicios.
 
-`msvc-entradas` no incluye actualmente una dependencia de Springdoc, por lo
-que no se anuncia una especificación OpenAPI para ese servicio.
+## Ejecución
 
-## Ejecución desde VS Code
-
-Desde esta carpeta:
-
-```powershell
-.\mvnw.cmd spring-boot:run
-```
-
-También puede ejecutarse con Maven instalado:
+Desde la carpeta `msvc-gateway`:
 
 ```powershell
 mvn spring-boot:run
 ```
 
-El Gateway escucha en `http://localhost:8084`.
+El Gateway queda disponible en:
 
-## Variables de entorno
-
-Las variables permiten cambiar las direcciones sin modificar el código:
-
-```text
-PORT=8084
-EVENTOS_URL=http://localhost:8081
-RESERVAS_URL=http://localhost:8080
-COMPRAS_URL=http://localhost:8082
-ENTRADAS_URL=http://localhost:8083
-```
-
-Todos esos valores tienen defaults para ejecución local.
-
-## Ejemplos para Postman
-
-```text
-GET  http://localhost:8084/eventos/publicados
-GET  http://localhost:8084/disponibilidad?eventoId=1&sectorId=2
-POST http://localhost:8084/reservas
-POST http://localhost:8084/compras
-POST http://localhost:8084/entradas/emitir
-GET  http://localhost:8084/devoluciones/pendientes
-```
-
-Para requests `POST`, `PUT` o `PATCH` se envía el mismo JSON que espera el
-microservicio original. El Gateway conserva método, parámetros, encabezados,
-cuerpo y código de respuesta. Los errores de conexión tienen timeout para no
-bloquear indefinidamente.
+`http://localhost:8084`
 
 ## Verificación
 
-Health check:
+Estado del Gateway:
 
-```text
-GET http://localhost:8084/actuator/health
+`http://localhost:8084/actuator/health`
+
+Swagger UI:
+
+`http://localhost:8084/swagger-ui.html`
+
+Swagger permite seleccionar la documentación de los distintos microservicios.
+
+El endpoint de salud verifica el estado del Gateway. Para utilizar las funcionalidades del sistema, también deben encontrarse disponibles los servicios de destino.
+
+## Pruebas
+
+```powershell
+mvn clean test
 ```
 
-Debe responder `200` mientras el Gateway esté iniciado. Para probar el
-enrutamiento completo, deben estar levantados los microservicios destino.
+La documentación técnica se encuentra en:
+
+- `docs/01-ARQUITECTURA-Y-SEGURIDAD.md`
+- `docs/02-PRUEBAS.md`

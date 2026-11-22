@@ -1,9 +1,12 @@
 package com.ticketya.compras.security;
 
-import io.swagger.v3.oas.models.*;
-import io.swagger.v3.oas.models.security.*;
 import org.springdoc.core.customizers.OpenApiCustomizer;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 
 @Configuration
 public class OpenApiSecurityConfig {
@@ -21,7 +24,7 @@ public class OpenApiSecurityConfig {
                     operation.getResponses().addApiResponse("401", new io.swagger.v3.oas.models.responses.ApiResponse()
                         .description("JWT ausente, inválido o vencido"));
                     operation.getResponses().addApiResponse("403", new io.swagger.v3.oas.models.responses.ApiResponse()
-                        .description("Rol o titularidad insuficiente; ver matriz de permisos de Entrega 2"));
+                        .description("Rol o titularidad insuficiente"));
                 }
             }));
         };

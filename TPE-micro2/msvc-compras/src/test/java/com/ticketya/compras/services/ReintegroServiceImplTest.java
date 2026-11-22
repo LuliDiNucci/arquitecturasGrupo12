@@ -17,6 +17,7 @@ import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import com.ticketya.compras.clients.EntradaClient;
 import com.ticketya.compras.clients.EventoClient;
+import com.ticketya.compras.clients.ReservaClient;
 import com.ticketya.compras.dtos.EntradaDTO;
 import com.ticketya.compras.dtos.EventoDTO;
 import com.ticketya.compras.dtos.ReintegroDTO;
@@ -48,12 +49,14 @@ class ReintegroServiceImplTest {
 
                 Compra compra = new Compra();
                 compra.setId(1L);
-        compra.setClienteId(1L);
+                compra.setClienteId(1L);
                 compra.setEstado(EstadoCompra.CONFIRMADA.name());
+                compra.setReservaId(5L);
 
                 DetalleCompra detalle = new DetalleCompra();
                 detalle.setCompra(compra);
                 detalle.setPrecioUnitario(new BigDecimal("15000.00"));
+                detalle.setSectorId(2L);
 
                 ItemCompra item = new ItemCompra();
                 item.setId(13L);
@@ -107,7 +110,8 @@ class ReintegroServiceImplTest {
                                 reintegros,
                                 entradas,
                                 crearEventoCanceladoMock(),
-                                pasarela,
+                                mock(ReservaClient.class),
+                                new PasarelaPagoMock(),
                                 crearGestorTransacciones());
 
                 SolicitudReintegroDTO solicitud = new SolicitudReintegroDTO();
@@ -152,7 +156,7 @@ class ReintegroServiceImplTest {
 
                 Compra compra = new Compra();
                 compra.setId(2L);
-        compra.setClienteId(1L);
+                compra.setClienteId(1L);
                 compra.setEventoId(21L);
                 compra.setEstado(EstadoCompra.CONFIRMADA.name());
 
@@ -203,6 +207,7 @@ class ReintegroServiceImplTest {
                                 reintegros,
                                 entradas,
                                 crearEventoCanceladoMock(),
+                                mock(ReservaClient.class),
                                 new PasarelaPagoMock(),
                                 crearGestorTransacciones());
 
@@ -233,7 +238,7 @@ class ReintegroServiceImplTest {
 
                 Compra compra = new Compra();
                 compra.setId(1L);
-        compra.setClienteId(1L);
+                compra.setClienteId(1L);
                 compra.setEstado(EstadoCompra.CONFIRMADA.name());
 
                 DetalleCompra detalle = new DetalleCompra();
@@ -297,9 +302,9 @@ class ReintegroServiceImplTest {
                                 reintegros,
                                 entradas,
                                 crearEventoCanceladoMock(),
+                                mock(ReservaClient.class),
                                 new PasarelaPagoMock(),
                                 crearGestorTransacciones());
-
                 SolicitudReintegroDTO solicitud = new SolicitudReintegroDTO();
                 solicitud.setEntradaId(201L);
                 solicitud.setMotivo("DEVOLUCION_CLIENTE");
@@ -337,7 +342,7 @@ class ReintegroServiceImplTest {
 
                 Compra compra = new Compra();
                 compra.setId(2L);
-        compra.setClienteId(1L);
+                compra.setClienteId(1L);
                 compra.setEventoId(21L);
                 compra.setEstado(
                                 EstadoCompra.CONFIRMACION_PENDIENTE.name());
@@ -389,6 +394,7 @@ class ReintegroServiceImplTest {
                                 reintegros,
                                 entradas,
                                 crearEventoCanceladoMock(),
+                                mock(ReservaClient.class),
                                 new PasarelaPagoMock(),
                                 crearGestorTransacciones());
 

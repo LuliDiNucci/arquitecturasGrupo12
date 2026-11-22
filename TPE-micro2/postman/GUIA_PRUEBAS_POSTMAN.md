@@ -1,211 +1,646 @@
-# Pruebas de integración con Postman – TicketYa
 
-## Requisitos previos
+# Pruebas de integración con Postman — TicketYa
 
-Antes de ejecutar las pruebas:
+## 1. Objetivo
 
-1. Tener MySQL iniciado y las bases de datos disponibles.
-2. Levantar los cuatro microservicios: Eventos y Lugares, Reservas, Compras y Pagos, y Entradas.
-3. Levantar el API Gateway en `http://localhost:8084`.
-4. Importar `TicketYa-Integracion.postman_collection.json` en Postman.
-5. Ejecutar las pruebas preferentemente con las bases de datos vacías.
+Esta guía describe cómo ejecutar las pruebas de integración de TicketYa utilizando Postman y los microservicios desplegados mediante Docker Compose.
 
-La colección utiliza variables para almacenar automáticamente los identificadores de los recursos creados (`eventoId`, `reservaId`, `compraId`, `entradaId`, etc.).
+Las pruebas permiten verificar:
 
-**Importante:** las peticiones deben ejecutarse individualmente en el orden indicado. Las reservas temporales vencen después de 10 minutos, por lo que las operaciones de compra y pago deben realizarse mientras estén vigentes.
+- Autenticación y autorización mediante JWT.
+- Gestión de usuarios y roles.
+- Creación y publicación de eventos.
+- Gestión de lugares, sectores y asientos.
+- Búsqueda de eventos y consulta de disponibilidad.
+- Registro de preferencias y recomendaciones.
+- Reservas temporales.
+- Compras y pagos simulados.
+- Emisión y consulta de entradas digitales.
+- Validación de códigos QR.
+- Solicitudes de devolución y reintegros.
+- Reportes de eventos.
+- Fila virtual para eventos de alta demanda.
+- Cancelaciones, modificaciones y manejo de errores.
 
-## Orden de ejecución
+Las solicitudes se realizan a través del API Gateway.
 
-### 1. Eventos y Lugares – Carga inicial
+## 2. Archivos de Postman
 
-**Carpeta 01 - Carga y publicación**
+La carpeta `postman/` contiene las siguientes colecciones:
 
-Ejecutar todas las peticiones, de la **01 a la 15**, en el orden en que aparecen.
+| Archivo                                         | Descripción                                                             |
+| ----------------------------------------------- | ----------------------------------------------------------------------- |
+| `TicketYa-Integracion.postman_collection.json`  | Colección principal de integración de la Entrega 2, con 89 solicitudes. |
+| `TicketYa-Usuarios-JWT.postman_collection.json` | Pruebas adicionales de autenticación, JWT, usuarios y seguridad.        |
 
-Se crean el organizador, participante, lugar, sectores, asientos y evento. También se configuran los precios y se publica el evento.
+La colección principal organiza las solicitudes según los procesos de negocio y los roles necesarios para ejecutarlas.
 
-Resultado esperado: evento en estado `PUBLICADO`.
+La colección de Usuarios y JWT se conserva como complemento para verificar escenarios específicos de seguridad.
 
-### 2. Consultas y actualizaciones
+## 3. Requisitos previos
 
-**Carpeta 02 - Consultas y actualizaciones**
+Antes de comenzar:
 
-Ejecutar todas las peticiones, de la **16 a la 24**, en orden.
+1. Tener Docker Desktop iniciado.
+2. Tener configurado el archivo `.env` del proyecto.
+3. Tener generadas las claves JWT necesarias.
+4. Levantar los microservicios y sus bases de datos mediante Docker Compose.
+5. Verificar que el API Gateway esté disponible en `http://localhost:8084`.
+6. Tener instalado Postman.
+7. Contar con un usuario administrador válido.
 
-Se comprueban las búsquedas, los filtros, las consultas de sectores y la modificación de un evento publicado.
+Desde la raíz del proyecto, ejecutar:
 
-### 3. Ciclo de estados del evento
+```powershell
+docker compose up -d --build
+```
 
-**Carpeta 03 - Ciclo de estados sin cancelar**
+Para consultar el estado de los contenedores:
 
-Ejecutar todas las peticiones, de la **25 a la 29**, en orden:
+```powershell
+docker compose ps
+```
 
-1. Suspender evento.
-2. Comprobar que no está habilitado.
-3. Republicar evento.
-4. Marcar evento agotado.
-5. Reabrir evento.
+Los servicios principales deben encontrarse en ejecución.
 
-Resultado esperado: el evento vuelve a estar `PUBLICADO`.
+No es necesario eliminar las bases de datos antes de realizar las pruebas. La colección genera nuevos usuarios y recursos identificados mediante valores únicos.
 
-**No ejecutar todavía la carpeta 04 - Cancelación.**
+## 4. Configuración de Postman
 
-### 4. Reservas – Crear una reserva para comprar
+### 4.1. Importar la colección
 
-**Carpeta 06 - Reservas**
+1. Abrir Postman.
+2. Seleccionar **Import**.
+3. Importar `TicketYa-Integracion.postman_collection.json`.
+4. Abrir la colección importada.
+5. Ingresar en la pestaña **Variables**.
+
+### 4.2. Configurar variables
+
+La colección utiliza como dirección principal:
+
+```text
+baseUrl = http://localhost:8084
+```
+
+Antes de comenzar, configurar las siguientes variables con las credenciales del administrador existente:
+
+| Variable        | Valor                         |
+| --------------- | ----------------------------- |
+| `adminEmail`    | Correo del administrador.     |
+| `adminPassword` | Contraseña del administrador. |
+
+Las credenciales deben configurarse localmente en Postman. No deben incluirse en archivos compartidos ni en el repositorio.
+
+Las demás variables se completan automáticamente durante las pruebas.
+
+Entre ellas:
+
+- `qaId`
+- `clienteId`
+- `clienteToken`
+- `organizadorUsuarioId`
+- `organizadorToken`
+- `personalId`
+- `personalToken`
+- `eventoId`
+- `sectorCampoId`
+- `sectorNumeradoId`
+- `reservaId`
+- `compraId`
+- `entradaQrId`
+- `entradaDevolucionId`
+- `codigoQr`
+- `devolucionId`
+- `eventoAltaDemandaId`
+
+Los tokens JWT se obtienen mediante los endpoints de autenticación.
+
+**Importante:** las solicitudes deben ejecutarse en el orden indicado. No se recomienda utilizar `Run Collection` sobre las 89 solicitudes, ya que algunas pruebas opcionales modifican o cancelan recursos utilizados por otros escenarios.
+
+## 5. Orden de ejecución principal
+
+La colección de integración contiene siete carpetas:
+
+| Carpeta                                                  | Cantidad de solicitudes | Ejecución |
+| -------------------------------------------------------- | ----------------------: | --------- |
+| `00 - Preparar identidades y JWT`                        |                      12 | Principal |
+| `01 - Catálogo y preparación del evento`                 |                      25 | Principal |
+| `02 - COMPRA COMPLETA`                                   |                      10 | Principal |
+| `03 - Acceso QR, devolución y reportes`                  |                      13 | Principal |
+| `04 - Fila virtual alta demanda`                         |                       9 | Principal |
+| `90 - Opcionales: actualización, cancelación y rechazos` |                      11 | Opcional  |
+| `91 - Seguridad y errores`                               |                       9 | Opcional  |
+| **Total**                                                |                  **89** |           |
+
+Las carpetas principales deben ejecutarse de la 00 a la 04.
+
+Las carpetas 90 y 91 contienen pruebas adicionales que deben ejecutarse individualmente cuando corresponda.
+
+---
+
+## 6. Carpeta 00 — Preparar identidades y JWT
+
+**Objetivo:** preparar usuarios de prueba y obtener los tokens necesarios para los diferentes roles.
+
+Ejecutar las solicitudes de la carpeta `00 - Preparar identidades y JWT` en orden:
+
+1. Inicializar los datos de prueba.
+2. Iniciar sesión como administrador.
+3. Registrar un cliente.
+4. Iniciar sesión como cliente.
+5. Consultar el perfil del cliente.
+6. Registrar un usuario organizador.
+7. Asignarle el rol `ORGANIZADOR`.
+8. Iniciar sesión como organizador.
+9. Registrar un usuario de personal de acceso.
+10. Asignarle el rol `PERSONAL_ACCESO`.
+11. Iniciar sesión como personal de acceso.
+12. Consultar el perfil del administrador.
+
+La primera solicitud genera un identificador único de ejecución (`qaId`), que se utiliza para evitar conflictos con datos anteriores.
+
+También genera correos y contraseñas de prueba para los usuarios nuevos.
+
+Los identificadores y tokens obtenidos quedan almacenados en las variables de la colección.
+
+### Resultados esperados
+
+- Los registros de usuarios devuelven HTTP `201 Created`.
+- Los inicios de sesión devuelven HTTP `200 OK`.
+- Los perfiles se consultan correctamente.
+- Los roles administrativos se asignan mediante un usuario autorizado.
+- Los tokens corresponden a los roles configurados.
+
+**Importante:** las modificaciones de roles requieren un nuevo inicio de sesión para obtener un JWT con los permisos actualizados.
+
+No debe continuarse con la siguiente carpeta si falló alguno de los pasos necesarios para crear o autenticar los usuarios.
+
+---
+
+## 7. Carpeta 01 — Catálogo y preparación del evento
+
+**Objetivo:** crear los recursos necesarios para ejecutar el circuito completo de compra.
+
+Ejecutar las 25 solicitudes de `01 - Catálogo y preparación del evento` en orden.
+
+### 7.1. Configuración inicial
+
+Las solicitudes crean:
+
+1. Un organizador.
+2. Su vinculación con el usuario que tiene rol `ORGANIZADOR`.
+3. Un participante de tipo artista.
+4. Un lugar.
+5. Un sector numerado.
+6. Un sector no numerado.
+7. Los asientos del sector numerado.
+
+También permiten consultar los lugares, organizadores, participantes y asientos registrados.
+
+### 7.2. Preferencias
+
+Se registran preferencias para el cliente de prueba:
+
+- Tipo de evento: `RECITAL`.
+- Artista favorito: el participante creado durante la ejecución.
+- Ciudad: `Tandil`.
+
+Esto prepara los datos necesarios para probar las recomendaciones y los avisos por artistas favoritos.
+
+### 7.3. Creación y publicación
+
+Se crea un evento asociado al organizador y al lugar de prueba.
+
+Luego:
+
+1. Se configuran los precios de los sectores.
+2. Se publica el evento.
+3. Se consulta el catálogo público.
+4. Se ejecutan búsquedas con filtros.
+5. Se consulta el detalle.
+6. Se consultan sectores y precios.
+7. Se comprueba la disponibilidad.
+
+El evento se crea con una fecha futura generada automáticamente.
+
+### 7.4. Recomendaciones
+
+Al final de la carpeta se consultan:
+
+- Las preferencias del cliente.
+- Las recomendaciones generadas para ese cliente.
+
+### Resultados esperados
+
+- Los recursos se crean correctamente.
+- El evento queda en estado `PUBLICADO`.
+- El evento aparece en las consultas públicas correspondientes.
+- Se obtienen los sectores y sus precios.
+- La disponibilidad se consulta correctamente.
+- El servicio de Recomendaciones responde utilizando las preferencias registradas.
+
+La publicación también puede generar una notificación de artista favorito, que se procesa automáticamente mediante el servicio de Notificaciones.
+
+---
+
+## 8. Carpeta 02 — Compra completa
+
+**Objetivo:** verificar el circuito principal de reserva, pago, confirmación y emisión de entradas.
+
+Esta carpeta contiene 10 solicitudes y debe ejecutarse de manera consecutiva.
+
+**Las reservas temporales vencen después de 10 minutos.** Por eso, no debe interrumpirse el proceso entre la creación de la reserva y la confirmación de la compra.
+
+### Orden
+
+1. Reservar dos lugares del sector Campo.
+2. Consultar la reserva.
+3. Iniciar la compra.
+4. Consultar los datos de la compra.
+5. Procesar el pago simulado con tarjeta.
+6. Consultar la confirmación del pago.
+7. Confirmar la compra y emitir las entradas.
+8. Consultar las entradas del cliente.
+9. Consultar el QR de una entrada.
+10. Consultar el estado final de la compra.
+
+Se reservan **dos entradas** para poder realizar posteriormente dos pruebas diferentes:
+
+- Validar una entrada mediante QR.
+- Solicitar la devolución de la otra.
+
+### Resultados esperados
+
+| Operación      | Resultado              |
+| -------------- | ---------------------- |
+| Reserva        | `ACTIVA`               |
+| Compra inicial | `PENDIENTE`            |
+| Pago simulado  | `APROBADO`             |
+| Compra final   | `CONFIRMADA`           |
+| Entradas       | `EMITIDA`              |
+| Código QR      | Generado correctamente |
+
+Durante el proceso se almacenan automáticamente:
+
+- `reservaId`
+- `compraId`
+- `entradaQrId`
+- `entradaDevolucionId`
+- `codigoQr`
+
+### Consideraciones
+
+No es necesario llamar manualmente al endpoint interno de emisión de entradas.
+
+La confirmación de compra coordina las operaciones correspondientes entre Compras, Reservas y Entradas.
+
+Si la reserva vence antes de finalizar el pago, se debe comenzar una nueva ejecución del circuito de compra con una reserva vigente.
+
+---
+
+## 9. Carpeta 03 — Acceso QR, devolución y reportes
+
+**Objetivo:** comprobar las operaciones posteriores a la compra.
+
+Ejecutar las 13 solicitudes de `03 - Acceso QR, devolución y reportes` en orden.
+
+### 9.1. Validación de QR
+
+Primero:
+
+1. El administrador asigna al personal de acceso al evento.
+2. El personal valida el QR de una entrada.
+3. Se intenta validar nuevamente el mismo QR.
+
+### Resultados esperados
+
+| Operación            | Resultado             |
+| -------------------- | --------------------- |
+| Asignar personal     | HTTP `204 No Content` |
+| Primera validación   | HTTP `200 OK`         |
+| Estado de la entrada | `UTILIZADA`           |
+| Segunda validación   | HTTP `409 Conflict`   |
+
+El código `409` de la segunda validación es un resultado correcto: demuestra que una entrada no puede utilizarse dos veces.
+
+### 9.2. Devolución
+
+Después, el cliente solicita la devolución de la segunda entrada.
+
+La operación se realiza sobre una entrada diferente de la utilizada para validar el QR.
 
 Ejecutar:
 
-1. `Habilitar evento (interno)`.
-2. `Disponibilidad - Platea numerada`.
-3. `Crear reserva`.
-4. `Consultar reserva`.
+1. Solicitar devolución.
+2. Consultar solicitudes pendientes como administrador.
+3. Aprobar la devolución.
+4. Consultar los reintegros asociados a la compra.
+5. Consultar la entrada devuelta.
+6. Consultar nuevamente la entrada utilizada.
 
-Resultado esperado: reserva en estado `ACTIVA`.
+### Resultados esperados
 
-No ejecutar todavía `Confirmar (interno)` ni `Liberar temporal (interno)`, porque esta reserva será utilizada por Compras y Pagos.
+- La solicitud de devolución se registra.
+- El administrador puede consultar la solicitud pendiente.
+- La devolución queda en estado `APROBADA`.
+- Se procesa el reintegro correspondiente.
+- La entrada devuelta queda `INVALIDADA`.
+- La primera entrada permanece `UTILIZADA`.
 
-### 5. Compras y Pagos – Pago aprobado
+La liberación del lugar y el reintegro son coordinados por los microservicios correspondientes.
 
-**Carpeta 07 - Compras y Pagos**
+No deben ejecutarse manualmente llamadas internas que ya forman parte del proceso de aprobación.
 
-Ejecutar:
+### 9.3. Reportes
 
-1. `01 - Iniciar compra`.
-2. `02 - Consultar compra`.
-3. `03 - Procesar pago aprobado`.
-4. `04 - Consultar confirmacion`.
-5. `05 - Confirmar compra y emitir entradas`.
+Finalmente, el organizador consulta:
 
-**Omitir por ahora `01b - Iniciar compra para pago rechazado`.**
+- Reporte general del evento.
+- Reporte por sectores.
+- Reporte de recaudación.
+- Reporte de ocupación.
 
-Resultados esperados: pago `APROBADO`, compra `CONFIRMADA` y entrada emitida.
+### Resultado esperado
 
-La confirmación de compra permite guardar automáticamente el identificador de la entrada generada.
+Los reportes deben responder correctamente y reflejar las operaciones registradas durante la prueba.
 
-### 6. Entradas – Consultar entradas emitidas
+Las cantidades y los importes pueden incluir operaciones realizadas anteriormente sobre el mismo evento, si existen.
 
-**Carpeta 09 - Entradas**
+---
 
-Ejecutar:
+## 10. Carpeta 04 — Fila virtual de alta demanda
 
-1. `02 - Consultar entrada`.
-2. `03 - Consultar entradas de un cliente`.
+**Objetivo:** verificar el ingreso ordenado a una fila virtual y la habilitación de clientes para comprar.
 
-Resultado esperado: entrada en estado `EMITIDA`, con su código QR.
+La carpeta contiene nueve solicitudes.
 
-No ejecutar `01 - Emitir entradas`, porque el proceso de confirmación de compra ya realizó la emisión.
+Se utiliza un evento de alta demanda distinto del empleado en el circuito de compra anterior.
 
-No ejecutar todavía `04 - Invalidar entradas de un evento`.
+### Orden
 
-### 7. Devoluciones – Aprobar una devolución
+1. Crear un evento marcado como de alta demanda.
+2. Configurar sus precios.
+3. Publicarlo.
+4. Ingresar al cliente en la fila virtual.
+5. Consultar la posición del cliente.
+6. Habilitar una tanda desde el rol administrador.
+7. Consultar el turno habilitado.
+8. Crear una reserva con el turno autorizado.
+9. Consultar nuevamente el estado de la fila.
 
-**Carpeta 10 - Devoluciones**
+### Resultados esperados
 
-Ejecutar:
+- El cliente puede registrarse en la fila.
+- La posición y el estado se consultan correctamente.
+- La habilitación de tandas requiere autorización administrativa.
+- El cliente habilitado puede avanzar hacia la reserva.
+- Reservas comprueba el turno mediante la integración interna con Fila Virtual.
 
-1. `01 - Solicitar devolucion`.
-2. `02 - Consultar devoluciones pendientes`.
-3. `03 - Aprobar devolucion`.
+Los turnos habilitados tienen una vigencia limitada.
 
-Resultado esperado: solicitud en estado `APROBADA`.
+La reserva debe ejecutarse mientras el turno continúe autorizado.
 
-No ejecutar `04 - Rechazar devolucion` sobre la misma solicitud, porque ya fue aprobada.
+No es necesario invocar manualmente los endpoints internos de validación o finalización de turnos.
 
-### 8. Reintegros y liberación de disponibilidad
+---
 
-**Carpeta 08 - Reintegros**
+## 11. Carpeta 90 — Pruebas opcionales
 
-Ejecutar:
+**Nombre:** `90 - Opcionales: actualización, cancelación y rechazos`
 
-1. `09 - Consultar reintegros de compra`.
+Esta carpeta contiene 11 solicitudes.
 
-Resultado esperado: reintegro asociado a la entrada devuelta, con estado `APROBADO`.
+No forma parte del recorrido principal y no debe ejecutarse indiscriminadamente.
 
-Después verificar:
+Permite comprobar escenarios adicionales.
 
-- **Carpeta 09:** `02 - Consultar entrada`. Su estado debe ser `INVALIDADA`.
-- **Carpeta 06:** `Disponibilidad - Campo (comprobar liberacion tras devolucion)`.
+### 11.1. Pago rechazado
 
-Resultado esperado: la disponibilidad de Campo vuelve a 500 lugares, siempre que no existan otras reservas ocupando capacidad.
+Las primeras tres solicitudes:
 
-No ejecutar `08 - Registrar reintegro de entrada` sobre una entrada ya reintegrada.
+1. Crean una reserva nueva.
+2. Inician una compra asociada.
+3. Procesan un pago con el medio `TARJETA_RECHAZADA`.
 
-### 9. Reservas – Liberación temporal
+### Resultado esperado
 
-**Carpeta 06 - Reservas**
+El pago queda en estado `RECHAZADO`.
 
-Ejecutar:
+La pasarela es simulada, por lo que no se realizan cobros reales.
 
-1. `Crear reserva` nuevamente para obtener una reserva nueva en estado `ACTIVA`.
-2. `Liberar temporal (interno)`.
-3. `Consultar reserva`.
-4. `Disponibilidad - Campo (comprobar liberacion tras devolucion)`.
+La liberación de la reserva se gestiona mediante el comportamiento implementado en Compras y Reservas.
 
-Resultado esperado: reserva `LIBERADA` y disponibilidad restaurada.
+### 11.2. Modificación de evento
 
-### 10. Compras y Pagos – Pago rechazado
+Se modifica la descripción de un evento previamente publicado.
 
-Primero ejecutar:
+La modificación puede generar notificaciones para los clientes que hayan comprado entradas.
 
-- **Carpeta 06:** `Crear reserva`, para obtener otra reserva `ACTIVA`.
+El envío se procesa mediante el servicio de Notificaciones.
 
-Luego, en **Carpeta 07 - Compras y Pagos**, ejecutar:
+### 11.3. Suspensión y nueva publicación
 
-1. `01b - Iniciar compra para pago rechazado (con reserva ACTIVA nueva)`.
-2. `06 - Procesar pago rechazado`.
-3. `07 - Reintentar liberacion de reserva`.
+Se comprueba que:
 
-La petición `01b` guarda el identificador en `compraIdRechazada`, sin sobrescribir `compraId` de la compra aprobada.
+1. Un administrador puede suspender un evento.
+2. Un organizador autorizado puede volver a publicarlo, cuando su estado lo permita.
 
-Resultados esperados: pago `RECHAZADO`, reserva liberada automáticamente y reintento de liberación con respuesta `204 No Content`.
+### 11.4. Cancelación
 
-Para verificar el estado de la reserva rechazada, consultar su identificador correspondiente.
+La carpeta incluye la cancelación del evento y una consulta de las notificaciones asociadas.
 
-### 11. Cancelación del evento
+**La cancelación debe ejecutarse únicamente cuando hayan terminado las demás pruebas sobre ese evento.**
 
-**Carpeta 04 - Cancelación (ejecutar al final)**
+Es una operación de negocio que puede provocar:
 
-Ejecutar todas las peticiones, de la **30 a la 33**, en orden:
+- Cancelación de reservas.
+- Invalidación de entradas.
+- Reintegros.
+- Notificaciones a compradores.
 
-1. Cancelar evento.
-2. Verificar notificaciones a Reservas, Entradas y Compras.
-3. Cancelar nuevamente para comprobar idempotencia.
-4. Comprobar que el evento cancelado no aparece en las búsquedas.
+No debe utilizarse un evento cancelado para continuar los escenarios de compra.
 
-Resultado esperado: evento `CANCELADO`, notificaciones procesadas y ausencia del evento en búsquedas públicas.
+### 11.5. Otras operaciones
 
-### 12. Validación de errores
+También se incluyen:
 
-**Carpeta 05 - Errores**
+- Actualización de preferencias.
+- Revocación de una asignación de personal.
+- Consulta administrativa de un usuario por ID.
 
-Ejecutar todas las peticiones, de la **34 a la 37**, en orden.
+Estas operaciones permiten comprobar funcionalidades adicionales sin mezclarlas con el circuito principal.
 
-| Prueba | Resultado esperado |
-|---|---|
-| ID inexistente | 404 Not Found |
-| Coordenadas inválidas | 400 Bad Request |
-| Fechas invertidas | 400 Bad Request |
-| Publicar evento cancelado | 409 Conflict |
+---
 
-Estos códigos HTTP representan resultados correctos de las pruebas negativas.
+## 12. Carpeta 91 — Seguridad y manejo de errores
 
-## Pruebas internas y alternativas
+**Nombre:** `91 - Seguridad y errores (opcionales)`
 
-La colección también incluye operaciones de confirmación manual de reservas, devolución interna de entradas, invalidación por evento, compensaciones y rechazo de solicitudes de devolución.
+La carpeta contiene nueve pruebas negativas.
 
-Estas operaciones **no deben ejecutarse indiscriminadamente**, porque dependen de estados específicos o ya son realizadas automáticamente durante los flujos principales.
+Su objetivo es verificar que el backend rechace las operaciones cuando faltan credenciales, permisos o datos válidos.
 
-Para probar el rechazo de una devolución se necesita generar otra entrada válida, crear una nueva solicitud `PENDIENTE` y ejecutar `04 - Rechazar devolucion (alternativa)` antes de aprobarla.
+Entre los escenarios:
 
-## Consideraciones finales
+| Prueba                                                   | HTTP esperado      |
+| -------------------------------------------------------- | ------------------ |
+| Consultar una compra sin JWT                             | `401 Unauthorized` |
+| Cliente intenta aprobar una devolución                   | `403 Forbidden`    |
+| Cliente intenta administrar roles                        | `403 Forbidden`    |
+| Cliente intenta habilitar una fila                       | `403 Forbidden`    |
+| Cliente intenta emitir entradas mediante una API interna | `403 Forbidden`    |
+| Cliente intenta registrar una notificación interna       | `403 Forbidden`    |
+| Personal intenta validar para un evento no asignado      | `403 Forbidden`    |
+| Consultar un lugar inexistente                           | `404 Not Found`    |
+| Buscar con fechas invertidas                             | `400 Bad Request`  |
 
-- Ejecutar las pruebas en el orden indicado.
-- No cancelar el evento antes de terminar las operaciones de reservas, compras y devoluciones.
-- No confirmar y liberar manualmente la misma reserva.
+**Importante:** los códigos `400`, `401`, `403`, `404` y `409` no representan necesariamente fallos de la implementación.
+
+En estas pruebas son resultados esperados que demuestran la aplicación de reglas de negocio y permisos.
+
+---
+
+## 13. Colección adicional de Usuarios y JWT
+
+El archivo `TicketYa-Usuarios-JWT.postman_collection.json` se conserva como colección complementaria.
+
+Contiene pruebas específicas de:
+
+- Registro de usuarios.
+- Validación de datos.
+- Inicio de sesión.
+- Consulta del perfil.
+- JWT inválido o alterado.
+- Restricciones de acceso.
+- Administración de roles.
+- Activación y desactivación de usuarios.
+- Operaciones administrativas adicionales.
+
+Esta colección puede ejecutarse de manera independiente.
+
+Antes de hacerlo, verificar sus variables de conexión y autenticación.
+
+Para realizar las pruebas a través del Gateway, utilizar:
+
+```text
+baseUrl = http://localhost:8084
+```
+
+Las operaciones que requieren credenciales internas de servicio deben ejecutarse únicamente con las credenciales correspondientes y en un entorno de pruebas autorizado.
+
+No se deben colocar secretos internos en archivos que se compartan o publiquen.
+
+---
+
+## 14. Notificaciones por correo
+
+TicketYa utiliza un servicio de Notificaciones que procesa los avisos mediante mecanismos persistentes y reintentos.
+
+Las notificaciones se generan automáticamente durante las operaciones de negocio.
+
+Se contemplan cuatro tipos:
+
+1. Confirmación de compra.
+2. Cancelación de evento.
+3. Modificación de evento.
+4. Publicación de un evento de un artista favorito.
+
+La colección principal no envía arbitrariamente estos avisos mediante endpoints internos.
+
+Los avisos se generan como consecuencia de las operaciones de Compras y Eventos, respetando la autenticación entre servicios.
+
+### Verificación con Mailpit
+
+En el entorno Docker de desarrollo, los correos pueden consultarse en:
+
+http://localhost:8025
+
+Allí se puede comprobar la recepción de los mensajes generados por los procesos de negocio.
+
+Los correos son de prueba y no requieren un proveedor externo real.
+
+---
+
+## 15. Consideraciones sobre las pruebas internas
+
+Algunos endpoints se encuentran reservados para la comunicación entre microservicios.
+
+Entre ellos se encuentran operaciones relacionadas con:
+
+- Confirmación y liberación interna de reservas.
+- Emisión interna de entradas.
+- Invalidación de entradas por cancelación.
+- Liberación de lugares devueltos.
+- Registro interno de reintegros.
+- Validación y finalización de turnos de fila virtual.
+- Registro de avisos por parte de servicios autorizados.
+
+Estas operaciones no deben ejecutarse utilizando el JWT de un cliente o administrador, porque requieren identidades de servicio específicas.
+
+La colección comprueba sus efectos a través de los flujos completos de negocio.
+
+Por ejemplo:
+
+- Confirmar una compra permite comprobar la confirmación de reserva y emisión de entradas.
+- Aprobar una devolución permite comprobar la invalidación y el reintegro.
+- Reservar en un evento de alta demanda permite comprobar la autorización de la fila virtual.
+- Publicar o modificar eventos permite comprobar la generación de avisos.
+
+Esto evita duplicar manualmente operaciones que ya se encuentran coordinadas por el backend.
+
+---
+
+## 16. Recomendaciones de ejecución
+
+Para obtener resultados consistentes:
+
+- Ejecutar las carpetas principales en orden.
+- Completar primero la autenticación.
+- Utilizar los identificadores almacenados automáticamente.
+- No sustituir los IDs por valores fijos.
+- Ejecutar el circuito de compra antes de que venza la reserva.
+- No cancelar un evento antes de terminar sus pruebas.
+- No utilizar una entrada ya invalidada para validar un QR.
 - No aprobar y rechazar la misma solicitud de devolución.
-- No registrar dos reintegros para la misma entrada.
-- No repetir las operaciones internas que ya hayan sido ejecutadas automáticamente.
-- Utilizar las variables de Postman para evitar depender de identificadores fijos.
-- Si una reserva vence, crear una nueva antes de intentar comprar o pagar.
+- No repetir manualmente los reintegros generados automáticamente.
+- No utilizar credenciales de servicio para simular operaciones de clientes.
+- No exportar colecciones con contraseñas o tokens reales.
+- No ejecutar las carpetas opcionales sin comprobar previamente los estados de los recursos.
 
+Si se repite la inicialización de la carpeta 00, se genera un nuevo conjunto de datos de prueba.
+
+No es necesario reiniciar ni vaciar las bases de datos para cada ejecución.
+
+## 17. Resultados esperados
+
+Al finalizar las carpetas principales, debe haberse comprobado:
+
+| Proceso         | Evidencia esperada                                         |
+| --------------- | ---------------------------------------------------------- |
+| Autenticación   | Tokens JWT válidos y roles correctos                       |
+| Eventos         | Evento creado y publicado                                  |
+| Catálogo        | Búsquedas y consultas exitosas                             |
+| Preferencias    | Preferencias registradas y consultadas                     |
+| Recomendaciones | Consulta de eventos sugeridos                              |
+| Reservas        | Reserva temporal creada                                    |
+| Compras         | Compra confirmada                                          |
+| Pagos           | Pago simulado aprobado                                     |
+| Entradas        | Dos entradas emitidas                                      |
+| Acceso QR       | Una entrada utilizada y rechazo del segundo uso            |
+| Devoluciones    | Solicitud aprobada                                         |
+| Reintegros      | Reintegro procesado                                        |
+| Reportes        | Consultas de ventas, devoluciones, ocupación y recaudación |
+| Fila virtual    | Cliente registrado, habilitado y autorizado para reservar  |
+
+Las carpetas opcionales amplían la cobertura con pagos rechazados, modificaciones, cancelaciones y pruebas negativas de seguridad.
+
+## 18. Conclusión
+
+La colección de integración de la Entrega 2 permite recorrer los principales procesos de negocio de TicketYa desde Postman, utilizando el API Gateway y los mecanismos de autenticación y autorización implementados.
+
+La utilización de variables automáticas evita depender de identificadores fijos y facilita repetir las pruebas sin reiniciar las bases de datos.
+
+Las pruebas de operaciones internas se realizan mediante los flujos de negocio correspondientes, respetando la separación de responsabilidades entre microservicios.
+
+Esta colección complementa las pruebas automatizadas del proyecto, las pruebas de seguridad y la prueba de carga realizada con JMeter.

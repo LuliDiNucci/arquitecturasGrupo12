@@ -1,224 +1,104 @@
-# 03 — Modelo de datos de Reservas
+# Modelo de datos — Reservas
 
-## 1. Descripción general
+## 1. Persistencia
 
-El modelo de datos de `msvc-reservas` permite registrar reservas temporales y confirmadas de lugares para eventos, controlar su ocupación y evitar duplicaciones ante solicitudes simultáneas o reintentos.
+El microservicio utiliza MySQL y Spring Data JPA para almacenar reservas, detalles, asignaciones de asientos, bloqueos de eventos y registros de idempotencia.
 
-El microservicio utiliza una base de datos MySQL propia, denominada `ticketya_reservas`.
+También conserva las operaciones de finalización de turnos de Fila Virtual.
 
-Los datos de eventos, sectores, asientos y precios pertenecen al microservicio Eventos y Lugares. Reservas consulta esta información mediante `EventoClient`, implementado con OpenFeign, sin almacenar las entidades externas en su propia base de datos.
-
-## 2. Entidades principales
-
-### 2.1. Reserva
-
-Representa una reserva realizada por un cliente para un evento.
-
-| Atributo | Descripción |
-|---|---|
-| `id` | Identificador único de la reserva. |
-| `clienteId` | Identificador del cliente que realiza la reserva. |
-| `eventoId` | Identificador del evento asociado. |
-| `claveIdempotencia` | Clave utilizada para reconocer reintentos de creación. |
-| `estado` | Estado actual de la reserva. |
-| `fechaCreacion` | Fecha y hora de creación. |
-| `fechaVencimiento` | Fecha y hora límite de la reserva temporal. |
-
-**Estados de una reserva:**
-
-- `ACTIVA`: reserva temporal registrada que puede continuar vigente según su fecha de vencimiento.
-- `CONFIRMADA`: reserva confirmada después de la aprobación del pago.
-- `VENCIDA`: reserva cuyo plazo de validez terminó y cuyo estado fue actualizado.
-- `LIBERADA`: reserva liberada mediante una operación correspondiente.
-- `CANCELADA`: reserva invalidada por la cancelación del evento.
-
-El vencimiento se calcula a partir de la fecha de creación. La disponibilidad deja de considerar una reserva cuando su fecha de vencimiento ya pasó, aunque su estado persistido todavía figure como `ACTIVA`.
-
-### 2.2. DetalleReserva
-
-Representa cada sector y cantidad de lugares incluidos en una reserva.
-
-| Atributo | Descripción |
-|---|---|
-| `id` | Identificador del detalle. |
-| `reserva` | Reserva a la que pertenece. |
-| `sectorId` | Identificador del sector en Eventos y Lugares. |
-| `cantidad` | Cantidad de lugares solicitados. |
-
-Una reserva puede contener uno o varios detalles correspondientes a los sectores seleccionados.
-
-### 2.3. AsignacionAsiento
-
-Representa la asignación de un asiento específico dentro de una reserva de un sector numerado.
-
-| Atributo | Descripción |
-|---|---|
-| `id` | Identificador de la asignación. |
-| `detalleReserva` | Detalle de reserva al que pertenece. |
-| `asientoId` | Identificador del asiento en Eventos y Lugares. |
-
-Esta entidad permite registrar los asientos seleccionados y controlar que no existan asignaciones incompatibles.
-
-En sectores no numerados no se registran asignaciones individuales de asiento. La ocupación se controla utilizando la cantidad reservada y la capacidad máxima del sector.
-
-### 2.4. BloqueoEvento
-
-Mantiene información de bloqueo y cancelación para coordinar las operaciones que modifican la ocupación de un evento.
-
-| Atributo | Descripción |
-|---|---|
-| `eventoId` | Identificador del evento. |
-| `cancelado` | Indica si el evento fue cancelado localmente. |
-
-El registro se utiliza para adquirir un bloqueo pesimista sobre el evento antes de modificar su ocupación.
-
-Cuando `cancelado` es verdadero, el sistema impide realizar nuevas reservas para ese evento.
-
-### 2.5. ClaveIdempotenciaBloqueo
-
-Registra las claves de idempotencia utilizadas en la creación de reservas.
-
-| Atributo | Descripción |
-|---|---|
-| `id` | Identificador del registro. |
-| `claveIdempotencia` | Clave única que identifica la solicitud. |
-| `eventoId` | Evento asociado a la solicitud. |
-
-Permite coordinar solicitudes repetidas y evitar que un reintento genere reservas duplicadas.
-
-### 2.6. EntradaLiberada
-
-Registra las entradas que ya fueron procesadas para su liberación individual.
-
-| Atributo | Descripción |
-|---|---|
-| `id` | Identificador del registro. |
-| `entradaId` | Identificador único de la entrada liberada. |
-
-El registro permite reconocer solicitudes repetidas y evitar que una misma entrada provoque dos liberaciones del lugar correspondiente.
-
-La aprobación de las devoluciones y la validación de titularidad pertenecen a los servicios responsables de esas operaciones.
-
-## 3. Relaciones entre entidades
-
-Las relaciones principales son:
-
-- Una `Reserva` puede contener varios `DetalleReserva`.
-- Cada `DetalleReserva` pertenece a una única `Reserva`.
-- Un `DetalleReserva` puede tener varias `AsignacionAsiento`.
-- Cada `AsignacionAsiento` pertenece a un único `DetalleReserva`.
-
-Las entidades `BloqueoEvento`, `ClaveIdempotenciaBloqueo` y `EntradaLiberada` son registros auxiliares utilizados para administrar concurrencia, cancelaciones e idempotencia.
-
-Los atributos `eventoId`, `sectorId`, `asientoId` y `clienteId` representan identificadores de datos administrados por otros componentes. No constituyen relaciones JPA con entidades externas.
-
-## 4. Diagrama entidad-relación
+## 2. Diagrama entidad-relación
 
 ```mermaid
 erDiagram
     RESERVA ||--|{ DETALLE_RESERVA : contiene
     DETALLE_RESERVA ||--o{ ASIGNACION_ASIENTO : asigna
+    RESERVA ||--o| FINALIZACION_FILA_PENDIENTE : registra
 
     RESERVA {
-        Long id PK
-        Long clienteId
-        Long eventoId
-        String claveIdempotencia
-        EstadoReserva estado
-        LocalDateTime fechaCreacion
-        LocalDateTime fechaVencimiento
+        bigint id PK
+        bigint cliente_id
+        bigint evento_id
+        datetime fecha_creacion
+        datetime fecha_vencimiento
+        string estado
+        string clave_idempotencia UK
     }
 
     DETALLE_RESERVA {
-        Long id PK
-        Long reserva_id FK
-        Long sectorId
-        Integer cantidad
+        bigint id PK
+        bigint reserva_id FK
+        bigint sector_id
+        int cantidad
+        int cantidad_liberada
     }
 
     ASIGNACION_ASIENTO {
-        Long id PK
-        Long detalle_reserva_id FK
-        Long asientoId
+        bigint id PK
+        bigint detalle_reserva_id FK
+        bigint asiento_id
+        boolean liberado
     }
 
     BLOQUEO_EVENTO {
-        Long eventoId PK
-        Boolean cancelado
+        bigint evento_id PK
+        boolean cancelado
     }
 
     CLAVE_IDEMPOTENCIA_BLOQUEO {
-        Long id PK
-        String claveIdempotencia UK
-        Long eventoId
+        string clave PK
     }
 
     ENTRADA_LIBERADA {
-        Long id PK
-        Long entradaId UK
+        bigint entrada_id PK
+        bigint reserva_id
+        bigint sector_id
+        bigint asiento_id
+    }
+
+    FINALIZACION_FILA_PENDIENTE {
+        bigint id PK
+        bigint reserva_id UK
+        bigint evento_id
+        bigint cliente_id
+        string estado
+        int intentos
+        datetime proximo_intento_en
+        string correlation_id
     }
 ```
 
-El diagrama representa las relaciones internas del microservicio y distingue las claves primarias, las claves foráneas locales y los identificadores únicos utilizados para prevenir duplicaciones.
+La relación entre `Reserva` y `FinalizacionFilaPendiente` es lógica mediante `reservaId`; no representa una asociación JPA con clave foránea.
 
-## 5. Integridad y concurrencia
+## 3. Entidades principales
 
-### 5.1. Integridad de datos
+| Entidad | Responsabilidad |
+|---|---|
+| `Reserva` | Almacena cliente, evento, estado, fechas y clave de idempotencia. |
+| `DetalleReserva` | Registra sectores, cantidades y lugares liberados. |
+| `AsignacionAsiento` | Identifica los asientos reservados y su liberación individual. |
+| `BloqueoEvento` | Coordina la concurrencia y registra cancelaciones locales. |
+| `ClaveIdempotenciaBloqueo` | Serializa solicitudes que utilizan la misma clave de idempotencia. |
+| `EntradaLiberada` | Evita procesar dos veces la devolución de una entrada. |
+| `FinalizacionFilaPendiente` | Permite reintentar la finalización de turnos de alta demanda. |
 
-El modelo utiliza claves primarias, relaciones entre entidades y restricciones de unicidad para mantener la integridad de los registros.
+## 4. Estados de reserva
 
-- Las claves primarias identifican cada entidad.
-- Las relaciones entre reservas, detalles y asignaciones se mantienen mediante claves foráneas.
-- Las claves de idempotencia identifican las solicitudes de creación.
-- Cada entrada liberada se registra mediante un identificador único.
-- Los identificadores de entidades externas se almacenan como valores simples, sin claves foráneas hacia otras bases de datos.
+| Estado | Significado |
+|---|---|
+| `ACTIVA` | Reserva temporal creada. |
+| `CONFIRMADA` | Reserva confirmada después del pago. |
+| `VENCIDA` | Reserva cuyo plazo terminó. |
+| `LIBERADA` | Reserva liberada, por ejemplo, por un pago rechazado. |
+| `CANCELADA` | Reserva temporal invalidada por la cancelación del evento. |
 
-### 5.2. Control de concurrencia
+La fecha de vencimiento determina si una reserva activa continúa ocupando lugares.
 
-La entidad `BloqueoEvento` permite adquirir un bloqueo pesimista mediante `PESSIMISTIC_WRITE` antes de realizar operaciones que modifican la ocupación de un evento.
+## 5. Integridad
 
-Este bloqueo permite serializar operaciones concurrentes sobre el mismo evento cuando las instancias del microservicio comparten la misma base de datos MySQL.
+- `Reserva.claveIdempotencia` tiene una restricción de unicidad.
+- Las asignaciones pertenecen a un detalle de reserva.
+- `EntradaLiberada.entradaId` identifica de forma única una liberación procesada.
+- `FinalizacionFilaPendiente.reservaId` es único.
+- Las operaciones de ocupación se coordinan mediante bloqueos transaccionales.
 
-Las restricciones de unicidad y las claves de idempotencia complementan el control de concurrencia, evitando asignaciones y solicitudes duplicadas.
-
-### 5.3. Vencimiento de reservas
-
-La fecha `fechaVencimiento` determina hasta qué momento una reserva temporal continúa ocupando lugares.
-
-Las consultas de disponibilidad consideran las reservas confirmadas y las reservas activas cuyo vencimiento todavía no ocurrió.
-
-Las reservas activas vencidas dejan de bloquear lugares, aunque su estado persistido aún sea `ACTIVA`.
-
-Una operación posterior puede actualizar su estado a `VENCIDA`.
-
-Este mecanismo permite liberar capacidad sin necesidad de ejecutar una tarea programada.
-
-## 6. Relaciones con otros microservicios
-
-Reservas utiliza información administrada por otros microservicios sin replicar sus entidades persistentes.
-
-| Dato | Microservicio responsable | Uso en Reservas |
-|---|---|---|
-| Evento | Eventos y Lugares | Verificar existencia, estado y habilitación del evento. |
-| Sector | Eventos y Lugares | Verificar pertenencia al lugar, tipo y capacidad. |
-| Asiento | Eventos y Lugares | Validar los asientos seleccionados. |
-| Precio | Eventos y Lugares | Verificar que exista un precio configurado para el evento y sector. |
-| Cliente | Identificado mediante `clienteId` | Asociar la reserva con el cliente correspondiente. |
-| Entrada | Entradas | Identificar la entrada asociada a una devolución. |
-| Pago | Compras | Determinar la confirmación o liberación de la reserva según el resultado del pago. |
-
-Las referencias se realizan mediante identificadores y comunicación entre microservicios.
-
-No se establecen relaciones JPA directas ni claves foráneas entre bases de datos independientes.
-
-## 7. Consideraciones del modelo
-
-- Cada reserva corresponde a un cliente y un evento.
-- Una reserva puede contener varios detalles asociados a distintos sectores.
-- Los asientos específicos se registran mediante `AsignacionAsiento`.
-- Los sectores no numerados utilizan la capacidad y la cantidad reservada para calcular la ocupación.
-- El vencimiento de las reservas temporales se controla mediante `fechaVencimiento`.
-- La entidad `BloqueoEvento` permite coordinar operaciones concurrentes y registrar cancelaciones.
-- Las claves de idempotencia evitan crear reservas duplicadas ante reintentos.
-- `EntradaLiberada` permite reconocer devoluciones individuales que ya fueron procesadas.
-- Los identificadores externos permiten relacionar información entre microservicios sin compartir sus entidades ni sus bases de datos.
+Los identificadores `clienteId`, `eventoId`, `sectorId` y `asientoId` hacen referencia lógica a recursos externos, sin claves foráneas hacia otros microservicios.

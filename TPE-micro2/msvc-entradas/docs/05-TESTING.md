@@ -1,139 +1,69 @@
-# 05 — Pruebas y testing de Entradas
+# 05 — Pruebas y testing
 
-## 1. Descripción general
+## Objetivo
 
-El microservicio `msvc-entradas` cuenta con pruebas unitarias destinadas a verificar las principales reglas de negocio relacionadas con la emisión, consulta e invalidación de entradas, la gestión de solicitudes de devolución y la generación de códigos QR.
+Las pruebas verifican las reglas de emisión, consulta, validación, devolución e invalidación de entradas, además de los controles de autenticación y autorización.
 
-Las pruebas se desarrollan con JUnit y Mockito, utilizando mocks para simular las dependencias externas y verificar las interacciones con repositorios y otros microservicios.
+Se utilizan JUnit 5, Mockito, MockMvc y Spring Boot Test.
 
-También se incluye una prueba de inicialización del contexto de Spring Boot.
+## Pruebas implementadas
 
-## 2. Pruebas de emisión y consulta de entradas
-
-### 2.1. EntradaServiceTest
-
-Las pruebas verifican distintos escenarios relacionados con la emisión y consulta de entradas.
-
-| Caso de prueba | Comportamiento verificado |
+| Clase de prueba | Funcionalidades verificadas |
 |---|---|
-| Emisión con un identificador de compra inválido. | Se rechaza la operación con error HTTP 400. |
-| Repetición de una emisión para una compra con entradas existentes. | Se devuelven las entradas registradas sin generar duplicados. |
-| Consulta de una entrada perteneciente a otro cliente. | Se rechaza la operación con error HTTP 403 y no se genera el código QR. |
+| `EntradaServiceTest` | Solicitudes inválidas, emisión repetida y titularidad de entradas |
+| `EntradaServiceImplTest` | Emisión, idempotencia, compra y reserva confirmadas, invalidación y validación QR |
+| `DevolucionServiceImplTest` | Plazo de 72 horas, duplicados, aprobación, liberación y rechazo |
+| `QrCodeServiceImplTest` | Generación de QR en formato PNG/Base64 y diferenciación de códigos |
+| `InternalCredentialsTest` | Credenciales utilizadas en las comunicaciones internas |
+| `ServiceSecurityIntegrationTest` | Validación de JWT, roles, titularidad y permisos de endpoints |
+| `MsvcEntradasApplicationTests` | Integración HTTP, asignación de personal, validación de QR y restricciones de acceso |
 
-También se comprueba que, al recuperar entradas existentes, no se realicen consultas innecesarias a los microservicios Compras y Reservas.
+## Escenarios destacados
 
-### 2.2. EntradaServiceImplTest
+**Emisión:**
+- Una entrada por lugar reservado.
+- Códigos QR únicos.
+- Repetición de emisión sin duplicaciones.
+- Rechazo cuando la compra o reserva no cumple las condiciones requeridas.
 
-Las pruebas verifican las reglas de negocio relacionadas con la emisión e invalidación de entradas.
+**Validación de acceso:**
+- Validación correcta y cambio a `UTILIZADA`.
+- Rechazo de códigos inexistentes, utilizados o invalidados.
+- Rechazo de entradas correspondientes a otro evento.
+- Personal no asignado sin permisos para validar.
+- Asignación y revocación de personal por un administrador.
 
-| Caso de prueba | Comportamiento verificado |
-|---|---|
-| Emitir entradas para una reserva con varios lugares. | Se genera una entrada por cada lugar adquirido, con códigos QR únicos. |
-| Repetir la emisión de una compra. | Se recuperan las entradas existentes sin generar duplicados. |
-| Intentar emitir entradas para una compra no confirmada. | Se rechaza la operación sin consultar Reservas ni guardar entradas. |
-| Intentar emitir entradas para una reserva no confirmada. | Se rechaza la operación sin persistir entradas. |
-| Invalidar entradas de un evento cancelado. | Las entradas emitidas pasan al estado `INVALIDADA`. |
-| Repetir la invalidación de un evento. | No se generan modificaciones adicionales sobre las entradas ya invalidadas. |
-| Intentar invalidar entradas de un evento que no está cancelado. | Se rechaza la operación y no se modifican las entradas. |
-| Validar una entrada con un código QR existente y correspondiente al evento. | La entrada cambia a UTILIZADA y se registra la fecha y hora de uso.
-| Validar un código QR inexistente.	| Se rechaza la operación con error HTTP 404. |
-| Validar una entrada perteneciente a otro evento. | Se rechaza la operación con error HTTP 409. |
-| Validar una entrada en estado INVALIDADA. | Se rechaza la operación con error HTTP 409. |
-| Validar una entrada que ya fue utilizada. | Se rechaza la operación con error HTTP 409. |
-| Validar una entrada que no se encuentra en estado EMITIDA. | Se rechaza la operación con error HTTP 409. |
-| Validar con datos inválidos. | Se rechaza la operación con error HTTP 400. |
+**Devoluciones:**
+- Solicitud válida con más de 72 horas de anticipación.
+- Rechazo de solicitudes fuera del plazo.
+- Prevención de solicitudes pendientes duplicadas.
+- Aprobación con liberación del lugar y solicitud de reintegro.
+- Rechazo sin modificar la disponibilidad del lugar.
 
-La invalidación por cancelación se verifica como una operación propia de Entradas. La coordinación general del proceso de cancelación corresponde a Eventos y Lugares, que se comunica con Reservas, Entradas y Compras.
+**Seguridad:**
+- Rechazo de JWT ausentes o inválidos.
+- Autorización por roles.
+- Prevención de consultas sobre entradas de otros clientes.
+- Restricción de operaciones internas a los servicios autorizados.
 
-Las pruebas de validación QR se realizan mediante pruebas unitarias con dependencias simuladas. La implementación utiliza un bloqueo pesimista (`PESSIMISTIC_WRITE`) dentro de una transacción para evitar validaciones simultáneas de una misma entrada. El comportamiento de este mecanismo frente a solicitudes concurrentes todavía no fue verificado mediante una prueba de integración con una base de datos real.
+## Estrategia de integración
 
-## 3. Pruebas de solicitudes de devolución
+Las pruebas unitarias utilizan dependencias simuladas. Las pruebas de integración HTTP utilizan MockMvc y una base H2 de pruebas para verificar los controles de seguridad y el comportamiento de la API.
 
-### 3.1. DevolucionServiceImplTest
+La colección Postman general de TicketYa permite comprobar los flujos completos con los microservicios ejecutándose mediante Docker.
 
-Las pruebas verifican las reglas de negocio correspondientes a las solicitudes de devolución y su resolución.
+## Ejecución
 
-| Caso de prueba | Comportamiento verificado |
-|---|---|
-| Solicitar una devolución con más de 72 horas de anticipación. | Se registra una solicitud con estado `PENDIENTE`. |
-| Solicitar una devolución con menos de 72 horas de anticipación. | Se rechaza la solicitud y no se guarda. |
-| Solicitar la devolución de una entrada inexistente. | Se rechaza la operación sin realizar consultas externas innecesarias. |
-| Solicitar otra devolución cuando ya existe una pendiente. | Se rechaza la solicitud duplicada y no se persiste. |
-| Aprobar una solicitud de devolución. | La solicitud cambia a `APROBADA`, se solicita la devolución del lugar a Reservas y el reintegro a Compras. |
-| Rechazar una solicitud de devolución. | La solicitud cambia a `RECHAZADA`, la entrada conserva el estado `EMITIDA` y no se solicita la devolución del lugar ni el reintegro. |
-
-Las pruebas también comprueban que, al aprobar una devolución, se utilicen los datos correspondientes a la entrada para solicitar la devolución del lugar a Reservas y que se invoque la operación de reintegro de Compras.
-
-## 4. Pruebas de generación de códigos QR
-
-### 4.1. QrCodeServiceImplTest
-
-Las pruebas verifican el funcionamiento del servicio de generación de códigos QR.
-
-| Caso de prueba | Comportamiento verificado |
-|---|---|
-| Generar una imagen QR en formato PNG codificada en Base64. | Se obtiene una imagen válida que puede decodificarse correctamente. |
-| Generar códigos QR para contenidos diferentes. | Se obtienen imágenes codificadas diferentes. |
-
-Estas pruebas comprueban que el servicio genera imágenes QR válidas y que su representación depende del contenido codificado.
-
-## 5. Prueba de inicialización de la aplicación
-
-El microservicio incluye una prueba de contexto mediante `@SpringBootTest`, destinada a verificar que la aplicación Spring Boot pueda inicializarse correctamente con su configuración.
-
-Esta prueba complementa las pruebas unitarias de los servicios al comprobar la inicialización del contexto de la aplicación.
-
-## 6. Estrategia de ejecución
-
-### 6.1. Pruebas automatizadas
-
-Las pruebas unitarias pueden ejecutarse desde el directorio raíz de `msvc-entradas` mediante Maven:
+Desde la carpeta `msvc-entradas`:
 
 ```bash
 mvn test
 ```
 
-Este comando ejecuta las pruebas detectadas por la configuración del proyecto y permite consultar sus resultados en los reportes generados por Maven. 
+Los resultados se generan en los reportes de Maven.
 
-**Ejecución de las pruebas de validación QR:**
+## Conclusión
 
-Se ejecutó la clase `EntradaServiceImplTest` mediante el siguiente comando desde el directorio del microservicio:
+El microservicio cuenta con pruebas automatizadas de emisión, devolución, generación y validación QR, integración HTTP y seguridad.
 
-```bash
-.\mvnw.cmd -Dtest=EntradaServiceImplTest test
-```
-
-**Resultado obtenido:**
-
-- Pruebas ejecutadas: 14.
-- Fallas: 0.
-- Errores: 0.
-- Pruebas omitidas: 0.
-- Resultado: `BUILD SUCCESS`.
-
-La ejecución confirmó el correcto funcionamiento de los escenarios unitarios incluidos en esta clase.
-
-### 6.2. Pruebas de API REST
-
-La colección Postman de TicketYa permite ejecutar solicitudes sobre los endpoints publicados a través del API Gateway.
-
-Los flujos de Entradas contemplan:
-
-- Emisión de entradas a partir de compras con pago aprobado.
-- Consulta individual de entradas.
-- Consulta de entradas por cliente.
-- Obtención de códigos QR.
-- Solicitud de devoluciones.
-- Consulta de solicitudes pendientes.
-- Aprobación y rechazo de devoluciones.
-- Invalidación de entradas por cancelación de eventos.
-
-Estas pruebas permiten verificar el comportamiento HTTP y las interacciones del microservicio dentro del circuito general de TicketYa.
-
-## 7. Conclusión
-
-El microservicio `msvc-entradas` dispone de pruebas automatizadas para sus principales operaciones de negocio, incluyendo la emisión idempotente de entradas, las validaciones de compras y reservas, la generación de códigos QR, la gestión de devoluciones y la invalidación por cancelación de eventos.
-
-Las pruebas unitarias verifican el comportamiento de los servicios mediante dependencias simuladas, mientras que la colección Postman permite comprobar los principales flujos REST durante la ejecución local del sistema.
-
-También se incorporaron pruebas unitarias para la validación de entradas mediante códigos QR, verificando el cambio de estado a UTILIZADA, el registro de la fecha de uso y el rechazo de validaciones no permitidas.
+La colección Postman complementa estas pruebas para verificar la interacción real entre Entradas, Compras, Reservas y Eventos y Lugares.

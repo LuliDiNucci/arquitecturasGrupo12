@@ -1,108 +1,117 @@
-# 01 — Funcionalidades y user stories de Compras y Pagos
+# 01 — Funcionalidades e historias de usuario
 
-## US01 — Iniciar una compra
+## Objetivo
 
-**Como cliente**, quiero iniciar la compra de las entradas que reservé, para poder realizar el pago y adquirirlas.
+El microservicio **Compras y Pagos** administra las compras de entradas, el procesamiento de pagos, su confirmación y los reintegros. Se integra con otros microservicios para verificar reservas, consultar precios, emitir entradas y comunicar las operaciones realizadas.
 
-**Criterios de aceptación:**
-- El cliente debe tener una reserva temporal vigente.
-- El sistema debe consultar al microservicio Reservas para verificar que la reserva exista y esté activa.
-- Se debe registrar la compra asociada al cliente y a la reserva.
-- Se debe calcular el importe total según las entradas reservadas y los precios correspondientes.
-- La compra debe crearse en estado `PENDIENTE`.
-- No se debe permitir iniciar una compra sobre una reserva vencida o cancelada.
-- Una misma reserva no debe generar múltiples compras activas.
+## Historias de usuario
 
+### US01 — Iniciar compra
 
-## US02 — Registrar el detalle de una compra
-
-**Como cliente**, quiero que se registre el detalle de las entradas que estoy comprando, para conocer el importe y los lugares seleccionados.
+**Como cliente**, quiero iniciar una compra a partir de mi reserva temporal para adquirir las entradas seleccionadas.
 
 **Criterios de aceptación:**
-- Cada compra debe tener uno o varios detalles.
-- Cada detalle debe identificar el evento, sector y cantidad de entradas.
-- Si corresponde, deben registrarse los asientos seleccionados.
-- Se debe registrar el precio unitario correspondiente al momento de iniciar la compra.
-- El importe total debe coincidir con la suma de los subtotales.
-- El detalle debe conservarse para futuras consultas y devoluciones.
+- La reserva debe existir, pertenecer al cliente, estar activa y no haber vencido.
+- Se consultan los precios de los sectores y se calcula el importe total.
+- Se registran los detalles y los ítems individuales de compra.
+- La compra se crea en estado `PENDIENTE`.
+- Una reserva no puede generar múltiples compras.
 
+### US02 — Consultar compra
 
-## US03 — Procesar el pago de una compra
-
-**Como cliente**, quiero pagar las entradas que reservé mediante un medio de pago disponible, para confirmar mi compra.
+**Como cliente**, quiero consultar el estado y detalle de mis compras.
 
 **Criterios de aceptación:**
-- El cliente debe seleccionar un medio de pago.
-- El sistema debe registrar el medio de pago utilizado, sin almacenar datos sensibles como el número completo de tarjeta.
-- El pago debe procesarse mediante una pasarela de pagos simulada (mock).
-- El sistema debe registrar el importe, la fecha y el resultado del pago.
-- Si el pago es aprobado, debe registrarse como `APROBADO`.
-- Si es rechazado, debe registrarse como `RECHAZADO`.
-- No se debe procesar el pago si la reserva ya está vencida o cancelada.
+- Se muestran el evento, la reserva, los sectores, las cantidades, los importes y el estado.
+- Se identifican las entradas emitidas cuando corresponde.
+- El cliente solamente puede consultar sus propias compras. El administrador dispone de acceso autorizado.
 
-## US04 — Confirmar una compra aprobada
+### US03 — Procesar pago
 
-**Como cliente**, quiero que mi compra se confirme cuando el pago sea aprobado, para obtener mis entradas.
+**Como cliente**, quiero pagar una compra pendiente para confirmar la adquisición de mis entradas.
 
 **Criterios de aceptación:**
-- El pago debe encontrarse aprobado.
-- La compra debe pasar al estado `CONFIRMADA`.
-- El microservicio Reservas debe confirmar los lugares reservados.
-- El microservicio Entradas debe emitir una entrada por cada lugar adquirido, con su QR único.
-- La compra debe quedar asociada a las entradas emitidas.
-- No se deben generar entradas duplicadas ante solicitudes repetidas.
-- Si no se logra completar la confirmación de la reserva o la emisión de entradas, la compra no debe quedar registrada como completada exitosamente sin resolver esa situación.
+- La compra y la reserva deben encontrarse en condiciones válidas.
+- El pago se procesa mediante una pasarela simulada.
+- Se registra el medio de pago, importe, fecha, resultado y referencia de operación.
+- Un pago aprobado permite continuar con la confirmación.
+- Un pago rechazado inicia la liberación de la reserva.
 
+### US04 — Confirmar compra y emitir entradas
 
-## US05 — Gestionar un pago rechazado
-
-**Como cliente**, quiero recibir información cuando mi pago sea rechazado, para saber que la compra no pudo completarse.
+**Como cliente**, quiero recibir mis entradas cuando se apruebe el pago.
 
 **Criterios de aceptación:**
-- Cuando la pasarela simulada rechace el pago, debe registrarse el resultado.
-- La compra debe pasar al estado `RECHAZADA`.
-- El microservicio Reservas debe recibir la solicitud para liberar los lugares reservados.
-- Los lugares deben volver a estar disponibles si no fueron vendidos y el evento continúa habilitado.
-- No se deben emitir entradas.
-- El cliente debe recibir una respuesta indicando que la operación fue rechazada.
+- Debe existir un pago aprobado.
+- Se confirma la reserva en `msvc-reservas`.
+- Se solicita a `msvc-entradas` una entrada por cada ítem comprado.
+- La compra pasa a `CONFIRMADA` únicamente cuando todas las entradas fueron asociadas correctamente.
+- Los reintentos no generan entradas duplicadas.
 
+### US05 — Evitar cobros duplicados
 
-## US06 — Evitar cobros duplicados
-
-**Como cliente**, quiero que los reintentos de pago no generen cobros duplicados, para no pagar dos veces por las mismas entradas.
+**Como cliente**, quiero que los reintentos de pago no produzcan nuevos cobros.
 
 **Criterios de aceptación:**
-- Cada operación de pago debe contar con una clave de idempotencia.
-- Si el cliente repite una solicitud con la misma clave y los mismos datos, no debe generarse un nuevo cobro.
-- El sistema debe recuperar el resultado de la operación original.
-- Si se reutiliza la misma clave con datos diferentes, debe rechazarse la solicitud.
-- Una compra confirmada no debe volver a cobrarse.
-- Las solicitudes simultáneas del mismo pago no deben producir múltiples cobros.
+- Cada solicitud incluye una clave de idempotencia.
+- Repetir una operación válida devuelve el resultado registrado.
+- Reutilizar una clave con datos diferentes genera un conflicto.
+- Se utilizan bloqueos transaccionales y restricciones de unicidad para controlar solicitudes concurrentes.
 
+### US06 — Recuperar operaciones interrumpidas
 
-## US07 — Procesar el reintegro de una entrada devuelta
-
-**Como cliente**, quiero recibir el reintegro de mi dinero cuando se aprueba la devolución de una entrada, para recuperar el importe correspondiente.
+**Como sistema**, quiero recuperar operaciones incompletas por fallas de comunicación para mantener la consistencia de las compras.
 
 **Criterios de aceptación:**
-- El microservicio Entradas debe informar que una devolución fue aprobada.
-- Debe verificarse que la entrada corresponda a una compra pagada.
-- El sistema debe calcular el importe a reintegrar según el precio efectivamente abonado por esa entrada.
-- Se debe solicitar el reintegro a la pasarela de pagos simulada.
-- El reintegro debe registrar importe, fecha y estado.
-- Una misma devolución no debe generar reintegros duplicados.
-- Si la compra contiene varias entradas, debe poder reintegrarse solamente la entrada devuelta.
+- Se registran estados intermedios cuando la confirmación, liberación o compensación no finaliza.
+- Se permiten reintentos de confirmación y liberación.
+- Si un pago aprobado no puede convertirse en una compra válida, se contempla su compensación.
+- No se repiten cobros, emisiones ni reintegros ya procesados.
 
+### US07 — Reintegrar una entrada devuelta
 
-## US08 — Gestionar reintegros por cancelación de un evento
-
-**Como administrador**, quiero que se gestionen los reintegros de las entradas de un evento cancelado, para devolver el dinero a los compradores afectados.
+**Como cliente**, quiero recuperar el importe de una entrada cuya devolución fue aprobada.
 
 **Criterios de aceptación:**
-- El microservicio debe recibir la información de que un evento fue cancelado.
-- Se deben identificar las compras pagadas correspondientes al evento.
-- Se debe determinar qué importes corresponde reintegrar, evitando reintegrar nuevamente entradas ya devueltas.
-- Se debe solicitar el reintegro de cada importe a la pasarela simulada.
-- Se debe registrar el estado de cada reintegro.
-- No deben procesarse reintegros duplicados si la cancelación se informa más de una vez.
-- La compra debe reflejar si sus entradas fueron reintegradas total o parcialmente.
+- Se verifica la devolución aprobada en `msvc-entradas`.
+- El importe corresponde al precio histórico registrado en la compra.
+- Cada entrada puede generar un único reintegro.
+- Una compra puede quedar en estado `REINTEGRO_PARCIAL` o `REINTEGRADA`.
+
+### US08 — Reintegrar compras por cancelación de evento
+
+**Como administrador**, quiero que se reintegren las compras de un evento cancelado.
+
+**Criterios de aceptación:**
+- Se recibe la cancelación desde Eventos y Lugares.
+- Se comprueba la invalidación de las entradas correspondientes.
+- Se procesan los reintegros por ítem, evitando duplicaciones.
+- Los reintentos permiten completar operaciones interrumpidas.
+
+### US09 — Notificar una compra confirmada
+
+**Como cliente**, quiero recibir un aviso cuando mi compra quede confirmada.
+
+**Criterios de aceptación:**
+- Se registra un aviso asociado a la compra confirmada.
+- Se obtiene el correo electrónico del cliente desde `msvc-usuarios`.
+- El aviso se envía mediante `msvc-notificaciones`.
+- Si el envío falla, se conserva el aviso y se reintenta posteriormente.
+
+### US10 — Consultar reportes de ventas
+
+**Como organizador**, quiero conocer las ventas y la recaudación de mis eventos.
+
+**Criterios de aceptación:**
+- Se proporcionan importes pagados, reintegrados y recaudación neta.
+- Se calculan ventas y devoluciones por sector.
+- Los datos se ponen a disposición de Eventos y Lugares mediante una API interna.
+
+### US11 — Consultar recomendaciones por historial
+
+**Como cliente**, quiero recibir sugerencias de eventos relacionadas con mis compras.
+
+**Criterios de aceptación:**
+- Se consideran compras confirmadas.
+- Se identifican eventos adquiridos por otros clientes con historial de compras relacionado.
+- El acceso al historial está protegido mediante autenticación y autorización.

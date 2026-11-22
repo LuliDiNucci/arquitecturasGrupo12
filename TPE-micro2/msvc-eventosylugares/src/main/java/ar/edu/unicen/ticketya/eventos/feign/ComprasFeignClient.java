@@ -1,4 +1,4 @@
-﻿package ar.edu.unicen.ticketya.eventos.feign;
+package ar.edu.unicen.ticketya.eventos.feign;
 
 import java.util.List;
 

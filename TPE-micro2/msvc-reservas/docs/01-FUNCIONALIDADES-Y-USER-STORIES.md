@@ -1,97 +1,107 @@
-# 01 — Funcionalidades y user stories de Reservas
+# Funcionalidades y user stories — Reservas
 
-## US01 — Consultar disponibilidad de entradas
+## 1. Objetivo
 
-**Como cliente**, quiero consultar los asientos o lugares disponibles de un sector para un evento, para poder elegir dónde realizar mi reserva.
+El microservicio Reservas administra la disponibilidad y la ocupación temporal o definitiva de los lugares de un evento.
 
-**Criterios de aceptación:**
+Permite crear, consultar, confirmar y liberar reservas, controlar solicitudes concurrentes y gestionar lugares devueltos. También participa en la integración con Fila Virtual para eventos de alta demanda.
 
-- El cliente debe seleccionar un evento y un sector.
-- El sistema debe verificar que el evento y el sector existan y que el sector corresponda al lugar del evento.
-- Si el sector es numerado, el sistema debe mostrar los asientos disponibles y ocupados.
-- Si el sector no es numerado, debe mostrar la cantidad de lugares disponibles.
-- No se deben ofrecer como disponibles los lugares asociados a reservas activas vigentes ni a reservas confirmadas.
-- Las reservas vencidas o liberadas no deben bloquear lugares.
-- La disponibilidad debe corresponder al evento y sector seleccionados.
+## 2. Funcionalidades e historias de usuario
 
-## US02 — Realizar una reserva temporal
+### US01 — Consultar disponibilidad
 
-**Como cliente**, quiero reservar temporalmente uno o varios lugares de un evento, para asegurar su disponibilidad mientras realizo el pago.
+**Como cliente**, quiero conocer los lugares disponibles de un evento antes de realizar una reserva.
 
 **Criterios de aceptación:**
+- Se valida la existencia del evento y del sector, y su correspondencia.
+- En sectores numerados se informan `asientosDisponibles` y `asientosOcupados`.
+- En sectores no numerados se informa la cantidad de lugares disponibles.
+- Las reservas activas vigentes y confirmadas ocupan lugares.
+- Las reservas vencidas, liberadas o canceladas no bloquean disponibilidad.
 
-- El cliente debe seleccionar un evento, un sector y la cantidad de entradas.
-- Si el sector es numerado, debe seleccionar los asientos específicos.
-- Solo se pueden reservar lugares disponibles.
-- La reserva debe tener una vigencia de 10 minutos desde su creación.
-- Una reserva activa y vigente debe bloquear temporalmente los lugares seleccionados.
-- El sistema debe registrar el cliente, el evento, los detalles de los sectores y lugares reservados y la fecha de vencimiento.
-- El evento debe encontrarse habilitado para la venta.
-- Se debe respetar el límite máximo de entradas por cliente para un mismo evento.
+### US02 — Crear una reserva temporal
 
-## US03 — Evitar reservas simultáneas del mismo lugar
-
-**Como cliente**, quiero que los lugares seleccionados queden protegidos frente a reservas simultáneas, para asegurar que mi reserva no se superponga con la de otro cliente.
+**Como cliente**, quiero reservar lugares temporalmente mientras realizo el pago.
 
 **Criterios de aceptación:**
+- El evento debe estar habilitado para reservar.
+- Se validan sector, cantidad y asientos solicitados.
+- La reserva se crea en estado `ACTIVA` y tiene una vigencia de 10 minutos.
+- Se permite reservar un máximo de 4 entradas por cliente y evento, considerando las reservas activas vigentes y confirmadas.
+- Se utiliza una clave de idempotencia para evitar reservas duplicadas.
 
-- Un asiento no puede estar asociado a dos reservas activas y vigentes para el mismo evento.
-- En sectores no numerados, no se puede superar la capacidad máxima disponible.
-- Si dos clientes intentan reservar simultáneamente el mismo asiento, solo uno debe conseguirlo.
-- El sistema debe informar cuando no se pueda concretar una reserva por falta de disponibilidad.
-- El control de concurrencia debe impedir la doble reserva incluso cuando existan varias instancias del microservicio.
-- Las solicitudes repetidas con la misma clave de idempotencia y los mismos datos deben recuperar la reserva original, evitando duplicaciones.
+### US03 — Controlar la concurrencia
 
-## US04 — Liberar lugares de reservas vencidas
-
-**Como sistema**, quiero que los lugares de una reserva vuelvan a estar disponibles cuando expire su tiempo de validez, para permitir que otros clientes puedan reservarlos.
+**Como cliente**, quiero que otros usuarios no puedan reservar simultáneamente los mismos lugares.
 
 **Criterios de aceptación:**
+- Un asiento no puede ser ocupado por dos reservas vigentes del mismo evento.
+- En sectores no numerados no se puede superar la capacidad.
+- Se utilizan transacciones y bloqueos pesimistas sobre el evento.
+- Las solicitudes incompatibles se rechazan sin generar sobreventa.
 
-- Cada reserva debe registrar una fecha y hora de vencimiento.
-- Las reservas temporales deben tener una vigencia de 10 minutos desde su creación.
-- Una reserva en estado `ACTIVA` cuya fecha de vencimiento haya transcurrido debe dejar de bloquear lugares.
-- Los asientos o lugares asociados a una reserva vencida deben volver a considerarse disponibles.
-- Una reserva vencida no debe poder confirmarse posteriormente.
-- El cálculo de disponibilidad debe excluir las reservas activas vencidas.
-- El vencimiento no debe afectar las reservas que ya se encuentren en estado `CONFIRMADA`.
+### US04 — Gestionar vencimientos
 
-## US05 — Confirmar una reserva después del pago
-
-**Como cliente**, quiero que mi reserva quede confirmada cuando se apruebe el pago, para asegurar los lugares que compré.
+**Como sistema**, quiero liberar la disponibilidad asociada a reservas cuyo plazo haya terminado.
 
 **Criterios de aceptación:**
+- Las reservas activas vencen después de 10 minutos.
+- Una reserva vencida deja de ocupar lugares.
+- No se puede confirmar una reserva vencida.
+- Las reservas confirmadas no vencen por este mecanismo.
 
-- El microservicio Compras y Pagos debe solicitar la confirmación de la reserva después de aprobar el pago.
-- Solo se puede confirmar una reserva activa y vigente.
-- El estado de la reserva debe cambiar a `CONFIRMADA`.
-- Los lugares confirmados deben permanecer ocupados y no volver a ofrecerse para nuevas reservas.
-- El microservicio Entradas debe poder emitir las entradas correspondientes a la reserva confirmada.
-- Una confirmación repetida no debe generar ventas ni confirmaciones duplicadas.
+### US05 — Confirmar reservas
 
-## US06 — Liberar una reserva por pago rechazado
-
-**Como cliente**, quiero que los lugares reservados se liberen cuando mi pago sea rechazado, para que vuelvan a estar disponibles para otros compradores.
+**Como cliente**, quiero que mi reserva se confirme cuando se aprueba el pago.
 
 **Criterios de aceptación:**
+- Compras solicita la confirmación mediante una llamada interna autenticada.
+- Solo se confirma una reserva activa y vigente.
+- La reserva pasa a `CONFIRMADA`.
+- Los lugares confirmados permanecen ocupados.
+- Una confirmación repetida no duplica sus efectos.
 
-- El microservicio Compras y Pagos debe solicitar la liberación de la reserva cuando el pago sea rechazado.
-- La reserva debe cambiar al estado `LIBERADA`.
-- Los lugares asociados deben volver a considerarse disponibles si el evento continúa habilitado para la venta.
-- No se deben emitir entradas asociadas a una compra cuyo pago fue rechazado.
-- La liberación debe ser idempotente, evitando efectos duplicados ante solicitudes repetidas.
-- Una reserva confirmada no debe liberarse mediante el flujo correspondiente a un pago rechazado.
+### US06 — Liberar reservas
 
-## US07 — Liberar lugares por devolución o cancelación del evento
-
-**Como sistema**, quiero actualizar la disponibilidad de los lugares cuando se aprueba una devolución o se cancela un evento, para mantener la consistencia de las reservas.
+**Como sistema**, quiero liberar una reserva cuando se rechaza el pago.
 
 **Criterios de aceptación:**
+- Compras solicita la liberación mediante una operación interna.
+- La reserva pasa a `LIBERADA`.
+- Los lugares vuelven a estar disponibles.
+- La liberación es idempotente.
+- No puede utilizarse esta operación para liberar una reserva confirmada.
 
-- Cuando se aprueba la devolución de una entrada, el microservicio Entradas debe solicitar a Reservas la devolución del lugar correspondiente.
-- El asiento o lugar devuelto debe liberarse si el evento continúa habilitado para la venta.
-- No se debe liberar un lugar por una solicitud de devolución rechazada.
-- Si el evento se cancela, no deben permitirse nuevas reservas.
-- Las reservas activas de un evento cancelado deben invalidarse para impedir su posterior confirmación.
-- Los lugares de un evento cancelado no deben volver a ofrecerse para la venta.
-- La devolución de un lugar y la cancelación de las reservas deben ser idempotentes, evitando duplicaciones ante solicitudes repetidas.
+### US07 — Gestionar devoluciones y cancelaciones
+
+**Como sistema**, quiero mantener la disponibilidad consistente cuando se devuelven entradas o cancelan eventos.
+
+**Criterios de aceptación:**
+- Se permite liberar individualmente el lugar de una entrada cuya devolución fue aprobada.
+- Una misma entrada no puede liberar dos veces su lugar.
+- La cancelación de un evento impide nuevas reservas y cancela las reservas temporales activas.
+- Las reservas confirmadas se coordinan con los servicios Compras y Entradas.
+
+### US08 — Integración con Fila Virtual
+
+**Como cliente de un evento de alta demanda**, quiero reservar únicamente cuando tenga un turno habilitado.
+
+**Criterios de aceptación:**
+- Los eventos normales no requieren turno.
+- En eventos con `altaDemanda=true` se verifica el turno del cliente mediante Fila Virtual.
+- El turno debe pertenecer al cliente y al evento, estar habilitado y no haber vencido.
+- Una reserva exitosa registra una operación persistente para finalizar el turno utilizado.
+- Si falla la comunicación al finalizar el turno, el sistema reintenta la operación.
+- Si Fila Virtual no está disponible para validar el turno, la reserva se rechaza.
+
+## 3. Seguridad
+
+El servicio utiliza JWT para autenticar usuarios y llamadas internas.
+
+- Los clientes solo pueden crear reservas propias.
+- Los clientes solo pueden consultar sus propias reservas.
+- Compras puede confirmar y liberar reservas.
+- Compras y Entradas pueden comunicar devoluciones.
+- Eventos y Lugares puede habilitar o cancelar reservas de un evento.
+
+La consulta de disponibilidad es pública.

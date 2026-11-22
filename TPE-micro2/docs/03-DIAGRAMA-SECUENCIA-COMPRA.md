@@ -6,6 +6,8 @@ Este documento representa la interacción entre el cliente y los microservicios 
 
 Se describe el flujo principal desde la consulta de disponibilidad hasta la confirmación de la compra y la emisión de entradas digitales. También se contemplan los escenarios alternativos de pago rechazado y vencimiento de la reserva temporal.
 
+Para eventos configurados con alta demanda, el cliente debe cumplir previamente las condiciones de acceso establecidas por Fila Virtual. Una vez habilitada la operación, el proceso continúa con la reserva temporal, la compra y el pago descritos en este diagrama.
+
 ## 2. Participantes
 
 - **Cliente:** usuario que desea adquirir entradas para un evento.

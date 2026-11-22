@@ -11,9 +11,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.ticketya.compras.clients.EntradaClient;
 import com.ticketya.compras.clients.EventoClient;
@@ -45,6 +49,8 @@ import com.ticketya.compras.repositories.PagoRepository;
 
 @Service
 public class CompraServiceImpl implements CompraService {
+
+    private static final Logger log = LoggerFactory.getLogger(CompraServiceImpl.class);
 
     private final CompraRepository compraRepo;
     private final DetalleCompraRepository detalleRepo;
@@ -418,6 +424,24 @@ public class CompraServiceImpl implements CompraService {
 
         compra.setEstado(EstadoCompra.CONFIRMADA.name());
         registrarAvisoCompraConfirmada(compra, evento);
+
+        Long idCompraConfirmada = compra.getId();
+        Long idCliente = compra.getClienteId();
+        Long idEvento = compra.getEventoId();
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    log.atInfo()
+                            .addKeyValue("evento", "compra_confirmada")
+                            .addKeyValue("compraId", idCompraConfirmada)
+                            .addKeyValue("clienteId", idCliente)
+                            .addKeyValue("eventoId", idEvento)
+                            .addKeyValue("estado", "CONFIRMADA")
+                            .log("compra_confirmada");
+                }
+            });
+        }
         return convertirADTO(compra);
     }
 

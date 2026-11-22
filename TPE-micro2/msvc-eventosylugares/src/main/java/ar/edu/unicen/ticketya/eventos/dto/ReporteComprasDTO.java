@@ -1,4 +1,4 @@
-﻿package ar.edu.unicen.ticketya.eventos.dto;
+package ar.edu.unicen.ticketya.eventos.dto;
 
 import java.math.BigDecimal;
 import java.util.List;

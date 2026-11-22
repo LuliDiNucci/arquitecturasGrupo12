@@ -1,4 +1,4 @@
-﻿package ar.edu.unicen.ticketya.eventos.feign;
+package ar.edu.unicen.ticketya.eventos.feign;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PathVariable;

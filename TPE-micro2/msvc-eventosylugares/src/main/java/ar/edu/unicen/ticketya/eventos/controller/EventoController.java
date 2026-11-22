@@ -112,7 +112,7 @@ public class EventoController {
             @Parameter(description = "Fecha maxima en formato ISO", example = "2027-12-31T23:59:00") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta,
             @Parameter(description = "Texto libre: nombre, descripcion, organizador o participante", example = "Recital") @RequestParam(required = false, name = "q") String texto,
             @Parameter(description = "Ordenar por fecha, precio o relevancia", example = "PRECIO_ASC") @RequestParam(defaultValue = "FECHA_ASC") OrdenEvento ordenar,
-            @Parameter(description = "Incluir borradores y cancelados (uso administrativo provisional)", example = "false") @RequestParam(defaultValue = "false") boolean incluirNoPublicados) {
+            @Parameter(description = "Incluir eventos no publicados (solo administradores)", example = "false") @RequestParam(defaultValue = "false") boolean incluirNoPublicados) {
 
         if (incluirNoPublicados) {
             return eventoService.buscar(tipo, organizadorId, participanteId, ciudad,

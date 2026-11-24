@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.servers.Server;
 
 @Configuration
 public class OpenApiConfig {
@@ -20,6 +21,7 @@ public class OpenApiConfig {
                                                                 "Gestión de disponibilidad, reservas temporales, confirmación, "
                                                                                 +
                                                                                 "liberación, cancelaciones, devoluciones e integración con Fila Virtual.")
-                                                .version("1.0.0"));
+                                                .version("1.0.0"))
+                                .addServersItem(new Server().url("/"));
         }
 }

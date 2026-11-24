@@ -13,6 +13,9 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.servers.Server;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -74,5 +77,10 @@ public class SecurityConfig {
                                                 oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
 
                                 .build();
+        }
+        @Bean
+        public OpenAPI openAPI() {
+                return new OpenAPI()
+                        .addServersItem(new Server().url("/"));
         }
 }

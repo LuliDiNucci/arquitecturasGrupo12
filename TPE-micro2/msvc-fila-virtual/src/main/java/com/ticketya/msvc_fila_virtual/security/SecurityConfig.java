@@ -12,6 +12,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.servers.Server;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -88,4 +91,9 @@ public class SecurityConfig {
 
                 .build();
     }
+        @Bean
+        public OpenAPI openAPI() {
+        return new OpenAPI()
+        .addServersItem(new Server().url("/"));
+}
 }

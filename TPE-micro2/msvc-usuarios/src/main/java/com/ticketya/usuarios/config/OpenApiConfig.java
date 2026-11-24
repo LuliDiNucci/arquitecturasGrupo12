@@ -1,9 +1,13 @@
 package com.ticketya.usuarios.config;
 
-import io.swagger.v3.oas.models.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.security.*;
-import org.springframework.context.annotation.*;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 
 @Configuration
 public class OpenApiConfig {
@@ -31,6 +35,6 @@ public class OpenApiConfig {
             .description("Registro, login y roles. Los IDs de usuario identifican a los clientes de los otros servicios."))
             .components(new Components()
                 .addSecuritySchemes("bearerJwt", new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT"))
-                .addSecuritySchemes("serviceBasic", new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("basic")));
+                .addSecuritySchemes("serviceBasic", new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("basic"))).addServersItem(new Server().url("/"));
     }
 }

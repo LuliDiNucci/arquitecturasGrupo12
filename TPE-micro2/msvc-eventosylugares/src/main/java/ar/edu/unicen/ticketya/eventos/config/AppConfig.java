@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.servers.Server;
 
 @Configuration
 public class AppConfig {
@@ -22,6 +23,7 @@ public class AppConfig {
         return new OpenAPI().info(new Info()
                 .title("TicketYa - Eventos y Lugares")
                 .description("Gestión de eventos, lugares, sectores, asientos, organizadores, participantes, precios y reportes de TicketYa.")
-                .version("1.0.0"));
+                .version("1.0.0"))
+                .addServersItem(new Server().url("/"));
     }
 }
